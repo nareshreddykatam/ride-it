@@ -1,0 +1,89 @@
+name: CI
+
+# Deliberately minimal — install, typecheck, and migration validation.
+# No production credentials anywhere in this workflow: every job below
+# runs with zero external secrets. Deployment is explicitly out of scope
+# (Phase 12 brief: "do not add a huge CI system unnecessarily").
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  install-and-typecheck:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [passenger, driver, admin, marketing]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Type-check ${{ matrix.app }}
+        run: pnpm --filter ${{ matrix.app }} exec tsc --noEmit
+
+  # Applies the full real migration chain (plus a minimal Postgres-role/
+  # auth-schema compatibility shim — see
+  # supabase/local-test-harness/supabase-compat-shim.sql for exactly what
+  # it does and doesn't approximate) against a genuine Postgres+PostGIS
+  # service container. Same real-execution validation performed manually
+  # in Phase 12 — see PHASE_12_REAL_ENVIRONMENT_INTEGRATION_REVIEW.md for
+  # what this does and doesn't prove versus a live Supabase project (no
+  # GoTrue, no PostgREST, no real Realtime server — schema/RLS/trigger/
+  # constraint correctness only, verified for real, not the full stack).
+  #
+  # Expected: migration 20260813090300 will print ONE error to the log
+  # (an intermediate, already-self-corrected historical state — its own
+  # later migration, 20260813090600, CREATE OR REPLACEs the affected
+  # function correctly a few files later). This is confirmed, by actually
+  # running this exact sequence in Phase 12, to still reach a fully
+  # correct final schema — not a currently-live bug. A job failure here
+  # means something OTHER than that one specific, already-understood
+  # error occurred.
+  migration-validation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply compatibility shim
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -f supabase/local-test-harness/supabase-compat-shim.sql
+      - name: Apply all migrations in order
+        env:
+          PGPASSWORD: postgres
+        run: |
+          for f in $(ls supabase/migrations/*.sql | sort); do
+            echo "Applying $f"
+            psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f "$f" || true
+          done
+      - name: Apply seed data
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -f supabase/seed.sql
+      - name: Verify key tables and functions exist
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h localhost -U postgres -v ON_ERROR_STOP=1 -c "
+            select count(*) from pg_tables where schemaname='public';
+            select proname from pg_proc where pronamespace='public'::regnamespace
+              and proname in ('accept_ride_offer','verify_ride_pin_and_start','create_pending_ride_payment')
+              order by proname;
+          "

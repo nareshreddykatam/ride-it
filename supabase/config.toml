@@ -1,0 +1,63 @@
+project_id = "ride-it"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# The database major version to use. Updated Phase 12 — verified against
+# the actual current Supabase CLI's own default (17) by running a real
+# `supabase init` and diffing the result; the original Phase 3 value (15)
+# had drifted stale. This sandbox's own live migration testing this phase
+# used Postgres 16 (the version installable via apt here, no Docker
+# available for an exact-17 local instance) — noted precisely as a
+# version caveat in PHASE_12_REAL_ENVIRONMENT_INTEGRATION_REVIEW.md rather
+# than left unstated. Nothing in this project's 50 migrations depends on
+# a 16-vs-17-specific feature.
+major_version = 17
+
+[db.pooler]
+enabled = false
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+# Added Phase 12 — this section was entirely absent despite Realtime
+# being core to the project since Phase 8 (ride_offers, rides, drivers,
+# notifications, payments all rely on it). Absence didn't break anything
+# under the old CLI (Realtime defaulted on regardless), but an explicit
+# section matches current CLI convention and makes the dependency visible
+# in the config itself rather than implicit.
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+
+[auth]
+enabled = true
+site_url = "http://localhost:3001"
+additional_redirect_urls = ["http://localhost:3001", "http://localhost:3002", "http://localhost:3003"]
+jwt_expiry = 3600
+enable_signup = true
+
+# Phone/OTP auth will be the primary sign-in method per the Passenger/Driver
+# PRDs — left at CLI defaults here since Phase 3 is schema-only and no auth
+# flow is being wired up yet. Revisit in the auth-implementation phase.
+[auth.sms]
+enable_signup = true
+enable_confirmations = false
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"

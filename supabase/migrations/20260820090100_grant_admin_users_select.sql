@@ -1,0 +1,26 @@
+-- ============================================================================
+-- 20260820090100_grant_admin_users_select.sql
+-- Phase 17. RESTORED to the repository in Phase 18 — this migration was
+-- already applied to the real hosted Supabase project (confirmed via
+-- `supabase migration list` showing remote history synchronized through
+-- this exact timestamp) but the file was missing from this repository,
+-- a real source-of-truth desynchronization found and reconciled in
+-- Phase 18. Content below is unchanged from what was actually applied —
+-- this is not a new change, it is the repository catching up to reality.
+--
+-- Root cause of the underlying problem (fully diagnosed in Phase 18, see
+-- PHASE_18_FINAL_REPORT.md): Supabase's platform-level default-privilege
+-- rule for the public schema (visible via pg_default_acl) is scoped to
+-- `defaclrole = supabase_admin` — it only auto-grants table privileges
+-- to tables created BY the supabase_admin role (e.g. via Studio).
+-- Migrations applied via `supabase db push` create tables as the
+-- `postgres` role instead, so that default-privilege rule never applies
+-- to any table this project has ever created. admin_users was the first
+-- table this surfaced for, because it was the first one a real
+-- authenticated session actually tried to read directly (Phase 17's
+-- admin auth test). The same gap affects every other table — see
+-- 20260820090200_grant_baseline_table_privileges.sql, the follow-up
+-- migration that fixes this systemically rather than table-by-table.
+-- ============================================================================
+
+grant select on table public.admin_users to authenticated;

@@ -1,0 +1,29 @@
+{
+  "name": "@ride-it/supabase",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./server": "./src/server.ts",
+    "./middleware": "./src/middleware.ts",
+    "./e2e": "./src/e2e.ts",
+    "./auth": "./src/auth.ts",
+    "./db": "./src/db.ts",
+    "./storage": "./src/storage.ts",
+    "./types": "./src/types.ts"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.44.0"
+  },
+  "peerDependencies": {
+    "next": "^14.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}

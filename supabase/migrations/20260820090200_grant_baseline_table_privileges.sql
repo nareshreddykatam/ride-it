@@ -1,0 +1,80 @@
+-- ============================================================================
+-- 20260820090200_grant_baseline_table_privileges.sql
+-- Phase 18. Fixes the systemic version of the gap
+-- 20260820090100 fixed for admin_users alone.
+--
+-- ROOT CAUSE (established with direct evidence against the real hosted
+-- project, not guessed — see PHASE_18_FINAL_REPORT.md for the full
+-- pg_default_acl / has_table_privilege() investigation):
+--
+-- Supabase's platform-level default-privilege rule for the public schema
+-- is scoped to `defaclrole = supabase_admin` (Postgres's
+-- ALTER DEFAULT PRIVILEGES is always role-scoped to the object's
+-- CREATOR). Studio-created tables are created by supabase_admin and
+-- automatically inherit this rule; tables created via `supabase db push`
+-- (this project's entire schema, all 61+ migrations) are created by the
+-- `postgres` role instead, so the rule never applies to them. Confirmed
+-- directly against the hosted project: has_table_privilege('authenticated',
+-- 'public.<table>', 'SELECT') returned false for essentially every table
+-- except admin_users (fixed narrowly in the prior migration).
+--
+-- SEVERITY, precisely: SECURITY DEFINER functions (the majority of this
+-- project's sensitive writes — matching, Ride PIN, payments, ratings,
+-- safety) are UNAFFECTED — they execute with the privileges of their
+-- owner (postgres), not the calling role, per Postgres's own SECURITY
+-- DEFINER semantics. This gap only affects DIRECT table reads/writes
+-- from the frontend (`.from('table').select()/.insert()/.update()`),
+-- which is nonetheless the majority of this project's read paths (ride
+-- details, profiles, notifications, saved places, trusted contacts,
+-- etc.). Reproduced directly and locally before this migration was
+-- written: a fresh database with every migration applied but WITHOUT
+-- this grant returns `permission denied for table rides` for a real
+-- authenticated passenger reading their own ride — the exact error class
+-- Phase 17 found for admin_users, now confirmed systemic.
+--
+-- WHY THIS IS SAFE, verified locally before proposing it (see Phase 18
+-- report for the exact before/after test transcript): a table-level
+-- GRANT is necessary but not sufficient for access — RLS remains the
+-- real row-level authorization layer underneath it, completely
+-- unmodified by this migration. Confirmed directly: after applying this
+-- exact grant, an authenticated passenger reading an UNRELATED
+-- passenger's ride still correctly returns zero rows (not an error) —
+-- RLS's row-filtering is untouched. A non-admin authenticated session
+-- reading admin_users still correctly returns zero rows even though the
+-- table privilege now exists — admin-only RLS is untouched. This is the
+-- same "broad table grant, RLS is the real gate" model Supabase's own
+-- Studio-created tables use by default; it is not a novel or weaker
+-- posture than this project has used elsewhere.
+--
+-- WHY anon IS DELIBERATELY EXCLUDED: no RLS policy anywhere in this
+-- schema grants anon row-level access to any table directly (confirmed
+-- by re-reading every anon-adjacent policy — cities_select_authenticated
+-- and app_settings_select_authenticated both explicitly require
+-- auth.role() = 'authenticated', not merely a valid grant). The one
+-- deliberate anon-facing surface, get_shared_ride_info() (Phase 13), is
+-- an RPC with its own separate EXECUTE grant — a different privilege
+-- system entirely, untouched by table-level grants. Granting anon a
+-- table privilege with no RLS policy to ever make use of it would be
+-- unused surface area, not a functional requirement — so it is not
+-- granted here. Confirmed after applying this migration: anon still
+-- receives "permission denied for table rides", exactly as before.
+--
+-- WHY THIS CANNOT BE LEFT ABSENT: every authenticated read/write that
+-- goes through a plain PostgREST table call (not an RPC) is currently
+-- broken against the real hosted project for every table except
+-- admin_users — this is not a theoretical risk, it was reproduced
+-- directly.
+--
+-- FUTURE TABLES: the ALTER DEFAULT PRIVILEGES statement below is scoped
+-- correctly this time — FOR ROLE postgres, matching the role that
+-- actually creates tables via migrations — so any table created by a
+-- future migration automatically receives the same baseline grant
+-- without needing its own repeat of this statement.
+-- ============================================================================
+
+grant select, insert, update, delete on all tables in schema public to authenticated;
+
+alter default privileges for role postgres in schema public
+  grant select, insert, update, delete on tables to authenticated;
+
+comment on schema public is 'Baseline table privileges for authenticated are granted broadly (Phase 18, migration 20260820090200) — RLS is the actual row-level authorization layer for every table, unmodified by this grant. anon deliberately has no table-level grant; its only access path is the narrowly-scoped get_shared_ride_info() RPC (Phase 13), a separate privilege system.';

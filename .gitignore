@@ -1,0 +1,16 @@
+node_modules
+.next
+out
+dist
+.turbo
+.env
+.env.local
+*.log
+.DS_Store
+ios/App/Pods
+android/.gradle
+
+# Supabase CLI local dev artifacts (not the schema itself — migrations/
+# and seed.sql are committed)
+supabase/.branches
+supabase/.temp

@@ -1,0 +1,10 @@
+{
+  "name": "@ride-it/types",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

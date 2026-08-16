@@ -1,0 +1,12 @@
+export default function CareersPage() {
+  return (
+    <main className="mx-auto max-w-3xl px-6 py-16">
+      <h1 className="font-display text-3xl font-medium text-ink">Careers</h1>
+      <p className="mt-4 text-ink-soft">
+        We&apos;re building Ride It with a small, focused team. There are no
+        open roles listed yet — check back soon, or reach out directly if
+        you think you&apos;d be a great fit.
+      </p>
+    </main>
+  );
+}

@@ -1,0 +1,46 @@
+{
+  "name": "@ride-it/driver",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3002",
+    "build": "next build",
+    "start": "next start -p 3002",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "cap:sync": "echo 'Not yet implemented — see next.config.mjs note on static export vs middleware; revisit when the native build is actually set up' && exit 1"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/camera": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/geolocation": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/push-notifications": "^6.0.0",
+    "@ride-it/api-client": "workspace:*",
+    "@ride-it/auth": "workspace:*",
+    "@ride-it/data": "workspace:*",
+    "@ride-it/maps": "workspace:*",
+    "@ride-it/payments": "workspace:*",
+    "@ride-it/supabase": "workspace:*",
+    "@ride-it/types": "workspace:*",
+    "@ride-it/ui": "workspace:*",
+    "framer-motion": "^11.2.0",
+    "lucide-react": "^0.383.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
+    "@ride-it/config": "workspace:*",
+    "@types/node": "^20.14.0",
+    "@types/google.maps": "^3.65.5",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.19",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.5.0"
+  }
+}

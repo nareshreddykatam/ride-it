@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Color tokens — see packages/ui/DESIGN_SYSTEM.md for rationale */
+  --ink-blue: #0b3b8c;
+  --signal-blue: #1e6fef;
+  --marigold: #f5a623;
+  --meter-green: #1c9b6b;
+  --alert-red: #d6493b;
+  --paper: #fafaf7;
+  --ink: #1b2027;
+  --ink-soft: #5b6270;
+  --border: #e6e4df;
+
+  /* Type tokens */
+  --font-display: "Space Grotesk", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-meter: "IBM Plex Mono", monospace;
+}
+
+.dark {
+  --paper: #10131a;
+  --ink: #f2f2f0;
+  --ink-soft: #9aa1ad;
+  --border: #262b35;
+}
+
+@layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background-color: var(--signal-blue);
+    color: white;
+  }
+
+  /* Slim, unobtrusive scrollbars — desktop (Admin) benefits most */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--border);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ink-soft);
+  }
+
+  /* Consistent, visible-but-tasteful focus ring for keyboard navigation */
+  :focus-visible {
+    outline: 2px solid var(--signal-blue);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}

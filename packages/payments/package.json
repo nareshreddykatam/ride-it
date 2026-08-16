@@ -1,0 +1,17 @@
+{
+  "name": "@ride-it/payments",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client-checkout": "./src/client-checkout.ts"
+  },
+  "dependencies": {
+    "razorpay": "^2.9.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
