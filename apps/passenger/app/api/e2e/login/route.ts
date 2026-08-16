@@ -31,10 +31,10 @@ export async function POST() {
 
   try {
     await ensureE2ETestAuthUser("passenger");
-    const { phone, password } = getE2ESignInCredentials("passenger");
+    const { email, password } = getE2ESignInCredentials("passenger");
 
     const supabase = getSupabaseServerClient();
-    const { error } = await supabase.auth.signInWithPassword({ phone, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
     return NextResponse.json({ ok: true });
