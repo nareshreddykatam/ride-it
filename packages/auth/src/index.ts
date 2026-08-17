@@ -7,4 +7,6 @@ export * from "./types";
 export * from "./context";
 export * from "./hooks";
 export * from "./phone-otp";
+export * from "./email-otp";
+export * from "./identifier";
 export * from "./admin-auth";

@@ -5,23 +5,33 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { requestPhoneOtp } from "@ride-it/auth";
+import { requestPhoneOtp, requestEmailOtp, detectIdentifier } from "@ride-it/auth";
 
 export function LoginForm({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
-  const [phone, setPhone] = React.useState("");
+  const [input, setInput] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const isValid = /^[6-9]\d{9}$/.test(phone);
+
+  // Single free-text field — detectIdentifier() decides email vs. phone
+  // (same 10-digit shape the DB already enforces), so the passenger never
+  // has to pick a tab before typing. See packages/auth/src/identifier.ts.
+  const detected = detectIdentifier(input);
+  const isValid = detected.type !== "invalid";
 
   async function handleContinue() {
     if (!isValid) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
-      await requestPhoneOtp(supabase, phone, "passenger");
-      router.push(`/verify?phone=${phone}`);
+      if (detected.type === "phone") {
+        await requestPhoneOtp(supabase, detected.value, "passenger");
+        router.push(`/verify?type=phone&value=${detected.value}`);
+      } else {
+        await requestEmailOtp(supabase, detected.value, "passenger");
+        router.push(`/verify?type=email&value=${encodeURIComponent(detected.value)}`);
+      }
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : "Couldn't send the code. Try again.");
       setSubmitting(false);
@@ -42,28 +52,28 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
           Your way.
         </h1>
         <p className="mt-3 text-sm text-ink-soft">
-          Enter your mobile number to book a Bike or Auto ride.
+          Enter your email or mobile number to book a Bike or Auto ride.
         </p>
 
         <div className="mt-8">
-          <label htmlFor="phone" className="mb-1.5 block text-sm font-medium text-ink">
-            Mobile number
+          <label htmlFor="identifier" className="mb-1.5 block text-sm font-medium text-ink">
+            Email or mobile number
           </label>
           <div className="flex items-center rounded-lg border border-border bg-white focus-within:border-signal-blue focus-within:ring-2 focus-within:ring-signal-blue/20">
-            <span className="pl-4 pr-2 font-meter text-sm text-ink-soft">+91</span>
+            {detected.type === "phone" && <span className="pl-4 pr-2 font-meter text-sm text-ink-soft">+91</span>}
             <input
-              id="phone"
-              inputMode="numeric"
-              maxLength={10}
+              id="identifier"
+              inputMode="text"
               autoFocus
-              placeholder="98765 43210"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              className="h-14 w-full bg-transparent pr-4 font-meter text-base tracking-wide text-ink outline-none"
+              autoComplete="username"
+              placeholder="98765 43210 or you@example.com"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              className={`h-14 w-full bg-transparent pr-4 text-base text-ink outline-none ${detected.type === "phone" ? "font-meter tracking-wide" : ""} ${detected.type !== "phone" ? "pl-4" : ""}`}
             />
           </div>
-          {phone.length > 0 && !isValid && (
-            <p className="mt-1.5 text-xs text-alert-red">Enter a valid 10-digit mobile number.</p>
+          {input.trim().length > 0 && !isValid && (
+            <p className="mt-1.5 text-xs text-alert-red">Enter a valid 10-digit mobile number or email address.</p>
           )}
           {submitError && <p className="mt-1.5 text-xs text-alert-red">{submitError}</p>}
         </div>

@@ -7,6 +7,7 @@ import { Button, Card, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverProfile, setDriverUpiId, type DriverProfileRow } from "@ride-it/data";
+import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 
 const VERIFICATION_TONE = {
   approved: "online",
@@ -84,7 +85,8 @@ export default function DriverProfilePage() {
               {profile?.full_name ?? "Ride It Driver"}
             </p>
             <p className="text-sm text-ink-soft">
-              {profile?.phone ? `+91 ${profile.phone}` : ""} · {profile?.vehicle_type === "bike" ? "Bike" : "Auto"}
+              {profile?.phone ? `+91 ${profile.phone}` : ""}{" "}
+              · {profile ? VEHICLE_TYPE_LABELS_DB[profile.vehicle_type] : ""}
             </p>
             <div className="mt-2 flex items-center gap-2">
               {profile && (
@@ -137,16 +139,46 @@ export default function DriverProfilePage() {
       </Card>
 
       <div className="mt-6 flex flex-col gap-2">
+        <Link href="/profile/edit">
+          <Card className="flex items-center justify-between">
+            <span className="text-sm text-ink">Personal details</span>
+            <span className="text-xs text-ink-soft">Edit</span>
+          </Card>
+        </Link>
+        <Link href="/profile/vehicle">
+          <Card className="flex items-center justify-between">
+            <span className="text-sm text-ink">Vehicle information</span>
+            <span className="text-xs text-ink-soft">Manage</span>
+          </Card>
+        </Link>
         <Link href="/documents">
           <Card className="flex items-center justify-between">
             <span className="text-sm text-ink">Documents</span>
             <span className="text-xs text-ink-soft">View</span>
           </Card>
         </Link>
+        <Link href="/history">
+          <Card className="flex items-center justify-between">
+            <span className="text-sm text-ink">Ride history</span>
+            <span className="text-xs text-ink-soft">View</span>
+          </Card>
+        </Link>
+        <Link href="/payment-settings">
+          <Card className="flex items-center justify-between">
+            <span className="text-sm text-ink">Payment methods</span>
+            <span className="text-xs text-ink-soft">Manage</span>
+          </Card>
+        </Link>
         <Link href="/subscription">
           <Card className="flex items-center justify-between">
             <span className="text-sm text-ink">Subscription plan</span>
             <span className="text-xs text-ink-soft">Manage</span>
+          </Card>
+        </Link>
+        <Link href="/subscription-history">
+          <Card className="flex items-center justify-between">
+            <span className="text-sm text-ink">Subscription history</span>
+            <span className="text-xs text-ink-soft">View</span>
           </Card>
         </Link>
         <Link href="/notifications">

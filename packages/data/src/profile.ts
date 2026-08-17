@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PassengerProfileRow } from "./types";
 
-const PROFILE_COLUMNS = "id, rating, total_rides, default_payment_method, users:id(full_name, phone, email)";
+const PROFILE_COLUMNS =
+  "id, rating, total_rides, default_payment_method, users:id(full_name, phone, email, date_of_birth, gender)";
 
 export async function getPassengerProfile(
   supabase: SupabaseClient,
@@ -23,7 +24,21 @@ export async function getPassengerProfile(
     rating: number;
     total_rides: number;
     default_payment_method: PassengerProfileRow["default_payment_method"];
-    users: { full_name: string | null; phone: string | null; email: string | null } | Array<{ full_name: string | null; phone: string | null; email: string | null }>;
+    users:
+      | {
+          full_name: string | null;
+          phone: string | null;
+          email: string | null;
+          date_of_birth: string | null;
+          gender: PassengerProfileRow["gender"];
+        }
+      | Array<{
+          full_name: string | null;
+          phone: string | null;
+          email: string | null;
+          date_of_birth: string | null;
+          gender: PassengerProfileRow["gender"];
+        }>;
   };
   const userRow = Array.isArray(joined.users) ? joined.users[0] : joined.users;
 
@@ -35,29 +50,46 @@ export async function getPassengerProfile(
     full_name: userRow?.full_name ?? null,
     phone: userRow?.phone ?? null,
     email: userRow?.email ?? null,
+    date_of_birth: userRow?.date_of_birth ?? null,
+    gender: userRow?.gender ?? null,
   };
+}
+
+/**
+ * True once every field Part 2 requires for onboarding is present. Used
+ * both to decide whether to route a just-verified user into /onboarding
+ * and as a defensive re-check on Home in case an older/partial account
+ * ever lands there directly.
+ */
+export function isPassengerProfileComplete(profile: Pick<PassengerProfileRow, "full_name" | "phone" | "email" | "date_of_birth" | "gender">): boolean {
+  return Boolean(
+    profile.full_name?.trim() && profile.phone?.trim() && profile.email?.trim() && profile.date_of_birth && profile.gender
+  );
 }
 
 export interface UpdatePassengerProfileInput {
   fullName?: string;
+  phone?: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: PassengerProfileRow["gender"];
   defaultPaymentMethod?: PassengerProfileRow["default_payment_method"];
 }
 
-/**
- * Built and ready, but not called from any screen yet — see the Phase 5
- * review doc. The existing Profile screen has no editable name/payment
- * fields to wire this to without adding new UI, which conflicts with "keep
- * the existing UI exactly as it is." This function is here so a future
- * edit-profile screen (a Phase 6+ UI decision, not a data-layer one) can
- * use it immediately rather than needing new plumbing.
- */
 export async function updatePassengerProfile(
   supabase: SupabaseClient,
   passengerId: string,
   input: UpdatePassengerProfileInput
 ): Promise<void> {
-  if (input.fullName !== undefined) {
-    const { error } = await supabase.from("users").update({ full_name: input.fullName }).eq("id", passengerId);
+  const userUpdates: Record<string, unknown> = {};
+  if (input.fullName !== undefined) userUpdates.full_name = input.fullName;
+  if (input.phone !== undefined) userUpdates.phone = input.phone;
+  if (input.email !== undefined) userUpdates.email = input.email;
+  if (input.dateOfBirth !== undefined) userUpdates.date_of_birth = input.dateOfBirth;
+  if (input.gender !== undefined) userUpdates.gender = input.gender;
+
+  if (Object.keys(userUpdates).length > 0) {
+    const { error } = await supabase.from("users").update(userUpdates).eq("id", passengerId);
     if (error) throw error;
   }
   if (input.defaultPaymentMethod !== undefined) {

@@ -36,7 +36,19 @@ export default function RideCompletePage() {
   React.useEffect(() => {
     let active = true;
     getRide(supabase, params.id)
-      .then((r) => active && setRide(r))
+      .then((r) => {
+        if (!active) return;
+        setRide(r);
+        // Phase E: the passenger may have already chosen a method on the
+        // active-ride screen (post-acceptance) via
+        // selectRidePaymentMethod() — honor that as the pre-selected
+        // default here rather than always defaulting to Cash. They can
+        // still change it on this screen; this only changes the starting
+        // selection, not the ability to switch.
+        if (r?.payment_method === "driver_upi") setMethod(PaymentMethod.DRIVER_UPI);
+        else if (r?.payment_method === "online") setMethod(PaymentMethod.ONLINE);
+        else if (r?.payment_method === "cash") setMethod(PaymentMethod.CASH);
+      })
       .finally(() => active && setLoading(false));
     return () => {
       active = false;

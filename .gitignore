@@ -14,3 +14,4 @@ android/.gradle
 # and seed.sql are committed)
 supabase/.branches
 supabase/.temp
+*.tsbuildinfo

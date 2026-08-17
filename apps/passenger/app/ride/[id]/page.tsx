@@ -4,10 +4,18 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, Phone, Share2, ShieldAlert, Users, Flag, X } from "lucide-react";
-import { Button, Card, Skeleton, StatusPill } from "@ride-it/ui";
+import { AlertTriangle, Banknote, CreditCard, Phone, Share2, ShieldAlert, Smartphone, Users, Flag, X } from "lucide-react";
+import { Button, Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getRide, cancelActiveRide, subscribeToRide, type RideRow } from "@ride-it/data";
+import {
+  getRide,
+  cancelActiveRide,
+  subscribeToRide,
+  getMyRidePin,
+  selectRidePaymentMethod,
+  type RideRow,
+  type PaymentMethodRow,
+} from "@ride-it/data";
 import { getDriverProfile, type DriverProfileRow } from "@ride-it/data";
 import { getRideTracking, subscribeToDriverLocationChanges, type RideTrackingInfo } from "@ride-it/data";
 import { triggerSos, getAppSettingValue, createReport } from "@ride-it/data";
@@ -46,6 +54,10 @@ export default function RideStatusPage() {
   const [tracking, setTracking] = React.useState<RideTrackingInfo | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [cancelling, setCancelling] = React.useState(false);
+  const [ridePin, setRidePin] = React.useState<string | null>(null);
+  const [ridePinChecked, setRidePinChecked] = React.useState(false);
+  const [selectingPayment, setSelectingPayment] = React.useState(false);
+  const [paymentSelectError, setPaymentSelectError] = React.useState<string | null>(null);
   const navigatedRef = React.useRef(false);
 
   // Safety sheet state
@@ -126,6 +138,32 @@ export default function RideStatusPage() {
     };
   }, [supabase, ride?.driver_id, refreshTracking]);
 
+  // Fetches the passenger's own permanent Ride PIN once the ride reaches
+  // "accepted" — never before (the passenger has no driver to share it
+  // with yet), and only once (the PIN doesn't change per ride, so no need
+  // to refetch on every status change while it's already known).
+  React.useEffect(() => {
+    const rideStatus = ride?.status;
+    if (rideStatus !== "accepted" && rideStatus !== "driver_arriving") return;
+    if (ridePinChecked) return;
+    let active = true;
+    getMyRidePin(supabase)
+      .then((pin) => {
+        if (!active) return;
+        setRidePin(pin);
+        setRidePinChecked(true);
+      })
+      .catch(() => {
+        // Leave ridePin null but still mark "checked" — the fallback
+        // recovery message renders instead of silently showing nothing
+        // forever, per the safe-error-state requirement.
+        if (active) setRidePinChecked(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [supabase, ride?.status, ridePinChecked]);
+
   async function handleCancel() {
     setCancelling(true);
     try {
@@ -133,6 +171,21 @@ export default function RideStatusPage() {
       router.push("/home");
     } catch {
       setCancelling(false);
+    }
+  }
+
+  async function handleSelectPaymentMethod(method: PaymentMethodRow) {
+    setSelectingPayment(true);
+    setPaymentSelectError(null);
+    try {
+      const updated = await selectRidePaymentMethod(supabase, params.id, method);
+      setRide(updated);
+    } catch (e) {
+      // Server-authoritative rejection (e.g. driver doesn't actually
+      // accept this method) — surfaced honestly, not silently retried.
+      setPaymentSelectError(e instanceof Error ? e.message : "Couldn't set payment method. Try again.");
+    } finally {
+      setSelectingPayment(false);
     }
   }
 
@@ -270,14 +323,64 @@ export default function RideStatusPage() {
         </div>
       </Card>
 
-      {(status === "driver_arriving" || status === "ride_started") && (
+      {(status === "accepted" || status === "driver_arriving") && ridePin && (
+        <Card className="mt-4 text-center">
+          <p className="text-sm font-medium text-ink">Your Ride PIN</p>
+          <div className="mt-2 flex justify-center">
+            <MeterValue value={ridePin} size="lg" />
+          </div>
+          <p className="mt-2 text-xs text-ink-soft">Share this PIN with your driver when they arrive.</p>
+        </Card>
+      )}
+
+      {(status === "accepted" || status === "driver_arriving") && ridePinChecked && !ridePin && (
         <Card className="mt-4">
-          <p className="text-sm text-ink">
-            {status === "driver_arriving"
-              ? "Tell your driver your Ride PIN to start the ride."
-              : "Ride PIN verified — enjoy your ride."}
+          <p className="text-sm text-ink">Your Ride PIN isn&apos;t available to display yet.</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Set your Ride PIN again from Profile to enable this — you&apos;ll still tell your driver the same way once it&apos;s set.
           </p>
-          {status === "driver_arriving" && <p className="mt-1 text-xs text-ink-soft">Forgot it? Check your Ride PIN in Profile.</p>}
+        </Card>
+      )}
+
+      {status === "ride_started" && (
+        <Card className="mt-4">
+          <p className="text-sm text-ink">Ride PIN verified — enjoy your ride.</p>
+        </Card>
+      )}
+
+      {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
+        <Card className="mt-4">
+          <p className="text-sm font-medium text-ink">
+            {ride?.payment_method ? "Payment method" : "Choose how you'll pay"}
+          </p>
+          <p className="mt-0.5 text-xs text-ink-soft">Only methods your driver accepts are shown.</p>
+          <div className="mt-3 flex gap-2">
+            {(
+              [
+                { value: "cash" as const, label: "Cash", icon: Banknote, offered: driver.accepts_cash },
+                { value: "driver_upi" as const, label: "Driver UPI", icon: Smartphone, offered: driver.accepts_driver_upi && driver.upi_verified },
+                { value: "online" as const, label: "Ride It Online", icon: CreditCard, offered: driver.accepts_online },
+              ] as const
+            )
+              .filter((m) => m.offered)
+              .map(({ value, label, icon: Icon }) => {
+                const active = ride?.payment_method === value;
+                return (
+                  <button key={value} disabled={selectingPayment} onClick={() => handleSelectPaymentMethod(value)} className="flex-1">
+                    <div
+                      className={cn(
+                        "flex flex-col items-center gap-1.5 rounded-lg border bg-white py-4",
+                        active ? "border-2 border-signal-blue" : "border-border"
+                      )}
+                    >
+                      <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />
+                      <span className="text-xs text-ink">{label}</span>
+                    </div>
+                  </button>
+                );
+              })}
+          </div>
+          {paymentSelectError && <p className="mt-2 text-xs text-alert-red">{paymentSelectError}</p>}
         </Card>
       )}
 

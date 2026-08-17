@@ -18,8 +18,34 @@ export enum RideStatus {
 
 export enum VehicleType {
   BIKE = "BIKE",
+  SCOOTY = "SCOOTY",
   AUTO = "AUTO",
+  CAR = "CAR",
 }
+
+/**
+ * The single place this codebase converts between the frontend's
+ * uppercase VehicleType enum and the database's lowercase
+ * vehicle_type_enum values. Callers that need the DB string (createRide,
+ * driver vehicle records, etc.) should use this rather than re-deriving
+ * their own ternary — see Part 7's "don't scatter hardcoded vehicle logic"
+ * requirement.
+ */
+export function vehicleTypeToDb(vehicleType: VehicleType): "bike" | "scooty" | "auto" | "car" {
+  return vehicleType.toLowerCase() as "bike" | "scooty" | "auto" | "car";
+}
+
+export function vehicleTypeFromDb(dbValue: "bike" | "scooty" | "auto" | "car"): VehicleType {
+  return dbValue.toUpperCase() as VehicleType;
+}
+
+/** Display label keyed by the DB's lowercase vehicle_type_enum value — for screens that read a raw DB row rather than a VehicleType. */
+export const VEHICLE_TYPE_LABELS_DB: Record<"bike" | "scooty" | "auto" | "car", string> = {
+  bike: "Bike",
+  scooty: "Scooty",
+  auto: "Auto",
+  car: "Car",
+};
 
 export enum PaymentMethod {
   CASH = "CASH",

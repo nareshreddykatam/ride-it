@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { uploadFile, createSignedUrl } from "@ride-it/supabase/storage";
 
-export type DocumentType = "aadhaar" | "driving_license" | "rc" | "insurance" | "selfie";
+export type DocumentType = "aadhaar" | "driving_license" | "rc" | "insurance" | "selfie" | "vehicle_photo";
 export type DocumentStatus = "pending" | "approved" | "rejected";
 
 export interface DriverDocumentRow {

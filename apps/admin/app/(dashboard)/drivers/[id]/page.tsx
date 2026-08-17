@@ -11,16 +11,37 @@ import {
   reviewDriverDocument,
   setDriverVerificationStatus,
   setDriverUpiVerified,
+  setDriverQrStatus,
+  getDriverQrSignedUrl,
   getDriverActiveSubscriptionAdmin,
   getDriverEarningsSummaryAdmin,
   listReviewsReceived,
+  getActiveVehicle,
   type DriverProfileRow,
   type DriverDocumentRow,
   type DocumentType,
   type AdminDriverSubscriptionSummary,
   type AdminDriverEarningsSummary,
   type RatingRow,
+  type VehicleRow,
 } from "@ride-it/data";
+import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
+
+const GENDER_LABEL: Record<string, string> = {
+  male: "Male",
+  female: "Female",
+  other: "Other",
+  prefer_not_to_say: "Prefer not to say",
+};
+
+function calculateAge(dateOfBirth: string): number {
+  const dob = new Date(dateOfBirth);
+  const now = new Date();
+  let age = now.getFullYear() - dob.getFullYear();
+  const monthDiff = now.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && now.getDate() < dob.getDate())) age -= 1;
+  return age;
+}
 
 const DOCUMENT_LABELS: Record<DocumentType, string> = {
   aadhaar: "Aadhaar Card",
@@ -28,6 +49,7 @@ const DOCUMENT_LABELS: Record<DocumentType, string> = {
   rc: "Vehicle RC",
   insurance: "Insurance",
   selfie: "Selfie Verification",
+  vehicle_photo: "Vehicle Photo",
 };
 
 const STATUS_TONE = {
@@ -149,11 +171,121 @@ function DocumentCard({
   );
 }
 
+/**
+ * Admin's UPI QR review card — mirrors DocumentCard's signed-URL preview
+ * pattern above, but reads/writes the driver-level upi_qr_* columns
+ * (20260821090200_driver_payment_methods_and_qr) instead of a
+ * driver_documents row. Approve/reject are only reachable if a QR has
+ * actually been uploaded (upi_qr_path set) — nothing to review otherwise.
+ */
+function DriverQrCard({ profile, onReviewed }: { profile: DriverProfileRow; onReviewed: () => void }) {
+  const { user } = useAuth();
+  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
+  const [signedUrl, setSignedUrl] = React.useState<string | null>(null);
+  const [rejecting, setRejecting] = React.useState(false);
+  const [reason, setReason] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!profile.upi_qr_path) return;
+    getDriverQrSignedUrl(supabase, profile.upi_qr_path)
+      .then(setSignedUrl)
+      .catch(() => setSignedUrl(null));
+  }, [supabase, profile.upi_qr_path]);
+
+  async function handleApprove() {
+    if (!user) return;
+    setSubmitting(true);
+    try {
+      await setDriverQrStatus(supabase, profile.id, user.id, "approved");
+      onReviewed();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleConfirmReject() {
+    if (!user || !reason.trim()) return;
+    setSubmitting(true);
+    try {
+      await setDriverQrStatus(supabase, profile.id, user.id, "rejected", reason.trim());
+      setRejecting(false);
+      setReason("");
+      onReviewed();
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <CardTitle>UPI QR Payment</CardTitle>
+        {profile.upi_qr_path && <StatusPill tone={STATUS_TONE[profile.upi_qr_status]}>{profile.upi_qr_status.replace("_", " ")}</StatusPill>}
+      </CardHeader>
+
+      {!profile.upi_qr_path ? (
+        <p className="text-sm text-ink-soft">No QR code uploaded yet.</p>
+      ) : (
+        <div>
+          {signedUrl && (
+            /* eslint-disable-next-line @next/next/no-img-element -- signed URL, not a static asset */
+            <img src={signedUrl} alt="Driver's UPI QR code" className="h-40 w-40 rounded-lg border border-border object-contain" />
+          )}
+          {profile.upi_qr_uploaded_at && (
+            <p className="mt-2 text-xs text-ink-soft">Uploaded {new Date(profile.upi_qr_uploaded_at).toLocaleDateString("en-IN")}</p>
+          )}
+          {profile.upi_qr_status === "rejected" && profile.upi_qr_rejection_reason && (
+            <p className="mt-1 text-xs text-alert-red">Rejected: {profile.upi_qr_rejection_reason}</p>
+          )}
+
+          {rejecting ? (
+            <div className="mt-3">
+              <input
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                placeholder="Rejection reason"
+                className="h-9 w-full rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
+              />
+              <div className="mt-2 flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" disabled={submitting} onClick={() => setRejecting(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="flex-1"
+                  disabled={submitting || !reason.trim()}
+                  onClick={handleConfirmReject}
+                >
+                  Confirm reject
+                </Button>
+              </div>
+            </div>
+          ) : (
+            profile.upi_qr_status !== "approved" && (
+              <div className="mt-3 flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" disabled={submitting} onClick={() => setRejecting(true)}>
+                  Reject
+                </Button>
+                <Button size="sm" className="flex-1" disabled={submitting} onClick={handleApprove}>
+                  Approve
+                </Button>
+              </div>
+            )
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function DriverDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
 
   const [profile, setProfile] = React.useState<DriverProfileRow | null>(null);
+  const [vehicle, setVehicle] = React.useState<VehicleRow | null>(null);
   const [documents, setDocuments] = React.useState<DriverDocumentRow[]>([]);
   const [subscription, setSubscription] = React.useState<AdminDriverSubscriptionSummary | null>(null);
   const [earnings, setEarnings] = React.useState<AdminDriverEarningsSummary | null>(null);
@@ -164,14 +296,16 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
   const [reviews, setReviews] = React.useState<RatingRow[]>([]);
 
   const refresh = React.useCallback(async () => {
-    const [p, docs, sub, earn, revs] = await Promise.all([
+    const [p, v, docs, sub, earn, revs] = await Promise.all([
       getDriverProfile(supabase, params.id),
+      getActiveVehicle(supabase, params.id),
       listDriverDocuments(supabase, params.id),
       getDriverActiveSubscriptionAdmin(supabase, params.id),
       getDriverEarningsSummaryAdmin(supabase, params.id),
       listReviewsReceived(supabase, params.id, 10),
     ]);
     setProfile(p);
+    setVehicle(v);
     setDocuments(docs);
     setSubscription(sub);
     setEarnings(earn);
@@ -230,7 +364,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         <div>
           <h1 className="font-display text-2xl font-medium text-ink">{profile.full_name ?? "Unnamed driver"}</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            Driver ID: {params.id} · {profile.vehicle_type === "auto" ? "Auto" : "Bike"} ·{" "}
+            Driver ID: {params.id} · {VEHICLE_TYPE_LABELS_DB[profile.vehicle_type]} ·{" "}
             {profile.phone ? `+91 ${profile.phone}` : "—"} · Strikes: {profile.strike_count}
           </p>
         </div>
@@ -251,6 +385,55 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         </Card>
         <Card>
           <MeterValue value={`₹${earnings?.totalEarnings ?? 0}`} label={`${earnings?.totalRides ?? 0} completed rides`} size="sm" />
+        </Card>
+      </div>
+
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Personal information</CardTitle>
+          </CardHeader>
+          <div className="flex flex-col gap-1.5 text-sm">
+            <p>
+              <span className="text-ink-soft">Name:</span> {profile.full_name ?? "—"}
+            </p>
+            <p>
+              <span className="text-ink-soft">Email:</span> {profile.email ?? "—"}
+            </p>
+            <p>
+              <span className="text-ink-soft">Phone:</span> {profile.phone ? `+91 ${profile.phone}` : "—"}
+            </p>
+            <p>
+              <span className="text-ink-soft">Age:</span> {profile.date_of_birth ? `${calculateAge(profile.date_of_birth)} years` : "—"}
+            </p>
+            <p>
+              <span className="text-ink-soft">Gender:</span> {profile.gender ? GENDER_LABEL[profile.gender] ?? profile.gender : "—"}
+            </p>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Vehicle information</CardTitle>
+          </CardHeader>
+          {vehicle ? (
+            <div className="flex flex-col gap-1.5 text-sm">
+              <p>
+                <span className="text-ink-soft">Type:</span> {VEHICLE_TYPE_LABELS_DB[vehicle.vehicle_type]}
+              </p>
+              <p>
+                <span className="text-ink-soft">Registration:</span> {vehicle.registration_number}
+              </p>
+              <p>
+                <span className="text-ink-soft">Make / Model:</span> {[vehicle.make, vehicle.model].filter(Boolean).join(" ") || "—"}
+              </p>
+              <p>
+                <span className="text-ink-soft">Colour:</span> {vehicle.color ?? "—"}
+              </p>
+            </div>
+          ) : (
+            <p className="text-sm text-ink-soft">No vehicle on file yet.</p>
+          )}
         </Card>
       </div>
 
@@ -282,6 +465,8 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
           </Button>
         )}
       </Card>
+
+      <DriverQrCard profile={profile} onReviewed={refresh} />
 
       <Card className="mt-6">
         <CardHeader>

@@ -2,8 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type PhoneAuthRole = "passenger" | "driver";
 
-/** India-only assumption matches the existing UI ("+91" is already hardcoded in Login screens). */
-function toE164(localTenDigitPhone: string): string {
+/**
+ * India-only assumption matches the existing UI ("+91" is already
+ * hardcoded in Login screens). Exported so the unified identifier
+ * detector (./identifier.ts) can normalize a raw 10-digit input the same
+ * way this file always has — one normalization implementation, not two.
+ */
+export function toE164(localTenDigitPhone: string): string {
   return `+91${localTenDigitPhone}`;
 }
 

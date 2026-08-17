@@ -34,12 +34,15 @@ export async function updateSession(request: NextRequest): Promise<{
       },
       set(name: string, value: string, options: CookieOptions) {
         request.cookies.set({ name, value, ...options });
-        response = NextResponse.next({ request: { headers: request.headers } });
+        // Do NOT reassign `response` here — @supabase/ssr calls this once per
+        // cookie chunk for a large session, and creating a fresh
+        // NextResponse.next() on each call discarded every chunk but the
+        // last, corrupting multi-chunk sessions. Mutate the single response
+        // created above instead.
         response.cookies.set({ name, value, ...options });
       },
       remove(name: string, options: CookieOptions) {
         request.cookies.set({ name, value: "", ...options });
-        response = NextResponse.next({ request: { headers: request.headers } });
         response.cookies.set({ name, value: "", ...options });
       },
     },

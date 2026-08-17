@@ -6,14 +6,19 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button, OtpInput } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { requestPhoneOtp, verifyPhoneOtp } from "@ride-it/auth";
+import { requestPhoneOtp, verifyPhoneOtp, requestEmailOtp, verifyEmailOtp } from "@ride-it/auth";
+import { getDriverProfile, isDriverPersonalInfoComplete, getActiveVehicle } from "@ride-it/data";
 
 const RESEND_SECONDS = 30;
 
 function VerifyPageContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const phone = params.get("phone") ?? "";
+  // "type"/"value" replace the old phone-only "phone" param so this screen
+  // works for either identifier — falls back to "phone" for any stale
+  // bookmarked/cached link using the old query shape.
+  const identifierType = params.get("type") === "email" ? "email" : "phone";
+  const identifierValue = params.get("value") ?? params.get("phone") ?? "";
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
 
   const [otp, setOtp] = React.useState("");
@@ -33,14 +38,23 @@ function VerifyPageContent() {
     setError(false);
     setErrorMessage(null);
     try {
-      await verifyPhoneOtp(supabase, phone, code);
-      // Driver PRD registration flow: Login -> Documents -> Verification ->
-      // Subscription -> Dashboard. Every driver lands on /documents after
-      // verifying for now; branching returning, already-verified drivers
-      // straight to /dashboard depends on reading driver.verification_status
-      // (business/domain data), which is out of scope for the auth-only
-      // Phase 4 boundary — left as a Phase 5+ item, same as before.
-      router.push("/documents");
+      const result =
+        identifierType === "email"
+          ? await verifyEmailOtp(supabase, identifierValue, code)
+          : await verifyPhoneOtp(supabase, identifierValue, code);
+      // Driver PRD registration flow: Login -> Onboarding (personal info +
+      // vehicle) -> Documents -> Verification -> Subscription -> Dashboard.
+      // Onboarding is a one-time gate (Part 3): a driver whose personal
+      // info and active vehicle are both already on file skips straight to
+      // /documents, exactly as before this change for every returning,
+      // already-onboarded driver.
+      if (!result.user) throw new Error("Verification succeeded but no user was returned.");
+      const [profile, vehicle] = await Promise.all([
+        getDriverProfile(supabase, result.user.id),
+        getActiveVehicle(supabase, result.user.id),
+      ]);
+      const needsOnboarding = !profile || !isDriverPersonalInfoComplete(profile) || !vehicle;
+      router.push(needsOnboarding ? "/onboarding" : "/documents");
     } catch (e) {
       setError(true);
       setErrorMessage(e instanceof Error ? e.message : null);
@@ -54,7 +68,11 @@ function VerifyPageContent() {
     setError(false);
     setErrorMessage(null);
     try {
-      await requestPhoneOtp(supabase, phone, "driver");
+      if (identifierType === "email") {
+        await requestEmailOtp(supabase, identifierValue, "driver");
+      } else {
+        await requestPhoneOtp(supabase, identifierValue, "driver");
+      }
     } catch (e) {
       setError(true);
       setErrorMessage(e instanceof Error ? e.message : null);
@@ -66,7 +84,10 @@ function VerifyPageContent() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         <h1 className="font-display text-2xl font-medium text-ink">Enter the code</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          We sent a 6-digit code to <span className="font-medium text-ink">+91 {phone}</span>
+          We sent a 6-digit code to{" "}
+          <span className="font-medium text-ink">
+            {identifierType === "email" ? identifierValue : `+91 ${identifierValue}`}
+          </span>
         </p>
 
         <div className="mt-8">

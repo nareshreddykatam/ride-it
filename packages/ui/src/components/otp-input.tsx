@@ -44,7 +44,7 @@ export function OtpInput({
     if (digit && index < length - 1) {
       inputsRef.current[index + 1]?.focus();
     }
-    if (joined.length === length && !joined.includes("")) {
+    if (next.length === length && !next.includes("")) {
       onComplete?.(joined);
     }
   };

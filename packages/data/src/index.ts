@@ -2,6 +2,8 @@ export * from "./types";
 export * from "./rides";
 export * from "./profile";
 export * from "./saved-places";
+export * from "./recent-locations";
+export * from "./vehicles";
 export * from "./notifications";
 export * from "./drivers";
 export * from "./documents";

@@ -293,6 +293,38 @@ export async function setDriverUpiVerified(supabase: SupabaseClient, driverId: s
   if (error) throw error;
 }
 
+/**
+ * Admin-only UPI QR approve/reject — same protection model as
+ * setDriverVerificationStatus/setDriverUpiVerified above:
+ * protect_driver_system_columns (extended in
+ * 20260821090200_driver_payment_methods_and_qr) blocks any non-admin
+ * session from setting upi_qr_status/upi_qr_reviewed_by/upi_qr_reviewed_at
+ * /upi_qr_rejection_reason directly, so this only ever succeeds for a real
+ * admin session. A rejection requires a reason (also enforced by a CHECK
+ * constraint at the database level, not just here).
+ */
+export async function setDriverQrStatus(
+  supabase: SupabaseClient,
+  driverId: string,
+  reviewerId: string,
+  decision: "approved" | "rejected",
+  rejectionReason?: string
+): Promise<void> {
+  if (decision === "rejected" && !rejectionReason?.trim()) {
+    throw new Error("A rejection reason is required.");
+  }
+  const { error } = await supabase
+    .from("drivers")
+    .update({
+      upi_qr_status: decision,
+      upi_qr_reviewed_by: reviewerId,
+      upi_qr_reviewed_at: new Date().toISOString(),
+      upi_qr_rejection_reason: decision === "rejected" ? (rejectionReason as string).trim() : null,
+    })
+    .eq("id", driverId);
+  if (error) throw error;
+}
+
 export interface AdminDriverSubscriptionSummary {
   plan: string;
   status: string;
@@ -541,8 +573,20 @@ export async function updateSupportTicketStatus(
 // Rides
 // ---------------------------------------------------------------------------
 
+// The nested `users:id(...)` embeds below use explicit FK-constraint hints
+// (`users!passengers_id_fkey`, `users!drivers_id_fkey`) rather than the
+// bare column-name hint `users:id(...)` used elsewhere in this file. The
+// bare form is ambiguous to PostgREST here — confirmed directly against
+// the real hosted project (PGRST201: "Could not embed because more than
+// one relationship was found for 'drivers'/'passengers' and 'id'", since
+// each of those tables has several one-to-many FKs pointing at it besides
+// their own PK-as-FK link to users) — the exact same root cause already
+// fixed once in packages/data/src/drivers.ts. passengers_id_fkey and
+// drivers_id_fkey are Postgres's default auto-generated constraint names
+// for `id uuid primary key references public.users(id)` on each table
+// (20260803120300_users_and_profiles.sql), not guessed.
 const ADMIN_RIDE_COLUMNS =
-  "id, passenger_id, driver_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, total_fare, currency, payment_method, payment_status, cancelled_by, cancellation_reason, requested_at, completed_at, cancelled_at, passenger:passenger_id(id, users:id(full_name)), driver:driver_id(id, users:id(full_name))";
+  "id, passenger_id, driver_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, total_fare, currency, payment_method, payment_status, cancelled_by, cancellation_reason, requested_at, completed_at, cancelled_at, passenger:passenger_id(id, users!passengers_id_fkey(full_name)), driver:driver_id(id, users!drivers_id_fkey(full_name))";
 
 export interface AdminRideListRow extends RideRow {
   passenger_name: string | null;
@@ -821,7 +865,7 @@ export async function updateAppSetting(
 export interface PricingRuleRow {
   id: string;
   city_id: string | null;
-  vehicle_type: "bike" | "auto";
+  vehicle_type: "bike" | "scooty" | "auto" | "car";
   base_fare: number;
   per_km_rate: number;
   cancellation_fee: number;

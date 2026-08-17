@@ -31,7 +31,7 @@ export type RideStatusRow =
 // verify_ride_pin_and_start() goes directly from driver_arriving to
 // ride_started.
 
-export type VehicleTypeRow = "bike" | "auto";
+export type VehicleTypeRow = "bike" | "scooty" | "auto" | "car";
 export type PaymentMethodRow = "cash" | "driver_upi" | "online";
 export type PaymentStatusRow = "pending" | "paid" | "failed" | "refunded";
 export type CancelledByRow = "passenger" | "driver" | "system";
@@ -131,11 +131,15 @@ export interface RatingRow {
   created_at: string;
 }
 
+export type GenderRow = "male" | "female" | "other" | "prefer_not_to_say";
+
 export interface PassengerProfileRow {
   id: string;
   full_name: string | null;
   phone: string | null;
   email: string | null;
+  date_of_birth: string | null;
+  gender: GenderRow | null;
   rating: number;
   total_rides: number;
   default_payment_method: PaymentMethodRow | null;

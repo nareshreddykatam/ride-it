@@ -9,7 +9,9 @@ import { VehicleType, type FareEstimate } from "@ride-it/types";
  */
 export const FARE_RATES: Record<VehicleType, { baseFare: number; perKm: number }> = {
   [VehicleType.BIKE]: { baseFare: 15, perKm: 6 },
+  [VehicleType.SCOOTY]: { baseFare: 18, perKm: 7 },
   [VehicleType.AUTO]: { baseFare: 25, perKm: 12 },
+  [VehicleType.CAR]: { baseFare: 40, perKm: 16 },
 };
 
 export function computeFareEstimate(

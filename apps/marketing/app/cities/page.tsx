@@ -1,8 +1,11 @@
+// Matches the actual launch order seeded in supabase/seed.sql: Vijayawada
+// launched first, Hyderabad second (Part 15 — Vijayawada is now the
+// operating/demo city).
 const CITIES = [
-  { name: "Hyderabad", status: "Live" },
+  { name: "Vijayawada", status: "Live" },
+  { name: "Hyderabad", status: "Coming soon" },
   { name: "Bengaluru", status: "Coming soon" },
   { name: "Chennai", status: "Coming soon" },
-  { name: "Pune", status: "Coming soon" },
 ];
 
 export default function CitiesPage() {

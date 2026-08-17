@@ -7,7 +7,7 @@ import { motion } from "framer-motion";
 import { Button, Card, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getPassengerProfile, getRidePinStatus, setRidePin, type PassengerProfileRow, type RidePinStatus } from "@ride-it/data";
+import { getPassengerProfile, getRidePinStatus, setRidePin, getMyRidePin, type PassengerProfileRow, type RidePinStatus } from "@ride-it/data";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -43,8 +43,12 @@ export default function PassengerProfilePage() {
   async function handleChangePin() {
     setChangingPin(true);
     try {
-      const pin = await setRidePin(supabase);
-      setRevealedPin(pin);
+      // set_ride_pin() itself no longer returns the plaintext (migration
+      // 20260821090100) — get_my_ride_pin() is now the single path for
+      // ever seeing a PIN's plaintext, used here immediately after
+      // setting it, same as the active-ride screen uses after acceptance.
+      await setRidePin(supabase);
+      setRevealedPin(await getMyRidePin(supabase));
       setPinStatus(await getRidePinStatus(supabase));
     } finally {
       setChangingPin(false);
@@ -114,6 +118,12 @@ export default function PassengerProfilePage() {
       </Card>
 
       <div className="mt-6 flex flex-col gap-2">
+        <Link href="/profile/edit">
+          <Card className="flex items-center justify-between">
+            <span className="text-sm text-ink">Personal details</span>
+            <span className="text-xs text-ink-soft">Edit</span>
+          </Card>
+        </Link>
         <Link href="/saved-places">
           <Card className="flex items-center justify-between">
             <span className="text-sm text-ink">Saved addresses</span>

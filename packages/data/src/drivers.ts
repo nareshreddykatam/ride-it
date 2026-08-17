@@ -1,10 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { uploadFile, createSignedUrl } from "@ride-it/supabase/storage";
+import type { GenderRow } from "./types";
+
+export type DriverQrStatus = "pending" | "in_review" | "approved" | "rejected" | "suspended";
 
 export interface DriverProfileRow {
   id: string;
   full_name: string | null;
   phone: string | null;
-  vehicle_type: "bike" | "auto";
+  email: string | null;
+  date_of_birth: string | null;
+  gender: GenderRow | null;
+  vehicle_type: "bike" | "scooty" | "auto" | "car";
   verification_status: "pending" | "in_review" | "approved" | "rejected" | "suspended";
   verification_notes: string | null;
   rating: number;
@@ -13,10 +20,17 @@ export interface DriverProfileRow {
   is_online: boolean;
   upi_id: string | null;
   upi_verified: boolean;
+  accepts_cash: boolean;
+  accepts_driver_upi: boolean;
+  accepts_online: boolean;
+  upi_qr_path: string | null;
+  upi_qr_status: DriverQrStatus;
+  upi_qr_uploaded_at: string | null;
+  upi_qr_rejection_reason: string | null;
 }
 
 const DRIVER_PROFILE_COLUMNS =
-  "id, vehicle_type, verification_status, verification_notes, rating, total_rides, strike_count, is_online, upi_id, upi_verified, created_at, users:id(full_name, phone)";
+  "id, vehicle_type, verification_status, verification_notes, rating, total_rides, strike_count, is_online, upi_id, upi_verified, accepts_cash, accepts_driver_upi, accepts_online, upi_qr_path, upi_qr_status, upi_qr_uploaded_at, upi_qr_rejection_reason, created_at, users!drivers_id_fkey(full_name, phone, email, date_of_birth, gender)";
 
 export async function getDriverProfile(supabase: SupabaseClient, driverId: string): Promise<DriverProfileRow | null> {
   const { data, error } = await supabase
@@ -39,7 +53,16 @@ export async function getDriverProfile(supabase: SupabaseClient, driverId: strin
     is_online: boolean;
     upi_id: string | null;
     upi_verified: boolean;
-    users: { full_name: string | null; phone: string | null } | Array<{ full_name: string | null; phone: string | null }>;
+    accepts_cash: boolean;
+    accepts_driver_upi: boolean;
+    accepts_online: boolean;
+    upi_qr_path: string | null;
+    upi_qr_status: DriverQrStatus;
+    upi_qr_uploaded_at: string | null;
+    upi_qr_rejection_reason: string | null;
+    users:
+      | { full_name: string | null; phone: string | null; email: string | null; date_of_birth: string | null; gender: GenderRow | null }
+      | Array<{ full_name: string | null; phone: string | null; email: string | null; date_of_birth: string | null; gender: GenderRow | null }>;
   };
   const userRow = Array.isArray(joined.users) ? joined.users[0] : joined.users;
 
@@ -54,9 +77,51 @@ export async function getDriverProfile(supabase: SupabaseClient, driverId: strin
     is_online: joined.is_online,
     upi_id: joined.upi_id,
     upi_verified: joined.upi_verified,
+    accepts_cash: joined.accepts_cash,
+    accepts_driver_upi: joined.accepts_driver_upi,
+    accepts_online: joined.accepts_online,
+    upi_qr_path: joined.upi_qr_path,
+    upi_qr_status: joined.upi_qr_status,
+    upi_qr_uploaded_at: joined.upi_qr_uploaded_at,
+    upi_qr_rejection_reason: joined.upi_qr_rejection_reason,
     full_name: userRow?.full_name ?? null,
     phone: userRow?.phone ?? null,
+    email: userRow?.email ?? null,
+    date_of_birth: userRow?.date_of_birth ?? null,
+    gender: userRow?.gender ?? null,
   };
+}
+
+/** Part 3: passenger/driver both need onboarding completion, including vehicle info (checked separately via getActiveVehicle). */
+export function isDriverPersonalInfoComplete(
+  profile: Pick<DriverProfileRow, "full_name" | "phone" | "email" | "date_of_birth" | "gender">
+): boolean {
+  return Boolean(
+    profile.full_name?.trim() && profile.phone?.trim() && profile.email?.trim() && profile.date_of_birth && profile.gender
+  );
+}
+
+export interface UpdateDriverPersonalInfoInput {
+  fullName?: string;
+  email?: string;
+  dateOfBirth?: string;
+  gender?: GenderRow;
+}
+
+export async function updateDriverPersonalInfo(
+  supabase: SupabaseClient,
+  driverId: string,
+  input: UpdateDriverPersonalInfoInput
+): Promise<void> {
+  const updates: Record<string, unknown> = {};
+  if (input.fullName !== undefined) updates.full_name = input.fullName;
+  if (input.email !== undefined) updates.email = input.email;
+  if (input.dateOfBirth !== undefined) updates.date_of_birth = input.dateOfBirth;
+  if (input.gender !== undefined) updates.gender = input.gender;
+  if (Object.keys(updates).length === 0) return;
+
+  const { error } = await supabase.from("users").update(updates).eq("id", driverId);
+  if (error) throw error;
 }
 
 /**
@@ -71,6 +136,76 @@ export async function getDriverProfile(supabase: SupabaseClient, driverId: strin
 export async function setDriverUpiId(supabase: SupabaseClient, driverId: string, upiId: string): Promise<void> {
   const { error } = await supabase.from("drivers").update({ upi_id: upiId }).eq("id", driverId);
   if (error) throw error;
+}
+
+export interface DriverPaymentMethodPrefs {
+  acceptsCash: boolean;
+  acceptsDriverUpi: boolean;
+  acceptsOnline: boolean;
+}
+
+/**
+ * Sets which payment methods the driver is willing to accept — a plain
+ * client update, secured by the existing drivers_update_own RLS policy
+ * (self-only). Deliberately NOT protected by protect_driver_system_columns
+ * — choosing your own accepted methods is a legitimate driver preference,
+ * not a self-approval of a verification outcome (unlike upi_qr_status).
+ * Whether driver_upi/online are actually OFFERABLE to a passenger still
+ * depends server-side on upi_verified / upi_qr_status at selection time
+ * (Phase E) — this function only records the driver's stated preference.
+ */
+export async function setDriverPaymentMethods(
+  supabase: SupabaseClient,
+  driverId: string,
+  prefs: DriverPaymentMethodPrefs
+): Promise<void> {
+  const { error } = await supabase
+    .from("drivers")
+    .update({
+      accepts_cash: prefs.acceptsCash,
+      accepts_driver_upi: prefs.acceptsDriverUpi,
+      accepts_online: prefs.acceptsOnline,
+    })
+    .eq("id", driverId);
+  if (error) throw error;
+}
+
+const DRIVER_QR_BUCKET = "driver-payment-qr";
+const DRIVER_QR_MAX_BYTES = 5 * 1024 * 1024; // 5MB
+const DRIVER_QR_ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp"];
+
+/**
+ * Uploads/replaces the driver's UPI QR image. Validates MIME type and
+ * file size client-side (the real, unbypassable enforcement is server-
+ * side: storage RLS scopes the upload to the caller's own folder, and
+ * reset_upi_qr_status_on_change() forces upi_qr_status back to 'pending'
+ * the moment upi_qr_path changes — a client cannot upload a new image and
+ * keep a stale 'approved' status by any path). Path convention mirrors
+ * driver-documents exactly: `<driverId>/qr-<timestamp>.<ext>`.
+ */
+export async function uploadDriverQr(supabase: SupabaseClient, driverId: string, file: File): Promise<void> {
+  if (!DRIVER_QR_ALLOWED_MIME.includes(file.type)) {
+    throw new Error("QR image must be a PNG, JPEG, or WEBP file.");
+  }
+  if (file.size > DRIVER_QR_MAX_BYTES) {
+    throw new Error("QR image must be smaller than 5MB.");
+  }
+
+  const ext = file.name.split(".").pop() || "png";
+  const path = `${driverId}/qr-${Date.now()}.${ext}`;
+
+  const { path: uploadedPath } = await uploadFile(supabase, DRIVER_QR_BUCKET, path, file, { contentType: file.type });
+
+  const { error } = await supabase
+    .from("drivers")
+    .update({ upi_qr_path: uploadedPath, upi_qr_uploaded_at: new Date().toISOString() })
+    .eq("id", driverId);
+  if (error) throw error;
+}
+
+/** Short-lived signed URL for viewing a driver's uploaded QR — never a public path, mirrors getDriverDocumentSignedUrl exactly. */
+export async function getDriverQrSignedUrl(supabase: SupabaseClient, filePath: string, expiresInSeconds = 300): Promise<string> {
+  return createSignedUrl(supabase, DRIVER_QR_BUCKET, filePath, expiresInSeconds);
 }
 
 /**
@@ -118,10 +253,10 @@ export interface SubscriptionRow {
   amount: number;
   starts_at: string;
   expires_at: string;
-
+  created_at: string;
 }
 
-const SUBSCRIPTION_COLUMNS = "id, driver_id, plan, status, amount, starts_at, expires_at";
+const SUBSCRIPTION_COLUMNS = "id, driver_id, plan, status, amount, starts_at, expires_at, created_at";
 
 export async function getActiveSubscription(supabase: SupabaseClient, driverId: string): Promise<SubscriptionRow | null> {
   const { data, error } = await supabase
@@ -133,6 +268,26 @@ export async function getActiveSubscription(supabase: SupabaseClient, driverId: 
 
   if (error) throw error;
   return data as unknown as SubscriptionRow | null;
+}
+
+/**
+ * The driver's full subscription history, newest first. No new table or
+ * archival mechanism needed — every purchase already creates a NEW
+ * subscriptions row (mark_subscription_payment_captured expires the prior
+ * active row rather than overwriting it, 20260816090300), so this is
+ * simply the existing ledger, unfiltered by status. Secured by the
+ * existing subscriptions_select_own RLS policy (driver_id = auth.uid()).
+ */
+export async function listDriverSubscriptions(supabase: SupabaseClient, driverId: string, limit = 20): Promise<SubscriptionRow[]> {
+  const { data, error } = await supabase
+    .from("subscriptions")
+    .select(SUBSCRIPTION_COLUMNS)
+    .eq("driver_id", driverId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as unknown as SubscriptionRow[];
 }
 
 export interface PendingSubscriptionPayment {

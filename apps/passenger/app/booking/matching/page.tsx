@@ -103,8 +103,8 @@ function MatchingPageContent() {
         transition={{ delay: 0.2 }}
         className="mt-8 flex flex-1 flex-col items-center justify-center text-center"
       >
-        <p className="font-display text-lg font-medium text-ink">Finding your driver…</p>
-        <p className="mt-1 text-sm text-ink-soft">This usually takes a few seconds.</p>
+        <p className="font-display text-lg font-medium text-ink">Searching for nearby drivers…</p>
+        <p className="mt-1 text-sm text-ink-soft">Finding your driver — this can take up to a minute or so.</p>
       </motion.div>
       <Button variant="outline" className="w-full" disabled={cancelling} onClick={handleCancel}>
         {cancelling ? "Cancelling…" : "Cancel"}

@@ -13,6 +13,7 @@ const REQUIRED_DOCUMENTS: { key: DocumentType; label: string }[] = [
   { key: "rc", label: "Vehicle RC" },
   { key: "insurance", label: "Insurance" },
   { key: "selfie", label: "Selfie Verification" },
+  { key: "vehicle_photo", label: "Vehicle Photo (with number plate)" },
 ];
 
 const STATUS_TONE = { pending: "pending", approved: "online", rejected: "alert" } as const;
@@ -54,7 +55,7 @@ export default function DocumentsPage() {
     <main className="flex flex-1 flex-col px-6 py-8">
       <h1 className="font-display text-2xl font-medium text-ink">Verify your documents</h1>
       <p className="mt-1 text-sm text-ink-soft">
-        Upload all 5 documents to get approved and start accepting rides.
+        Upload all {REQUIRED_DOCUMENTS.length} documents to get approved and start accepting rides.
       </p>
 
       <div className="mt-6 flex flex-col gap-3">

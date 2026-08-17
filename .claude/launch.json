@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "passenger",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ride-it/passenger", "run", "dev"],
+      "port": 3001
+    },
+    {
+      "name": "driver",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ride-it/driver", "run", "dev"],
+      "port": 3002
+    },
+    {
+      "name": "admin",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ride-it/admin", "run", "dev"],
+      "port": 3003
+    }
+  ]
+}

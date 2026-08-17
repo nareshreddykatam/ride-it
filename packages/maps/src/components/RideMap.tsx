@@ -23,7 +23,10 @@ export interface RideMapProps {
   driverLocationStale?: boolean;
 }
 
-const HYDERABAD_CENTER: LatLng = { lat: 17.385, lng: 78.4867 };
+// Vijayawada, Andhra Pradesh — the operating/demo city (Part 15). Used only
+// as the initial map center before pickup/drop are known; every other
+// coordinate on the map comes from real props.
+const DEFAULT_CITY_CENTER: LatLng = { lat: 16.5062, lng: 80.648 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -61,7 +64,7 @@ export function RideMap({
         if (cancelled || !containerRef.current) return;
         const { Map } = (await g.maps.importLibrary("maps")) as google.maps.MapsLibrary;
         mapRef.current = new Map(containerRef.current, {
-          center: pickup ?? HYDERABAD_CENTER,
+          center: pickup ?? DEFAULT_CITY_CENTER,
           zoom: 14,
           disableDefaultUI: true,
           zoomControl: true,

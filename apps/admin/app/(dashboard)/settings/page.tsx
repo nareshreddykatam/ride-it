@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button, Card, CardHeader, CardTitle, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
+import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import {
   listAppSettingsAdmin,
   updateAppSetting,
@@ -165,7 +166,7 @@ function PricingRow({
 
   return (
     <div className="flex items-center justify-between text-sm">
-      <span className="text-ink">{rule.vehicle_type === "bike" ? "Bike" : "Auto"}</span>
+      <span className="text-ink">{VEHICLE_TYPE_LABELS_DB[rule.vehicle_type] ?? rule.vehicle_type}</span>
       {editing ? (
         <div className="flex items-center gap-2">
           <input value={baseFare} onChange={(e) => setBaseFare(e.target.value)} className="h-8 w-16 rounded border border-border px-2 text-xs" />

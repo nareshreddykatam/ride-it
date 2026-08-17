@@ -3,11 +3,19 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bike, Car, ShieldOff } from "lucide-react";
+import { Bike, Car, CarFront, ShieldOff, Zap } from "lucide-react";
 import { Card, Skeleton, StatusPill } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getSharedRideInfo, type SharedRideInfo } from "@ride-it/data";
 import { RideMap } from "@ride-it/maps";
+import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
+
+const VEHICLE_ICON_DB: Record<"bike" | "scooty" | "auto" | "car", typeof Bike> = {
+  bike: Bike,
+  scooty: Zap,
+  auto: Car,
+  car: CarFront,
+};
 
 const STATUS_LABEL: Record<string, string> = {
   requested: "Finding a driver",
@@ -67,7 +75,7 @@ export default function SharedRidePage() {
     );
   }
 
-  const Icon = info.vehicleType === "bike" ? Bike : Car;
+  const Icon = VEHICLE_ICON_DB[info.vehicleType] ?? Car;
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
@@ -85,7 +93,7 @@ export default function SharedRidePage() {
               </span>
               <div>
                 <p className="text-sm font-medium text-ink">{info.driverName ?? "Driver assigned"}</p>
-                <p className="text-xs text-ink-soft">{info.vehicleType === "bike" ? "Bike" : "Auto"}</p>
+                <p className="text-xs text-ink-soft">{VEHICLE_TYPE_LABELS_DB[info.vehicleType] ?? info.vehicleType}</p>
               </div>
             </div>
             <StatusPill tone="online">{STATUS_LABEL[info.rideStatus] ?? info.rideStatus}</StatusPill>

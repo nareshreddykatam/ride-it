@@ -6,8 +6,14 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button, MeterValue, OtpInput } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { requestPhoneOtp, verifyPhoneOtp } from "@ride-it/auth";
-import { setRidePin } from "@ride-it/data";
+import { requestPhoneOtp, verifyPhoneOtp, requestEmailOtp, verifyEmailOtp } from "@ride-it/auth";
+import { setRidePin, getMyRidePin, getPassengerProfile, isPassengerProfileComplete } from "@ride-it/data";
+
+/** Part 2 — route into onboarding unless the profile is already complete (name/phone/email/DOB/gender all set). */
+async function nextRouteAfterAuth(supabase: ReturnType<typeof getSupabaseBrowserClient>, userId: string): Promise<string> {
+  const profile = await getPassengerProfile(supabase, userId);
+  return profile && isPassengerProfileComplete(profile) ? "/home" : "/onboarding";
+}
 
 const RESEND_SECONDS = 30;
 // A freshly-created auth account's created_at will be within a few
@@ -21,7 +27,11 @@ const NEW_ACCOUNT_THRESHOLD_MS = 60_000;
 function VerifyPageContent() {
   const router = useRouter();
   const params = useSearchParams();
-  const phone = params.get("phone") ?? "";
+  // "type"/"value" replace the old phone-only "phone" param so this screen
+  // works for either identifier — falls back to "phone" for any stale
+  // bookmarked/cached link using the old query shape.
+  const identifierType = params.get("type") === "email" ? "email" : "phone";
+  const identifierValue = params.get("value") ?? params.get("phone") ?? "";
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
 
   const [otp, setOtp] = React.useState("");
@@ -42,27 +52,31 @@ function VerifyPageContent() {
     setError(false);
     setErrorMessage(null);
     try {
-      const result = await verifyPhoneOtp(supabase, phone, code);
+      const result =
+        identifierType === "email"
+          ? await verifyEmailOtp(supabase, identifierValue, code)
+          : await verifyPhoneOtp(supabase, identifierValue, code);
       const isNewAccount =
         !!result.user?.created_at && Date.now() - new Date(result.user.created_at).getTime() < NEW_ACCOUNT_THRESHOLD_MS;
 
       if (isNewAccount) {
         // A permanent Ride PIN was already generated server-side at
-        // account creation (handle_new_auth_user trigger) — but a
-        // trigger can't return its result to this client, and a
-        // permanent PIN can never be read back out once hashed (see
-        // PHASE_10_NOTIFICATIONS_RIDE_PIN_REVIEW.md). Calling
-        // setRidePin() here regenerates it once more, specifically so
-        // this screen can show the passenger the plaintext exactly
-        // once — the PIN they see here IS their real, currently-active
-        // Ride PIN from this point forward, not a preview.
-        const pin = await setRidePin(supabase);
-        setRevealedPin(pin);
+        // account creation (handle_new_auth_user trigger), but that
+        // trigger predates the encrypted-storage mechanism
+        // (20260821090100) and never persists a decryptable copy.
+        // Calling setRidePin() here regenerates it once more, then
+        // getMyRidePin() decrypts-and-returns the freshly-encrypted
+        // copy — the PIN they see here IS their real, currently-active
+        // Ride PIN from this point forward, not a preview. Same
+        // set-then-get sequence Profile's "Change Ride PIN" uses.
+        await setRidePin(supabase);
+        setRevealedPin(await getMyRidePin(supabase));
         setVerifying(false);
         return;
       }
 
-      router.push("/home");
+      if (!result.user) throw new Error("Verification succeeded but no user was returned.");
+      router.push(await nextRouteAfterAuth(supabase, result.user.id));
     } catch (e) {
       setError(true);
       setErrorMessage(e instanceof Error ? e.message : null);
@@ -76,7 +90,11 @@ function VerifyPageContent() {
     setError(false);
     setErrorMessage(null);
     try {
-      await requestPhoneOtp(supabase, phone, "passenger");
+      if (identifierType === "email") {
+        await requestEmailOtp(supabase, identifierValue, "passenger");
+      } else {
+        await requestPhoneOtp(supabase, identifierValue, "passenger");
+      }
     } catch (e) {
       setError(true);
       setErrorMessage(e instanceof Error ? e.message : null);
@@ -99,7 +117,7 @@ function VerifyPageContent() {
             from your Profile.
           </p>
         </motion.div>
-        <Button className="w-full" onClick={() => router.push("/home")}>
+        <Button className="w-full" onClick={() => router.push("/onboarding")}>
           Got it
         </Button>
       </main>
@@ -115,7 +133,10 @@ function VerifyPageContent() {
       >
         <h1 className="font-display text-2xl font-medium text-ink">Enter the code</h1>
         <p className="mt-2 text-sm text-ink-soft">
-          We sent a 6-digit code to <span className="font-medium text-ink">+91 {phone}</span>
+          We sent a 6-digit code to{" "}
+          <span className="font-medium text-ink">
+            {identifierType === "email" ? identifierValue : `+91 ${identifierValue}`}
+          </span>
         </p>
 
         <div className="mt-8">

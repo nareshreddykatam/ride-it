@@ -7,6 +7,7 @@ import { Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
+import { watchDriverLocation, LOCATION_CONFIG } from "@ride-it/maps";
 import {
   getDriverProfile,
   getActiveSubscription,
@@ -18,6 +19,8 @@ import {
   acceptRideRequest,
   rejectRideRequest,
   subscribeToDriverOffers,
+  isDriverPersonalInfoComplete,
+  getActiveVehicle,
   type DriverProfileRow,
   type SubscriptionRow,
   type RideOfferRow,
@@ -26,28 +29,6 @@ import { RideRequestSheet } from "../../../components/ride-request-sheet";
 
 function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
-}
-
-// No real GPS/maps integration this phase (explicitly out of scope) — uses
-// the browser's Geolocation API when available (a device capability, not a
-// maps service) so real coordinates flow into matching where possible,
-// falling back to a fixed demo point otherwise. Same honest-boundary
-// pattern used everywhere else location has come up in this project.
-const DEMO_LOCATION = { lat: 17.385, lng: 78.4867 };
-const LOCATION_PING_INTERVAL_MS = 20000;
-
-function getCurrentPosition(): Promise<{ lat: number; lng: number }> {
-  return new Promise((resolve) => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      resolve(DEMO_LOCATION);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => resolve(DEMO_LOCATION),
-      { timeout: 5000 }
-    );
-  });
 }
 
 export default function DashboardPage() {
@@ -82,6 +63,17 @@ export default function DashboardPage() {
     loadAll().finally(() => setLoading(false));
   }, [loadAll]);
 
+  // Defensive re-check, same reasoning as Passenger Home: the verify
+  // screen's routing is the primary onboarding gate, this closes the gap
+  // for any path that reaches Dashboard directly with incomplete personal
+  // info or no active vehicle on file.
+  React.useEffect(() => {
+    if (!user) return;
+    Promise.all([getDriverProfile(supabase, user.id), getActiveVehicle(supabase, user.id)]).then(([p, vehicle]) => {
+      if (!p || !isDriverPersonalInfoComplete(p) || !vehicle) router.replace("/onboarding");
+    });
+  }, [supabase, user, router]);
+
   // Reconcile against authoritative state on mount/reconnect — if a
   // realtime event was missed while this screen wasn't open, this catches
   // an already-pending offer rather than relying solely on the stream.
@@ -108,21 +100,34 @@ export default function DashboardPage() {
     return unsubscribe;
   }, [supabase, user]);
 
-  // Location reporting while online — see getCurrentPosition() above for
-  // the real-GPS-with-demo-fallback approach.
+  // Location reporting while online but not yet on a ride. Real device GPS
+  // via navigator.geolocation.watchPosition() (packages/maps/geolocation.ts)
+  // — the previous version of this effect wrote a single fixed coordinate
+  // on every tick, which the server-authoritative location_updated_at
+  // trigger (20260813090500) correctly never treated as "fresh" for an
+  // unchanging value. watchDriverLocation()'s dev-only simulated-movement
+  // fallback (real GPS unavailable AND NODE_ENV !== "production" only —
+  // compiled out of production builds entirely) produces a genuinely
+  // moving position instead, so freshness can actually be maintained in a
+  // no-GPS dev/test environment without weakening the freshness check
+  // itself. Same ONLINE_PING_INTERVAL_MS cadence as before this change.
   React.useEffect(() => {
     if (!user || !profile?.is_online) return;
-    let active = true;
-    async function ping() {
-      const pos = await getCurrentPosition();
-      if (active && user) await updateDriverLocation(supabase, user.id, pos);
-    }
-    ping();
-    const interval = setInterval(ping, LOCATION_PING_INTERVAL_MS);
-    return () => {
-      active = false;
-      clearInterval(interval);
-    };
+    const stopWatching = watchDriverLocation({
+      minIntervalMs: LOCATION_CONFIG.ONLINE_PING_INTERVAL_MS,
+      onUpdate: (pos) => {
+        updateDriverLocation(supabase, user.id, pos).catch(() => {
+          // A single failed write isn't fatal — the watcher's next
+          // accepted update will retry naturally.
+        });
+      },
+      onError: () => {
+        // Honest degradation only — watchDriverLocation's own dev-only
+        // fallback already covers "no real GPS in this environment";
+        // nothing further to do here on the Dashboard's lighter ping.
+      },
+    });
+    return stopWatching;
   }, [supabase, user, profile?.is_online]);
 
   async function handleToggleOnline() {

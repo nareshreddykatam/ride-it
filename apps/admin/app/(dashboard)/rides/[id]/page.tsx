@@ -7,6 +7,7 @@ import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getRideAdminDetail,
   listRideEvents,
+  subscribeToRide,
   listSupportTicketsForRide,
   updateSupportTicketStatus,
   adminCancelRide,
@@ -91,6 +92,32 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
   React.useEffect(() => {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
+
+  // Live updates for an active ride: a Realtime subscription on this one
+  // ride row reacts immediately to a real status change, PLUS an
+  // independent reconciliation poll so this screen never depends solely
+  // on the WebSocket connection succeeding (this project has already hit
+  // environments where Supabase Realtime fails to connect at all — plain
+  // HTTPS via refresh() must still keep this screen current). Interval
+  // matches the app's existing tracking-poll convention
+  // (LOCATION_CONFIG.TRACKING_POLL_INTERVAL_MS, 10s) rather than
+  // inventing a new cadence. Both stop once the ride reaches a terminal
+  // state — nothing left to monitor, no reason to keep polling forever.
+  const rideStatus = ride?.status;
+  const isRideTerminal = rideStatus === "ride_completed" || rideStatus === "cancelled" || rideStatus === "rated";
+  React.useEffect(() => {
+    if (!rideStatus || isRideTerminal) return;
+    const unsubscribe = subscribeToRide(supabase, params.id, () => {
+      void refresh();
+    });
+    const interval = setInterval(() => {
+      void refresh();
+    }, 10_000);
+    return () => {
+      unsubscribe();
+      clearInterval(interval);
+    };
+  }, [supabase, params.id, refresh, rideStatus, isRideTerminal]);
 
   async function handleCancel() {
     if (!user || !cancelReason.trim()) return;

@@ -2,12 +2,13 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Search, User } from "lucide-react";
 import { Card, CardHeader, CardTitle, MeterValue, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { listPassengerRides, type RideRow } from "@ride-it/data";
+import { listPassengerRides, getPassengerProfile, isPassengerProfileComplete, type RideRow } from "@ride-it/data";
 import { MockMap } from "@ride-it/maps";
 
 const QUICK_VEHICLES = [
@@ -16,9 +17,22 @@ const QUICK_VEHICLES = [
 ];
 
 export default function HomePage() {
+  const router = useRouter();
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [lastRide, setLastRide] = React.useState<RideRow | null>(null);
+
+  // Defensive re-check: an account that reaches Home with an incomplete
+  // profile (e.g. browser back/forward, a stale bookmark) is routed into
+  // onboarding rather than allowed to continue — the verify screen's own
+  // routing is the primary gate, this just closes the gap for any path
+  // that bypasses it.
+  React.useEffect(() => {
+    if (!user) return;
+    getPassengerProfile(supabase, user.id).then((profile) => {
+      if (profile && !isPassengerProfileComplete(profile)) router.replace("/onboarding");
+    });
+  }, [supabase, user, router]);
 
   React.useEffect(() => {
     if (!user) return;
@@ -36,7 +50,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             className="rounded-full bg-white px-3 py-1.5 text-xs font-medium text-ink shadow-md"
           >
-            Hyderabad
+            Vijayawada
           </motion.div>
           <Link href="/profile">
             <motion.div

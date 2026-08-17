@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bike, Car } from "lucide-react";
+import { Bike, Car, CarFront, Zap } from "lucide-react";
 import { Button, MeterValue, cn } from "@ride-it/ui";
 import { VehicleType } from "@ride-it/types";
 import { computeFareEstimate } from "@ride-it/utils";
@@ -12,7 +12,9 @@ import { MockMap } from "@ride-it/maps";
 
 const VEHICLE_META: Record<VehicleType, { label: string; icon: typeof Bike; etaMinutes: number }> = {
   [VehicleType.BIKE]: { label: "Bike", icon: Bike, etaMinutes: 3 },
+  [VehicleType.SCOOTY]: { label: "Scooty", icon: Zap, etaMinutes: 4 },
   [VehicleType.AUTO]: { label: "Auto", icon: Car, etaMinutes: 5 },
+  [VehicleType.CAR]: { label: "Car", icon: CarFront, etaMinutes: 7 },
 };
 
 function BookingPageContent() {

@@ -4,17 +4,20 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bike, Car, Pencil } from "lucide-react";
+import { Bike, Car, CarFront, Zap } from "lucide-react";
+import { Pencil } from "lucide-react";
 import { Button, MeterValue, Skeleton } from "@ride-it/ui";
-import { VehicleType } from "@ride-it/types";
+import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { createRide, startMatching } from "@ride-it/data";
 import { RideMap, getCurrentPositionOnce, fetchGeocode, type LatLng } from "@ride-it/maps";
 
-const VEHICLE_ICON: Record<string, typeof Bike> = {
+const VEHICLE_ICON: Record<VehicleType, typeof Bike> = {
   [VehicleType.BIKE]: Bike,
+  [VehicleType.SCOOTY]: Zap,
   [VehicleType.AUTO]: Car,
+  [VehicleType.CAR]: CarFront,
 };
 
 // Fallback ONLY when real geolocation/geocoding is unavailable (permission
@@ -23,8 +26,8 @@ const VEHICLE_ICON: Record<string, typeof Bike> = {
 // demo coordinates with real ones wherever they can be resolved; this
 // remains purely as the honest degradation path, matching the same
 // pattern used for driver location reporting since Phase 8.
-const FALLBACK_PICKUP: LatLng = { lat: 17.385, lng: 78.4867 };
-const FALLBACK_DROP: LatLng = { lat: 17.412, lng: 78.4483 };
+const FALLBACK_PICKUP: LatLng = { lat: 16.5062, lng: 80.648 };
+const FALLBACK_DROP: LatLng = { lat: 16.5449, lng: 80.6116 };
 
 function ConfirmBookingPageContent() {
   const router = useRouter();
@@ -33,7 +36,7 @@ function ConfirmBookingPageContent() {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
 
   const destination = params.get("destination") ?? "your destination";
-  const vehicleType = params.get("vehicleType") ?? VehicleType.AUTO;
+  const vehicleType = (params.get("vehicleType") as VehicleType | null) ?? VehicleType.AUTO;
   const fare = params.get("fare") ?? "0";
   const baseFare = Number(params.get("baseFare") ?? "0");
   const distanceFare = Number(params.get("distanceFare") ?? "0");
@@ -75,7 +78,7 @@ function ConfirmBookingPageContent() {
     try {
       const ride = await createRide(supabase, {
         passengerId: user.id,
-        vehicleType: vehicleType === VehicleType.BIKE ? "bike" : "auto",
+        vehicleType: vehicleTypeToDb(vehicleType),
         pickup,
         pickupAddress: "Current location",
         drop,
@@ -143,7 +146,7 @@ function ConfirmBookingPageContent() {
             </span>
             <div>
               <p className="font-display text-sm font-medium text-ink">
-                {vehicleType === VehicleType.BIKE ? "Bike" : "Auto"}
+                {VEHICLE_TYPE_LABELS_DB[vehicleTypeToDb(vehicleType)]}
               </p>
               <p className="text-xs text-ink-soft">Arrives in {etaMinutes} min</p>
             </div>

@@ -96,6 +96,29 @@ export async function listPassengerRides(
 }
 
 /**
+ * Driver's own ride history — mirrors listPassengerRides() exactly (flat
+ * RIDE_COLUMNS, no PostgREST embed, same default limit/ordering), scoped
+ * to driver_id instead of passenger_id. Secured by the existing
+ * rides_select_driver RLS policy (Phase 3) — a driver can only ever see
+ * rides already assigned to them, never another driver's.
+ */
+export async function listDriverRides(
+  supabase: SupabaseClient,
+  driverId: string,
+  limit = 20
+): Promise<RideRow[]> {
+  const { data, error } = await supabase
+    .from("rides")
+    .select(RIDE_COLUMNS)
+    .eq("driver_id", driverId)
+    .order("requested_at", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+  return (data ?? []) as unknown as RideRow[];
+}
+
+/**
  * Passenger cancellation — only valid pre-arrival per the RLS policy on
  * `rides` (rides_update_passenger restricts this at the database level
  * too, not just here).
@@ -227,6 +250,28 @@ export async function setRidePaymentMethod(
     .select(RIDE_COLUMNS)
     .single();
 
+  if (error) throw error;
+  return data as unknown as RideRow;
+}
+
+/**
+ * Passenger chooses a payment method for an ACTIVE ride (accepted /
+ * driver_arriving / ride_started), validated server-side against the
+ * assigned driver's actual accepted methods via
+ * select_ride_payment_method() (migration
+ * 20260821090300_ride_payment_method_selection) — the RPC throws if the
+ * driver hasn't opted into the requested method, so a passenger can never
+ * select something unavailable regardless of what the client believes.
+ * Supersedes setRidePaymentMethod() above for the new post-acceptance
+ * flow; that function is kept for the existing post-completion path,
+ * unchanged.
+ */
+export async function selectRidePaymentMethod(
+  supabase: SupabaseClient,
+  rideId: string,
+  method: PaymentMethodRow
+): Promise<RideRow> {
+  const { data, error } = await supabase.rpc("select_ride_payment_method", { p_ride_id: rideId, p_method: method });
   if (error) throw error;
   return data as unknown as RideRow;
 }

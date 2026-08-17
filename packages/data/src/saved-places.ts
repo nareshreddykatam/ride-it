@@ -49,3 +49,32 @@ export async function deleteSavedPlace(supabase: SupabaseClient, placeId: string
   const { error } = await supabase.from("saved_places").delete().eq("id", placeId);
   if (error) throw error;
 }
+
+export interface UpdateSavedPlaceInput {
+  label?: string;
+  address?: string;
+  location?: GeoPointInput;
+  icon?: string;
+}
+
+/** Part 8: "edit, rename" — same owner-scoped RLS (saved_places_update_own) as the rest of this table. */
+export async function updateSavedPlace(
+  supabase: SupabaseClient,
+  placeId: string,
+  input: UpdateSavedPlaceInput
+): Promise<SavedPlaceRow> {
+  const updates: Record<string, unknown> = {};
+  if (input.label !== undefined) updates.label = input.label;
+  if (input.address !== undefined) updates.address = input.address;
+  if (input.location !== undefined) updates.location = toWkt(input.location);
+  if (input.icon !== undefined) updates.icon = input.icon;
+
+  const { data, error } = await supabase
+    .from("saved_places")
+    .update(updates)
+    .eq("id", placeId)
+    .select(SAVED_PLACE_COLUMNS)
+    .single();
+  if (error) throw error;
+  return data as unknown as SavedPlaceRow;
+}
