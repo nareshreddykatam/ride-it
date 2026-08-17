@@ -21,6 +21,8 @@ export interface RideMapProps {
   fallbackProgress?: number;
   /** True when driverLocation's underlying timestamp is older than the configured freshness threshold — renders an honest "may be outdated" indicator instead of pretending a stale dot is live. */
   driverLocationStale?: boolean;
+  /** Decoded route geometry (see @ride-it/maps's decodePolyline, fed from server/eta.ts's encodedPolyline) — drawn as a Polyline when present. Omit to show only markers, unchanged from before. */
+  routePolyline?: LatLng[];
 }
 
 // Vijayawada, Andhra Pradesh — the operating/demo city (Part 15). Used only
@@ -45,12 +47,14 @@ export function RideMap({
   fallbackVariant = "static",
   fallbackProgress,
   driverLocationStale,
+  routePolyline,
 }: RideMapProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<google.maps.Map | null>(null);
   const pickupMarkerRef = React.useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const dropMarkerRef = React.useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const driverMarkerRef = React.useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
+  const polylineRef = React.useRef<google.maps.Polyline | null>(null);
 
   const [loadState, setLoadState] = React.useState<LoadState>(isGoogleMapsConfigured() ? "loading" : "idle");
 
@@ -140,11 +144,47 @@ export function RideMap({
         driverMarkerRef.current = null;
       }
 
+      // Route polyline — drawn beneath the markers (Polyline has no
+      // z-index concept relative to AdvancedMarkerElement, but markers
+      // are added to the map after this in DOM/paint order via their own
+      // effect calls above, which is enough). Re-set the whole path on
+      // every change rather than diffing — a route polyline is replaced
+      // wholesale when it changes (a new destination = a new route), never
+      // incrementally edited.
+      if (routePolyline && routePolyline.length > 1) {
+        if (!polylineRef.current) {
+          polylineRef.current = new g.maps.Polyline({
+            map,
+            strokeColor: "#0B3B8C",
+            strokeOpacity: 0.85,
+            strokeWeight: 4,
+          });
+        }
+        polylineRef.current.setPath(routePolyline);
+        for (const point of routePolyline) bounds.extend(point);
+        hasPoint = true;
+      } else if (polylineRef.current) {
+        polylineRef.current.setMap(null);
+        polylineRef.current = null;
+      }
+
       if (hasPoint) map.fitBounds(bounds, 60);
     }
 
     syncMarkers();
-  }, [loadState, pickup, drop, driverLocation, driverLocationStale]);
+  }, [loadState, pickup, drop, driverLocation, driverLocationStale, routePolyline]);
+
+  // Polyline cleanup on unmount — mirrors the geolocation watcher's own
+  // explicit cleanup requirement; a Polyline left attached to a map that
+  // no longer renders this component would otherwise leak.
+  React.useEffect(() => {
+    return () => {
+      if (polylineRef.current) {
+        polylineRef.current.setMap(null);
+        polylineRef.current = null;
+      }
+    };
+  }, []);
 
   if (!isGoogleMapsConfigured() || loadState === "error") {
     return <MockMap variant={fallbackVariant} progress={fallbackProgress} className={className} />;

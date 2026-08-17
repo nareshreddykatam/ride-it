@@ -21,6 +21,7 @@ import { getGoogleMapsBrowserKey } from "./env";
 let optionsSet = false;
 let mapsLibraryPromise: Promise<google.maps.MapsLibrary> | null = null;
 let markerLibraryPromise: Promise<google.maps.MarkerLibrary> | null = null;
+let placesLibraryPromise: Promise<google.maps.PlacesLibrary> | null = null;
 
 export async function loadGoogleMaps(): Promise<typeof google> {
   const apiKey = getGoogleMapsBrowserKey();
@@ -38,4 +39,19 @@ export async function loadGoogleMaps(): Promise<typeof google> {
 
   await Promise.all([mapsLibraryPromise, markerLibraryPromise]);
   return google;
+}
+
+/**
+ * Lazily loads the "places" library (Places Autocomplete) on top of
+ * loadGoogleMaps() — kept as a separate entry point, not folded into
+ * loadGoogleMaps() itself, so a screen that only ever renders a map (the
+ * active-ride tracking screens, Admin's ride detail) never pays for the
+ * places bundle it doesn't use. Only search/page.tsx (destination search)
+ * calls this. Cached the same way as the other two libraries — safe to
+ * call from multiple components without re-fetching.
+ */
+export async function loadGoogleMapsPlaces(): Promise<google.maps.PlacesLibrary> {
+  await loadGoogleMaps();
+  if (!placesLibraryPromise) placesLibraryPromise = importLibrary("places");
+  return placesLibraryPromise;
 }

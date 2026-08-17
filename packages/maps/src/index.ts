@@ -10,5 +10,7 @@ export * from "./config";
 export * from "./geolocation";
 export * from "./loader";
 export * from "./client-api";
+export * from "./places";
+export * from "./polyline";
 export * from "./fallback/MockMapFallback";
 export * from "./components/RideMap";

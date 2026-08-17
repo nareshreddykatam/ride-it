@@ -1,7 +1,7 @@
 "use client";
 
 import type { GeocodeResult } from "./server/geocoding";
-import type { EtaResult } from "./server/eta";
+import type { EtaResult, EtaVehicleType } from "./server/eta";
 
 /**
  * Calls this app's own /api/geocode Route Handler (relative URL — resolves
@@ -29,16 +29,23 @@ export async function fetchGeocode(address: string): Promise<GeocodeResult | nul
   }
 }
 
-/** Same reasoning as fetchGeocode — calls this app's own /api/eta, returns null (not throws) on failure. Callers are responsible for throttling (see ETA_CONFIG in ./config). */
+/**
+ * Same reasoning as fetchGeocode — calls this app's own /api/eta, returns
+ * null (not throws) on failure. Callers are responsible for throttling
+ * (see ETA_CONFIG in ./config). `vehicleType` selects the correct Routes
+ * API travel mode server-side (see server/eta.ts's travelModeForVehicle)
+ * — defaults to "auto" (DRIVE) when the caller doesn't know it yet.
+ */
 export async function fetchEta(
   origin: { lat: number; lng: number },
-  destination: { lat: number; lng: number }
+  destination: { lat: number; lng: number },
+  vehicleType: EtaVehicleType = "auto"
 ): Promise<EtaResult | null> {
   try {
     const res = await fetch("/api/eta", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ origin, destination }),
+      body: JSON.stringify({ origin, destination, vehicleType }),
     });
     if (!res.ok) return null;
     return (await res.json()) as EtaResult;

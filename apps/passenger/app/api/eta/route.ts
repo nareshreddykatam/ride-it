@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@ride-it/supabase/server";
-import { getEta } from "@ride-it/maps/server/eta";
+import { getEta, type EtaVehicleType } from "@ride-it/maps/server/eta";
+
+const VALID_VEHICLE_TYPES: EtaVehicleType[] = ["bike", "scooty", "auto", "car"];
 
 /**
  * POST { origin: {lat,lng}, destination: {lat,lng} } -> { distanceMeters, durationSeconds } | { error }
@@ -22,15 +24,19 @@ export async function POST(request: Request) {
   }
 
   const body = (await request.json().catch(() => null)) as
-    | { origin?: { lat: number; lng: number }; destination?: { lat: number; lng: number } }
+    | { origin?: { lat: number; lng: number }; destination?: { lat: number; lng: number }; vehicleType?: string }
     | null;
 
   if (!body?.origin || !body?.destination) {
     return NextResponse.json({ error: "Missing origin/destination" }, { status: 400 });
   }
 
+  const vehicleType = VALID_VEHICLE_TYPES.includes(body.vehicleType as EtaVehicleType)
+    ? (body.vehicleType as EtaVehicleType)
+    : "auto";
+
   try {
-    const result = await getEta(body.origin, body.destination);
+    const result = await getEta(body.origin, body.destination, vehicleType);
     if (!result) {
       return NextResponse.json({ error: "No route available" }, { status: 404 });
     }

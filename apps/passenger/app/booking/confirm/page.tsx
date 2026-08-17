@@ -11,7 +11,7 @@ import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/t
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { createRide, startMatching } from "@ride-it/data";
-import { RideMap, getCurrentPositionOnce, fetchGeocode, type LatLng } from "@ride-it/maps";
+import { RideMap, getCurrentPositionOnce, fetchGeocode, decodePolyline, type LatLng } from "@ride-it/maps";
 
 const VEHICLE_ICON: Record<VehicleType, typeof Bike> = {
   [VehicleType.BIKE]: Bike,
@@ -42,34 +42,55 @@ function ConfirmBookingPageContent() {
   const distanceFare = Number(params.get("distanceFare") ?? "0");
   const distanceKm = Number(params.get("distanceKm") ?? "0");
   const etaMinutes = params.get("etaMinutes") ?? "5";
+  const destLatParam = params.get("destLat");
+  const destLngParam = params.get("destLng");
+  const knownDrop: LatLng | null = destLatParam && destLngParam ? { lat: Number(destLatParam), lng: Number(destLngParam) } : null;
+  const encodedPolyline = params.get("routePolyline");
+  const routePolyline = React.useMemo(() => (encodedPolyline ? decodePolyline(encodedPolyline) : undefined), [encodedPolyline]);
 
   const [resolvingLocations, setResolvingLocations] = React.useState(true);
   const [pickup, setPickup] = React.useState<LatLng>(FALLBACK_PICKUP);
-  const [drop, setDrop] = React.useState<LatLng>(FALLBACK_DROP);
+  const [drop, setDrop] = React.useState<LatLng>(knownDrop ?? FALLBACK_DROP);
   const [usedFallback, setUsedFallback] = React.useState(false);
   const [booking, setBooking] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const Icon = VEHICLE_ICON[vehicleType] ?? Car;
 
   // Resolve real coordinates once, on mount — not on every keystroke or
-  // re-render. Pickup: browser geolocation. Drop: server-side geocoding of
-  // the destination text the passenger already selected on the Search
-  // screen. Both fall back honestly (not silently) if unavailable.
+  // re-render. Pickup: fresh browser geolocation (deliberately re-resolved
+  // here rather than reused from the Booking screen — this is the
+  // passenger's actual position at the moment they're about to book, not
+  // whatever it was a screen ago). Drop: reuses the coordinate the Search
+  // screen already resolved via Places Autocomplete (knownDrop) when
+  // available — server-side geocoding of the destination TEXT is now only
+  // a fallback for the cases that never had real coordinates (the
+  // dev-only fallback list, or a Places lookup that failed) — previously
+  // this always re-geocoded the text, which could silently return
+  // different coordinates than whatever the Booking screen's distance/fare
+  // estimate was actually computed from.
   React.useEffect(() => {
     let active = true;
     (async () => {
-      const [position, geocoded] = await Promise.all([getCurrentPositionOnce(), fetchGeocode(destination)]);
+      const position = await getCurrentPositionOnce();
       if (!active) return;
       if (position) setPickup(position);
       else setUsedFallback(true);
-      if (geocoded) setDrop({ lat: geocoded.lat, lng: geocoded.lng });
-      else setUsedFallback(true);
+
+      if (knownDrop) {
+        setDrop(knownDrop);
+      } else {
+        const geocoded = await fetchGeocode(destination);
+        if (!active) return;
+        if (geocoded) setDrop({ lat: geocoded.lat, lng: geocoded.lng });
+        else setUsedFallback(true);
+      }
       setResolvingLocations(false);
     })();
     return () => {
       active = false;
     };
-  }, [destination]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [destination, destLatParam, destLngParam]);
 
   async function handleConfirmBooking() {
     if (!user) return;
@@ -106,7 +127,7 @@ function ConfirmBookingPageContent() {
         {resolvingLocations ? (
           <Skeleton className="mt-4 h-44 w-full rounded-xl" />
         ) : (
-          <RideMap pickup={pickup} drop={drop} fallbackVariant="route" className="mt-4 h-44" />
+          <RideMap pickup={pickup} drop={drop} routePolyline={routePolyline} fallbackVariant="route" className="mt-4 h-44" />
         )}
         {usedFallback && !resolvingLocations && (
           <p className="mt-1.5 text-xs text-ink-soft">

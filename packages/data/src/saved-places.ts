@@ -2,7 +2,16 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SavedPlaceRow } from "./types";
 import type { GeoPointInput } from "./rides";
 
-const SAVED_PLACE_COLUMNS = "id, passenger_id, label, address, icon, is_default, created_at";
+// lat/lng are PostgREST computed columns (20260824090000) backed by
+// saved_places_lat()/saved_places_lng() functions — PostgREST exposes a
+// computed column under the function's own name, not an implied short
+// alias, so the `lat:saved_places_lat` syntax is required to select it as
+// `lat` (confirmed against the live hosted schema; the unaliased form
+// fails with "column saved_places.lat does not exist" even though the
+// migration applied successfully — the function genuinely isn't named
+// that).
+const SAVED_PLACE_COLUMNS =
+  "id, passenger_id, label, address, icon, is_default, created_at, lat:saved_places_lat, lng:saved_places_lng";
 
 function toWkt({ lat, lng }: GeoPointInput): string {
   return `POINT(${lng} ${lat})`;

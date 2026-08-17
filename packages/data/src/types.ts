@@ -153,6 +153,9 @@ export interface SavedPlaceRow {
   icon: string | null;
   is_default: boolean;
   created_at: string;
+  /** Via the saved_places_lat/lng PostgREST computed columns (20260824090000) — the real stored coordinates, not derivable from address text alone. */
+  lat: number;
+  lng: number;
 }
 
 export type NotificationTypeRow =

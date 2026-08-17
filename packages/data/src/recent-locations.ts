@@ -7,9 +7,16 @@ export interface RecentLocationRow {
   address: string;
   place_id: string | null;
   last_used_at: string;
+  /** Via the recent_locations_lat/lng PostgREST computed columns (20260824090000). */
+  lat: number;
+  lng: number;
 }
 
-const RECENT_LOCATION_COLUMNS = "id, passenger_id, label, address, place_id, last_used_at";
+// See saved-places.ts's SAVED_PLACE_COLUMNS comment — same PostgREST
+// computed-column aliasing requirement, confirmed against the live hosted
+// schema.
+const RECENT_LOCATION_COLUMNS =
+  "id, passenger_id, label, address, place_id, last_used_at, lat:recent_locations_lat, lng:recent_locations_lng";
 
 /** Most-recently-used locations first. Part 9: "approximately the latest 5-10" — callers pass limit accordingly. */
 export async function listRecentLocations(
