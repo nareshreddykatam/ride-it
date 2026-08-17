@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Star } from "lucide-react";
-import { Input, StatusPill } from "@ride-it/ui";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Button, Input, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listDriversAdmin, type AdminDriverListRow } from "@ride-it/data";
@@ -25,6 +25,8 @@ const STATUS_FILTERS: { value: AdminDriverListRow["verification_status"] | "all"
   { value: "rejected", label: "Rejected" },
   { value: "suspended", label: "Suspended" },
 ];
+
+const PAGE_SIZE = 25;
 
 const columns: Column<AdminDriverListRow>[] = [
   {
@@ -67,20 +69,36 @@ export default function DriversPage() {
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [drivers, setDrivers] = React.useState<AdminDriverListRow[]>([]);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [page, setPage] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
   const [status, setStatus] = React.useState<AdminDriverListRow["verification_status"] | "all">("all");
 
+  // Any filter change invalidates the current page — jump back to the start
+  // rather than showing page 3 of a now-different, possibly shorter result set.
+  React.useEffect(() => {
+    setPage(0);
+  }, [search, status]);
+
   React.useEffect(() => {
     if (!user) return;
     setLoading(true);
     setError(null);
-    listDriversAdmin(supabase, { search: search || undefined, status: status === "all" ? undefined : status })
-      .then(setDrivers)
+    listDriversAdmin(supabase, {
+      search: search || undefined,
+      status: status === "all" ? undefined : status,
+      limit: PAGE_SIZE,
+      offset: page * PAGE_SIZE,
+    })
+      .then(({ rows, hasMore: more }) => {
+        setDrivers(rows);
+        setHasMore(more);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load drivers."))
       .finally(() => setLoading(false));
-  }, [supabase, user, search, status]);
+  }, [supabase, user, search, status, page]);
 
   return (
     <div>
@@ -132,6 +150,27 @@ export default function DriversPage() {
           ariaLabel="Drivers table"
         />
       </div>
+
+      {!loading && (drivers.length > 0 || page > 0) && (
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-xs text-ink-soft">
+            {drivers.length === 0 ? "No results on this page" : `Page ${page + 1}`}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft size={14} className="mr-1" /> Previous
+            </Button>
+            <Button size="sm" variant="outline" disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>
+              Next <ChevronRight size={14} className="ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

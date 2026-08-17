@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Button } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -9,10 +9,17 @@ import { requestPhoneOtp, requestEmailOtp, detectIdentifier } from "@ride-it/aut
 
 export function LoginForm({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [input, setInput] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
-  const [submitError, setSubmitError] = React.useState<string | null>(null);
+  // The middleware (packages/auth/src/middleware.ts) already force-signs-out
+  // and redirects here with ?error=wrong_app when a session for a different
+  // role hits this app — this just surfaces that server-enforced outcome
+  // instead of silently landing back on a blank login screen.
+  const [submitError, setSubmitError] = React.useState<string | null>(
+    searchParams.get("error") === "wrong_app" ? "That account can't be used to sign in here." : null
+  );
 
   // Single free-text field — detectIdentifier() decides email vs. phone
   // (same 10-digit shape the DB already enforces), so the passenger never

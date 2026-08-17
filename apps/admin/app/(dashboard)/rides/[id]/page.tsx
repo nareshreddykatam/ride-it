@@ -80,7 +80,10 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
     setEvents(ev);
     setTickets(tk);
     if (r) {
-      const drivers = await listDriversAdmin(supabase, { status: "approved" });
+      // 200 covers every realistic same-vehicle-type approved fleet size for
+      // a reassignment dropdown — this isn't a browse view, so DataTable-style
+      // 25-per-page pagination isn't the right fit here.
+      const { rows: drivers } = await listDriversAdmin(supabase, { status: "approved", limit: 200 });
       setCandidateDrivers(drivers.filter((d) => d.vehicle_type === r.vehicle_type && d.id !== r.driver_id));
     }
     // Admin authorization for get_ride_tracking() is enforced by the RPC

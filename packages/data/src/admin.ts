@@ -211,6 +211,27 @@ export interface AdminDriverListRow {
   is_online: boolean;
 }
 
+/**
+ * Shared pagination shape for admin list views. `hasMore` is derived from
+ * fetching one extra row past `limit` rather than a separate COUNT query
+ * — cheaper, and admin list UIs only need "is there a next page", not an
+ * exact total.
+ */
+export interface PagedResult<T> {
+  rows: T[];
+  hasMore: boolean;
+}
+
+const ADMIN_LIST_DEFAULT_LIMIT = 25;
+// Search matches against the joined `users` columns (full_name/phone),
+// which PostgREST can't cheaply combine with substring matching and
+// database-level range pagination in one query here. Rather than load
+// the entire table when searching, the scan is bounded to this window —
+// far better than truly unbounded, and searching is a "find one specific
+// person" operation, not a "browse everyone" one, so a few hundred most
+// recent accounts covers the realistic case.
+const ADMIN_SEARCH_SCAN_LIMIT = 500;
+
 // users!drivers_id_fkey — see ADMIN_RIDE_COLUMNS's comment below for why
 // the bare `users:id` hint is ambiguous (PGRST201, confirmed live) for
 // drivers/passengers/admin_users specifically: each is the target of
@@ -227,28 +248,53 @@ function normalizeUserJoin<T>(
 
 export async function listDriversAdmin(
   supabase: SupabaseClient,
-  filters: { search?: string; status?: AdminDriverListRow["verification_status"] } = {}
-): Promise<AdminDriverListRow[]> {
-  let query = supabase.from("drivers").select(ADMIN_DRIVER_LIST_COLUMNS).order("created_at", { ascending: false });
-  if (filters.status) query = query.eq("verification_status", filters.status);
+  filters: {
+    search?: string;
+    status?: AdminDriverListRow["verification_status"];
+    limit?: number;
+    offset?: number;
+  } = {}
+): Promise<PagedResult<AdminDriverListRow>> {
+  const limit = filters.limit ?? ADMIN_LIST_DEFAULT_LIMIT;
+  const offset = filters.offset ?? 0;
 
-  const { data, error } = await query;
-  if (error) throw error;
-
-  const rows = (data ?? []) as unknown as Array<{
+  type Row = {
     id: string;
     vehicle_type: AdminDriverListRow["vehicle_type"];
     verification_status: AdminDriverListRow["verification_status"];
     rating: number;
     is_online: boolean;
     users: { full_name: string | null; phone: string | null } | Array<{ full_name: string | null; phone: string | null }>;
-  }>;
+  };
 
-  const mapped = rows.map((r) => ({ ...r, ...normalizeUserJoin(r) }));
+  if (filters.search) {
+    let query = supabase
+      .from("drivers")
+      .select(ADMIN_DRIVER_LIST_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(ADMIN_SEARCH_SCAN_LIMIT);
+    if (filters.status) query = query.eq("verification_status", filters.status);
+    const { data, error } = await query;
+    if (error) throw error;
 
-  if (!filters.search) return mapped;
-  const term = filters.search.trim().toLowerCase();
-  return mapped.filter((r) => r.full_name?.toLowerCase().includes(term) || r.phone?.includes(term));
+    const mapped = ((data ?? []) as unknown as Row[]).map((r) => ({ ...r, ...normalizeUserJoin(r) }));
+    const term = filters.search.trim().toLowerCase();
+    const filtered = mapped.filter((r) => r.full_name?.toLowerCase().includes(term) || r.phone?.includes(term));
+    return { rows: filtered.slice(offset, offset + limit), hasMore: filtered.length > offset + limit };
+  }
+
+  let query = supabase
+    .from("drivers")
+    .select(ADMIN_DRIVER_LIST_COLUMNS)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit); // fetches limit+1 rows to detect a next page
+  if (filters.status) query = query.eq("verification_status", filters.status);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const mapped = ((data ?? []) as unknown as Row[]).map((r) => ({ ...r, ...normalizeUserJoin(r) }));
+  return { rows: mapped.slice(0, limit), hasMore: mapped.length > limit };
 }
 
 /**
@@ -381,43 +427,63 @@ export interface AdminPassengerListRow {
   is_active: boolean;
 }
 
+const ADMIN_PASSENGER_LIST_COLUMNS =
+  // users!passengers_id_fkey — bare `users:id` is ambiguous (PGRST201,
+  // confirmed live) since passengers is also the target of several other
+  // one-to-many FKs. See ADMIN_RIDE_COLUMNS's comment below.
+  "id, rating, total_rides, users!passengers_id_fkey(full_name, phone, is_active)";
+
+type AdminPassengerRawRow = {
+  id: string;
+  rating: number;
+  total_rides: number;
+  users:
+    | { full_name: string | null; phone: string | null; is_active: boolean }
+    | Array<{ full_name: string | null; phone: string | null; is_active: boolean }>;
+};
+
+function mapPassengerRow(r: AdminPassengerRawRow): AdminPassengerListRow {
+  const u = Array.isArray(r.users) ? r.users[0] : r.users;
+  return {
+    id: r.id,
+    rating: r.rating,
+    total_rides: r.total_rides,
+    full_name: u?.full_name ?? null,
+    phone: u?.phone ?? null,
+    is_active: u?.is_active ?? true,
+  };
+}
+
 export async function listPassengersAdmin(
   supabase: SupabaseClient,
-  filters: { search?: string } = {}
-): Promise<AdminPassengerListRow[]> {
+  filters: { search?: string; limit?: number; offset?: number } = {}
+): Promise<PagedResult<AdminPassengerListRow>> {
+  const limit = filters.limit ?? ADMIN_LIST_DEFAULT_LIMIT;
+  const offset = filters.offset ?? 0;
+
+  if (filters.search) {
+    const { data, error } = await supabase
+      .from("passengers")
+      .select(ADMIN_PASSENGER_LIST_COLUMNS)
+      .order("created_at", { ascending: false })
+      .limit(ADMIN_SEARCH_SCAN_LIMIT);
+    if (error) throw error;
+
+    const mapped = ((data ?? []) as unknown as AdminPassengerRawRow[]).map(mapPassengerRow);
+    const term = filters.search.trim().toLowerCase();
+    const filtered = mapped.filter((r) => r.full_name?.toLowerCase().includes(term) || r.phone?.includes(term));
+    return { rows: filtered.slice(offset, offset + limit), hasMore: filtered.length > offset + limit };
+  }
+
   const { data, error } = await supabase
     .from("passengers")
-    // users!passengers_id_fkey — bare `users:id` is ambiguous (PGRST201,
-    // confirmed live) since passengers is also the target of several
-    // other one-to-many FKs. See ADMIN_RIDE_COLUMNS's comment below.
-    .select("id, rating, total_rides, users!passengers_id_fkey(full_name, phone, is_active)")
-    .order("created_at", { ascending: false });
+    .select(ADMIN_PASSENGER_LIST_COLUMNS)
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit);
   if (error) throw error;
 
-  const rows = (data ?? []) as unknown as Array<{
-    id: string;
-    rating: number;
-    total_rides: number;
-    users:
-      | { full_name: string | null; phone: string | null; is_active: boolean }
-      | Array<{ full_name: string | null; phone: string | null; is_active: boolean }>;
-  }>;
-
-  const mapped = rows.map((r) => {
-    const u = Array.isArray(r.users) ? r.users[0] : r.users;
-    return {
-      id: r.id,
-      rating: r.rating,
-      total_rides: r.total_rides,
-      full_name: u?.full_name ?? null,
-      phone: u?.phone ?? null,
-      is_active: u?.is_active ?? true,
-    };
-  });
-
-  if (!filters.search) return mapped;
-  const term = filters.search.trim().toLowerCase();
-  return mapped.filter((r) => r.full_name?.toLowerCase().includes(term) || r.phone?.includes(term));
+  const mapped = ((data ?? []) as unknown as AdminPassengerRawRow[]).map(mapPassengerRow);
+  return { rows: mapped.slice(0, limit), hasMore: mapped.length > limit };
 }
 
 export async function getPassengerAdminDetail(supabase: SupabaseClient, passengerId: string) {

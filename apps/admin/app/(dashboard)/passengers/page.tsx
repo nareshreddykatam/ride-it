@@ -2,12 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Star } from "lucide-react";
-import { Input, StatusPill } from "@ride-it/ui";
+import { ChevronLeft, ChevronRight, Star } from "lucide-react";
+import { Button, Input, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listPassengersAdmin, type AdminPassengerListRow } from "@ride-it/data";
 import { DataTable, type Column } from "../../../components/data-table";
+
+const PAGE_SIZE = 25;
 
 const columns: Column<AdminPassengerListRow>[] = [
   {
@@ -45,18 +47,28 @@ export default function PassengersPage() {
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [passengers, setPassengers] = React.useState<AdminPassengerListRow[]>([]);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [page, setPage] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
 
   React.useEffect(() => {
+    setPage(0);
+  }, [search]);
+
+  React.useEffect(() => {
     if (!user) return;
     setLoading(true);
-    listPassengersAdmin(supabase, { search: search || undefined })
-      .then(setPassengers)
+    setError(null);
+    listPassengersAdmin(supabase, { search: search || undefined, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+      .then(({ rows, hasMore: more }) => {
+        setPassengers(rows);
+        setHasMore(more);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load passengers."))
       .finally(() => setLoading(false));
-  }, [supabase, user, search]);
+  }, [supabase, user, search, page]);
 
   return (
     <div>
@@ -86,6 +98,27 @@ export default function PassengersPage() {
           ariaLabel="Passengers table"
         />
       </div>
+
+      {!loading && (passengers.length > 0 || page > 0) && (
+        <div className="mt-3 flex items-center justify-between">
+          <p className="text-xs text-ink-soft">
+            {passengers.length === 0 ? "No results on this page" : `Page ${page + 1}`}
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              <ChevronLeft size={14} className="mr-1" /> Previous
+            </Button>
+            <Button size="sm" variant="outline" disabled={!hasMore} onClick={() => setPage((p) => p + 1)}>
+              Next <ChevronRight size={14} className="ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
