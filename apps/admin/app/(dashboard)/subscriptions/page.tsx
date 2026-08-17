@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, MeterValue, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -75,7 +75,7 @@ export default function SubscriptionsPage() {
 
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {loading
-          ? Array.from({ length: 4 }).map((_, i) => <Card key={i} className="h-24 animate-pulse" />)
+          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
           : plans.map((p) => (
               <Card key={p.plan}>
                 <p className="text-xs text-ink-soft">{p.plan.charAt(0).toUpperCase() + p.plan.slice(1)}</p>
@@ -116,7 +116,14 @@ export default function SubscriptionsPage() {
         <CardHeader>
           <CardTitle>Payment reports</CardTitle>
         </CardHeader>
-        <DataTable columns={columns} rows={payments} keyField={(r) => r.id} loading={loading} emptyLabel="No payments yet" />
+        <DataTable
+          columns={columns}
+          rows={payments}
+          keyField={(r) => r.id}
+          loading={loading}
+          emptyLabel="No payments yet"
+          ariaLabel="Subscription payments table"
+        />
       </Card>
     </div>
   );

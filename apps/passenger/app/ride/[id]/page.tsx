@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, Banknote, CreditCard, Phone, Share2, ShieldAlert, Smartphone, Users, Flag, X } from "lucide-react";
+import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Phone, Share2, ShieldAlert, Smartphone, Star, Users, Flag, X } from "lucide-react";
 import { Button, Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -309,9 +309,14 @@ export default function RideStatusPage() {
             ) : (
               <>
                 <p className="font-display text-base font-medium text-ink">{driver?.full_name ?? "Your driver"}</p>
-                <p className="text-xs text-ink-soft">
+                <p className="flex items-center gap-1 text-xs text-ink-soft">
                   {driver ? (driver.vehicle_type === "auto" ? "Auto" : "Bike") : ""}
-                  {driver && driver.rating > 0 ? ` · ★ ${driver.rating.toFixed(1)}` : ""}
+                  {driver && driver.rating > 0 && (
+                    <span className="inline-flex items-center gap-0.5">
+                      · <Star size={11} className="fill-marigold text-marigold" aria-hidden="true" />
+                      {driver.rating.toFixed(1)}
+                    </span>
+                  )}
                   {tracking?.distanceToPickupMeters != null && status === "accepted"
                     ? ` · ${(tracking.distanceToPickupMeters / 1000).toFixed(1)} km away`
                     : ""}
@@ -407,7 +412,7 @@ export default function RideStatusPage() {
           <motion.div
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="w-full max-w-md rounded-xl bg-white p-6"
+            className="w-full max-w-md rounded-lg bg-white p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -418,7 +423,7 @@ export default function RideStatusPage() {
                 {safetyView === "share" && "Share this ride"}
                 {safetyView === "report" && "Report an issue"}
               </p>
-              <button onClick={() => setSafetyOpen(false)} className="text-ink-soft">
+              <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="text-ink-soft">
                 <X size={18} />
               </button>
             </div>
@@ -471,9 +476,18 @@ export default function RideStatusPage() {
               <div className="mt-2 text-center">
                 <p className="text-sm text-ink">Here&apos;s exactly what happened:</p>
                 <ul className="mt-3 space-y-2 text-left text-sm text-ink-soft">
-                  <li>✓ A safety event was recorded with your ride and approximate location.</li>
-                  <li>✓ Ride It&apos;s safety team has been notified and will review it.</li>
-                  <li>✓ You can still share this ride or call emergency services directly.</li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
+                    A safety event was recorded with your ride and approximate location.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
+                    Ride It&apos;s safety team has been notified and will review it.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
+                    You can still share this ride or call emergency services directly.
+                  </li>
                 </ul>
                 <p className="mt-3 text-xs text-alert-red">
                   Ride It has not contacted police or emergency services on your behalf. If you are in immediate

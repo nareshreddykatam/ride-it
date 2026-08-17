@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Star } from "lucide-react";
 import { StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -20,7 +21,19 @@ const columns: Column<AdminPassengerListRow>[] = [
   },
   { key: "phone", header: "Phone", render: (row) => (row.phone ? `+91 ${row.phone}` : "—") },
   { key: "totalRides", header: "Total rides", render: (row) => row.total_rides },
-  { key: "rating", header: "Rating", render: (row) => (row.rating > 0 ? `★ ${row.rating.toFixed(1)}` : "—") },
+  {
+    key: "rating",
+    header: "Rating",
+    render: (row) =>
+      row.rating > 0 ? (
+        <span className="flex items-center gap-1">
+          <Star size={13} className="fill-marigold text-marigold" aria-hidden="true" />
+          {row.rating.toFixed(1)}
+        </span>
+      ) : (
+        "—"
+      ),
+  },
   {
     key: "status",
     header: "Status",
@@ -62,7 +75,14 @@ export default function PassengersPage() {
       {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}
 
       <div className="mt-4">
-        <DataTable columns={columns} rows={passengers} keyField={(r) => r.id} loading={loading} emptyLabel="No passengers found" />
+        <DataTable
+          columns={columns}
+          rows={passengers}
+          keyField={(r) => r.id}
+          loading={loading}
+          emptyLabel="No passengers found"
+          ariaLabel="Passengers table"
+        />
       </div>
     </div>
   );

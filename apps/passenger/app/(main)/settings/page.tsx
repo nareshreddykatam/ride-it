@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { Switch } from "@ride-it/ui";
 import { PaymentMethod } from "@ride-it/types";
 
 function ToggleRow({
@@ -22,16 +23,7 @@ function ToggleRow({
         <p className="text-sm text-ink">{label}</p>
         {description && <p className="text-xs text-ink-soft">{description}</p>}
       </div>
-      <button
-        onClick={() => onChange(!checked)}
-        className={`h-6 w-11 rounded-full p-0.5 transition-colors ${checked ? "bg-signal-blue" : "bg-ink/15"}`}
-      >
-        <span
-          className={`block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-            checked ? "translate-x-5" : "translate-x-0"
-          }`}
-        />
-      </button>
+      <Switch checked={checked} onCheckedChange={onChange} label={label} />
     </div>
   );
 }
@@ -45,7 +37,7 @@ export default function SettingsPage() {
   return (
     <main className="flex-1 px-6 py-8">
       <div className="flex items-center gap-2">
-        <Link href="/profile" className="text-ink-soft">
+        <Link href="/profile" aria-label="Back" className="text-ink-soft">
           <ChevronLeft size={20} />
         </Link>
         <h1 className="font-display text-2xl font-medium text-ink">Settings</h1>
@@ -62,10 +54,13 @@ export default function SettingsPage() {
 
       <div className="mt-6">
         <p className="text-xs font-medium text-ink-soft">Default payment method</p>
-        <div className="mt-1 flex gap-2">
+        <div className="mt-1 flex gap-2" role="radiogroup" aria-label="Default payment method">
           {[PaymentMethod.CASH, PaymentMethod.DRIVER_UPI].map((m) => (
             <button
               key={m}
+              type="button"
+              role="radio"
+              aria-checked={defaultPayment === m}
               onClick={() => setDefaultPayment(m)}
               className={`flex-1 rounded-lg border px-3 py-2.5 text-sm ${
                 defaultPayment === m ? "border-2 border-signal-blue text-ink" : "border-border text-ink-soft"

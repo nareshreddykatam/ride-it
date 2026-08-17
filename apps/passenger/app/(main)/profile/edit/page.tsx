@@ -119,11 +119,13 @@ export default function EditPassengerProfilePage() {
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink">Gender</label>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Gender">
             {GENDER_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 type="button"
+                role="radio"
+                aria-checked={gender === opt.value}
                 onClick={() => setGender(opt.value)}
                 className={`h-11 rounded-lg border text-sm ${
                   gender === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"

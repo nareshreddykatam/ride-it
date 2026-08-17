@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
@@ -21,6 +21,7 @@ export default function SettingsPage() {
   const [pricing, setPricing] = React.useState<PricingRuleRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState<string | null>(null);
+  const [confirmMaintenanceOpen, setConfirmMaintenanceOpen] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     const [s, p] = await Promise.all([listAppSettingsAdmin(supabase), listPricingRulesAdmin(supabase)]);
@@ -39,6 +40,7 @@ export default function SettingsPage() {
     setSaving("maintenance_mode");
     try {
       await updateAppSetting(supabase, "maintenance_mode", !current, user.id);
+      setConfirmMaintenanceOpen(false);
       await refresh();
     } finally {
       setSaving(null);
@@ -104,7 +106,7 @@ export default function SettingsPage() {
             variant={maintenanceOn ? "outline" : "destructive"}
             className="mt-4"
             disabled={saving === "maintenance_mode"}
-            onClick={handleToggleMaintenance}
+            onClick={() => (maintenanceOn ? handleToggleMaintenance() : setConfirmMaintenanceOpen(true))}
           >
             {maintenanceOn ? "Turn off maintenance mode" : "Turn on maintenance mode"}
           </Button>
@@ -147,6 +149,17 @@ export default function SettingsPage() {
           </p>
         </Card>
       </div>
+
+      <ConfirmDialog
+        open={confirmMaintenanceOpen}
+        onOpenChange={setConfirmMaintenanceOpen}
+        title="Turn on maintenance mode?"
+        description="This blocks new bookings platform-wide across the Passenger and Driver apps until you turn it off again."
+        confirmLabel="Turn on maintenance mode"
+        tone="destructive"
+        loading={saving === "maintenance_mode"}
+        onConfirm={handleToggleMaintenance}
+      />
     </div>
   );
 }

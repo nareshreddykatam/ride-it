@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Star } from "lucide-react";
 import { StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -42,8 +43,24 @@ const columns: Column<AdminDriverListRow>[] = [
     header: "Status",
     render: (row) => <StatusPill tone={STATUS_TONE[row.verification_status]}>{row.verification_status.replace("_", " ")}</StatusPill>,
   },
-  { key: "online", header: "Online", render: (row) => (row.is_online ? "Yes" : "No") },
-  { key: "rating", header: "Rating", render: (row) => (row.rating > 0 ? `★ ${row.rating.toFixed(1)}` : "—") },
+  {
+    key: "online",
+    header: "Online",
+    render: (row) => <StatusPill tone={row.is_online ? "online" : "offline"}>{row.is_online ? "Online" : "Offline"}</StatusPill>,
+  },
+  {
+    key: "rating",
+    header: "Rating",
+    render: (row) =>
+      row.rating > 0 ? (
+        <span className="flex items-center gap-1">
+          <Star size={13} className="fill-marigold text-marigold" aria-hidden="true" />
+          {row.rating.toFixed(1)}
+        </span>
+      ) : (
+        "—"
+      ),
+  },
 ];
 
 export default function DriversPage() {
@@ -101,7 +118,14 @@ export default function DriversPage() {
       {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}
 
       <div className="mt-4">
-        <DataTable columns={columns} rows={drivers} keyField={(r) => r.id} loading={loading} emptyLabel="No drivers found" />
+        <DataTable
+          columns={columns}
+          rows={drivers}
+          keyField={(r) => r.id}
+          loading={loading}
+          emptyLabel="No drivers found"
+          ariaLabel="Drivers table"
+        />
       </div>
     </div>
   );

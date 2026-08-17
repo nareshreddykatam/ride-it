@@ -1,11 +1,13 @@
+import { StatusPill } from "@ride-it/ui";
+
 // Matches the actual launch order seeded in supabase/seed.sql: Vijayawada
 // launched first, Hyderabad second (Part 15 — Vijayawada is now the
 // operating/demo city).
 const CITIES = [
-  { name: "Vijayawada", status: "Live" },
-  { name: "Hyderabad", status: "Coming soon" },
-  { name: "Bengaluru", status: "Coming soon" },
-  { name: "Chennai", status: "Coming soon" },
+  { name: "Vijayawada", status: "Live" as const },
+  { name: "Hyderabad", status: "Coming soon" as const },
+  { name: "Bengaluru", status: "Coming soon" as const },
+  { name: "Chennai", status: "Coming soon" as const },
 ];
 
 export default function CitiesPage() {
@@ -22,7 +24,11 @@ export default function CitiesPage() {
         {CITIES.map((city) => (
           <div key={city.name} className="rounded-lg border border-border bg-white p-4">
             <p className="font-display text-base font-medium text-ink">{city.name}</p>
-            <p className="mt-1 text-xs text-ink-soft">{city.status}</p>
+            <div className="mt-2">
+              <StatusPill tone={city.status === "Live" ? "online" : "pending"} dot={false}>
+                {city.status}
+              </StatusPill>
+            </div>
           </div>
         ))}
       </div>

@@ -49,7 +49,7 @@ export default function DriverNotificationsPage() {
   return (
     <main className="flex-1 px-6 py-8">
       <div className="flex items-center gap-2">
-        <Link href="/profile" className="text-ink-soft">
+        <Link href="/profile" aria-label="Back" className="text-ink-soft">
           <ChevronLeft size={20} />
         </Link>
         <h1 className="font-display text-2xl font-medium text-ink">Notifications</h1>

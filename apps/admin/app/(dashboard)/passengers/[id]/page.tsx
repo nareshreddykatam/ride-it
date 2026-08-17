@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Star } from "lucide-react";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getPassengerAdminDetail,
@@ -26,6 +27,7 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
   const [reviews, setReviews] = React.useState<RatingRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [updating, setUpdating] = React.useState(false);
+  const [confirmSuspendOpen, setConfirmSuspendOpen] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     const [p, r, t, revs] = await Promise.all([
@@ -49,6 +51,7 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
     setUpdating(true);
     try {
       await setPassengerActive(supabase, params.id, !passenger.is_active);
+      setConfirmSuspendOpen(false);
       await refresh();
     } finally {
       setUpdating(false);
@@ -83,7 +86,16 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-3">
         <Card>
           <p className="text-xs text-ink-soft">Rating</p>
-          <p className="mt-1 font-meter text-lg text-ink">{passenger.rating > 0 ? `★ ${passenger.rating.toFixed(1)}` : "—"}</p>
+          <p className="mt-1 flex items-center gap-1 font-meter text-lg text-ink">
+            {passenger.rating > 0 ? (
+              <>
+                <Star size={16} className="fill-marigold text-marigold" aria-hidden="true" />
+                {passenger.rating.toFixed(1)}
+              </>
+            ) : (
+              "—"
+            )}
+          </p>
         </Card>
         <Card>
           <p className="text-xs text-ink-soft">Total rides</p>
@@ -102,7 +114,10 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
             {reviews.map((r) => (
               <div key={r.id} className="py-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-meter text-sm text-ink">★ {r.rating}</span>
+                  <span className="flex items-center gap-1 font-meter text-sm text-ink">
+                    <Star size={13} className="fill-marigold text-marigold" aria-hidden="true" />
+                    {r.rating}
+                  </span>
                   <span className="text-xs text-ink-soft">{new Date(r.created_at).toLocaleDateString("en-IN")}</span>
                 </div>
                 {r.comment && <p className="mt-1 text-xs text-ink-soft">{r.comment}</p>}
@@ -164,10 +179,25 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
       </Card>
 
       <div className="mt-6">
-        <Button variant={passenger.is_active ? "destructive" : "outline"} disabled={updating} onClick={handleToggleActive}>
+        <Button
+          variant={passenger.is_active ? "destructive" : "outline"}
+          disabled={updating}
+          onClick={() => (passenger.is_active ? setConfirmSuspendOpen(true) : handleToggleActive())}
+        >
           {passenger.is_active ? "Suspend passenger" : "Reactivate passenger"}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={confirmSuspendOpen}
+        onOpenChange={setConfirmSuspendOpen}
+        title="Suspend this passenger?"
+        description="They won't be able to book new rides until an admin reactivates their account."
+        confirmLabel="Suspend passenger"
+        tone="destructive"
+        loading={updating}
+        onConfirm={handleToggleActive}
+      />
     </div>
   );
 }

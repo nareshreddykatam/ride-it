@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
+import { Star } from "lucide-react";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -294,6 +295,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
   const [savingStatus, setSavingStatus] = React.useState(false);
   const [busyUpi, setBusyUpi] = React.useState(false);
   const [reviews, setReviews] = React.useState<RatingRow[]>([]);
+  const [confirmSuspendOpen, setConfirmSuspendOpen] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     const [p, v, docs, sub, earn, revs] = await Promise.all([
@@ -321,6 +323,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
     setSavingStatus(true);
     try {
       await setDriverVerificationStatus(supabase, params.id, status, notes || undefined);
+      setConfirmSuspendOpen(false);
       await refresh();
     } finally {
       setSavingStatus(false);
@@ -374,11 +377,22 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card>
           <p className="text-xs text-ink-soft">Rating</p>
-          <p className="mt-1 font-meter text-lg text-ink">{profile.rating > 0 ? `★ ${profile.rating.toFixed(1)}` : "—"}</p>
+          <p className="mt-1 flex items-center gap-1 font-meter text-lg text-ink">
+            {profile.rating > 0 ? (
+              <>
+                <Star size={16} className="fill-marigold text-marigold" aria-hidden="true" />
+                {profile.rating.toFixed(1)}
+              </>
+            ) : (
+              "—"
+            )}
+          </p>
         </Card>
         <Card>
           <p className="text-xs text-ink-soft">Online now</p>
-          <p className="mt-1 font-meter text-lg text-ink">{profile.is_online ? "Yes" : "No"}</p>
+          <div className="mt-1">
+            <StatusPill tone={profile.is_online ? "online" : "offline"}>{profile.is_online ? "Online" : "Offline"}</StatusPill>
+          </div>
         </Card>
         <Card>
           <MeterValue value={subscription ? subscription.plan : "None"} label="Subscription" size="sm" />
@@ -480,7 +494,10 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
             {reviews.map((r) => (
               <div key={r.id} className="py-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-meter text-sm text-ink">★ {r.rating}</span>
+                  <span className="flex items-center gap-1 font-meter text-sm text-ink">
+                    <Star size={13} className="fill-marigold text-marigold" aria-hidden="true" />
+                    {r.rating}
+                  </span>
                   <span className="text-xs text-ink-soft">{new Date(r.created_at).toLocaleDateString("en-IN")}</span>
                 </div>
                 {r.comment && <p className="mt-1 text-xs text-ink-soft">{r.comment}</p>}
@@ -508,11 +525,22 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
           <Button variant="outline" disabled={savingStatus} onClick={() => handleSetStatus("rejected")}>
             Reject driver
           </Button>
-          <Button variant="destructive" disabled={savingStatus} onClick={() => handleSetStatus("suspended")}>
+          <Button variant="destructive" disabled={savingStatus} onClick={() => setConfirmSuspendOpen(true)}>
             Suspend driver
           </Button>
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={confirmSuspendOpen}
+        onOpenChange={setConfirmSuspendOpen}
+        title="Suspend this driver?"
+        description="They'll be taken offline immediately and won't be able to accept rides until an admin reinstates them."
+        confirmLabel="Suspend driver"
+        tone="destructive"
+        loading={savingStatus}
+        onConfirm={() => handleSetStatus("suspended")}
+      />
     </div>
   );
 }

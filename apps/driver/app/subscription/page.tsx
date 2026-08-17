@@ -109,7 +109,7 @@ export default function SubscriptionPage() {
           {PLANS.map((p) => {
             const active = selected === p.plan;
             return (
-              <button key={p.plan} onClick={() => setSelected(p.plan)} className="text-left">
+              <button key={p.plan} onClick={() => setSelected(p.plan)} aria-pressed={active} className="text-left">
                 <Card
                   className={
                     active

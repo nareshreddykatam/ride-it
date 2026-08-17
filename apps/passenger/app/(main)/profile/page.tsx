@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { Star } from "lucide-react";
 import { Button, Card, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -85,7 +86,10 @@ export default function PassengerProfilePage() {
               {profile?.phone ? `+91 ${profile.phone}` : profile?.email ?? ""}
             </p>
             <div className="mt-2">
-              <StatusPill tone="online">★ {profile?.rating?.toFixed(1) ?? "5.0"} rating</StatusPill>
+              <StatusPill tone="online" dot={false}>
+                <Star size={11} className="fill-current" aria-hidden="true" />
+                {profile?.rating?.toFixed(1) ?? "5.0"} rating
+              </StatusPill>
             </div>
           </>
         )}
@@ -136,9 +140,11 @@ export default function PassengerProfilePage() {
             <span className="text-xs text-ink-soft">Manage</span>
           </Card>
         </Link>
-        <Card className="flex items-center justify-between">
+        <Card className="flex items-center justify-between opacity-60">
           <span className="text-sm text-ink">Payment methods</span>
-          <span className="text-xs text-ink-soft">Manage</span>
+          <StatusPill tone="pending" dot={false}>
+            Coming soon
+          </StatusPill>
         </Card>
         <Link href="/notifications">
           <Card className="flex items-center justify-between">
@@ -146,9 +152,11 @@ export default function PassengerProfilePage() {
             <span className="text-xs text-ink-soft">Open</span>
           </Card>
         </Link>
-        <Card className="flex items-center justify-between">
+        <Card className="flex items-center justify-between opacity-60">
           <span className="text-sm text-ink">Help &amp; support</span>
-          <span className="text-xs text-ink-soft">Open</span>
+          <StatusPill tone="pending" dot={false}>
+            Coming soon
+          </StatusPill>
         </Card>
         <Link href="/settings">
           <Card className="flex items-center justify-between">

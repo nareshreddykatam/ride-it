@@ -15,6 +15,7 @@ export interface DataTableProps<T> {
   keyField: (row: T) => string;
   loading?: boolean;
   emptyLabel?: string;
+  ariaLabel?: string;
 }
 
 export function DataTable<T>({
@@ -23,11 +24,12 @@ export function DataTable<T>({
   keyField,
   loading = false,
   emptyLabel = "No records found",
+  ariaLabel,
 }: DataTableProps<T>) {
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-white">
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[640px] text-left text-sm">
+        <table aria-label={ariaLabel} className="w-full min-w-[640px] text-left text-sm">
           <thead>
             <tr className="border-b border-border bg-ink/[0.02]">
               {columns.map((col) => (

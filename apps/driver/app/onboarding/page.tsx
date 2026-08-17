@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "@ride-it/ui";
+import { Button, Input, Skeleton } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -137,8 +137,15 @@ export default function DriverOnboardingPage() {
 
   if (loading) {
     return (
-      <main className="flex flex-1 items-center justify-center px-6 py-10">
-        <p className="text-sm text-ink-soft">Loading…</p>
+      <main className="flex flex-1 flex-col gap-4 px-6 py-10">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-56" />
+        <div className="mt-4 flex flex-col gap-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-12 w-full" />
+        </div>
       </main>
     );
   }
@@ -151,55 +158,43 @@ export default function DriverOnboardingPage() {
           <h1 className="mt-1 font-display text-2xl font-medium text-ink">Tell us about yourself</h1>
 
           <div className="mt-6 flex flex-col gap-4">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink">Full name</label>
-              <input
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Your full name"
-                className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink">Mobile number</label>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                placeholder="98765 43210"
-                inputMode="numeric"
-                className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink">Email</label>
-              <input
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                type="email"
-                className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-medium text-ink">Date of birth</label>
-              <input
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                type="date"
-                max={todayMinusYears(MIN_AGE_YEARS)}
-                className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-              />
-              {dateOfBirth.length > 0 && !dobValid && (
-                <p className="mt-1 text-xs text-alert-red">Drivers must be at least {MIN_AGE_YEARS} years old.</p>
-              )}
-            </div>
+            <Input
+              label="Full name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Your full name"
+            />
+            <Input
+              label="Mobile number"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="98765 43210"
+              inputMode="numeric"
+            />
+            <Input
+              label="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              type="email"
+            />
+            <Input
+              label="Date of birth"
+              value={dateOfBirth}
+              onChange={(e) => setDateOfBirth(e.target.value)}
+              type="date"
+              max={todayMinusYears(MIN_AGE_YEARS)}
+              error={dateOfBirth.length > 0 && !dobValid ? `Drivers must be at least ${MIN_AGE_YEARS} years old.` : undefined}
+            />
             <div>
               <label className="mb-1.5 block text-sm font-medium text-ink">Gender</label>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Gender">
                 {GENDER_OPTIONS.map((opt) => (
                   <button
                     key={opt.value}
                     type="button"
+                    role="radio"
+                    aria-checked={gender === opt.value}
                     onClick={() => setGender(opt.value)}
                     className={`h-11 rounded-lg border text-sm ${
                       gender === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"
@@ -231,11 +226,13 @@ export default function DriverOnboardingPage() {
         <div className="mt-6 flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink">Vehicle type</label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Vehicle type">
               {VEHICLE_TYPE_OPTIONS.map((opt) => (
                 <button
                   key={opt.value}
                   type="button"
+                  role="radio"
+                  aria-checked={vehicleType === opt.value}
                   onClick={() => setVehicleType(opt.value)}
                   className={`h-11 rounded-lg border text-sm ${
                     vehicleType === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"
@@ -246,45 +243,35 @@ export default function DriverOnboardingPage() {
               ))}
             </div>
           </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink">Registration number</label>
-            <input
-              value={registrationNumber}
-              onChange={(e) => setRegistrationNumber(e.target.value.toUpperCase())}
-              placeholder="TS 09 AB 1234"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-            />
-            {registrationNumber.trim().length > 0 && !plateValid && (
-              <p className="mt-1 text-xs text-alert-red">Enter a valid registration/number plate.</p>
-            )}
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink">Make (optional)</label>
-            <input
-              value={make}
-              onChange={(e) => setMake(e.target.value)}
-              placeholder="Honda, Bajaj, Maruti…"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink">Model (optional)</label>
-            <input
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              placeholder="Activa, Pulsar, Swift…"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-            />
-          </div>
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-ink">Colour (optional)</label>
-            <input
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              placeholder="White, Black, Red…"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
-            />
-          </div>
+          <Input
+            label="Registration number"
+            value={registrationNumber}
+            onChange={(e) => setRegistrationNumber(e.target.value.toUpperCase())}
+            placeholder="TS 09 AB 1234"
+            error={
+              registrationNumber.trim().length > 0 && !plateValid
+                ? "Enter a valid registration/number plate."
+                : undefined
+            }
+          />
+          <Input
+            label="Make (optional)"
+            value={make}
+            onChange={(e) => setMake(e.target.value)}
+            placeholder="Honda, Bajaj, Maruti…"
+          />
+          <Input
+            label="Model (optional)"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="Activa, Pulsar, Swift…"
+          />
+          <Input
+            label="Colour (optional)"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+            placeholder="White, Black, Red…"
+          />
           {error && <p className="text-xs text-alert-red">{error}</p>}
         </div>
       </motion.div>

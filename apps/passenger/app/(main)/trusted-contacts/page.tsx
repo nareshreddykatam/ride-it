@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, Trash2, UserPlus, Users } from "lucide-react";
-import { BottomSheet, Button, Card, EmptyState, SkeletonRow } from "@ride-it/ui";
+import { BottomSheet, Button, Card, EmptyState, Input, SkeletonRow } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listTrustedContacts, addTrustedContact, removeTrustedContact, type TrustedContactRow } from "@ride-it/data";
@@ -56,12 +56,12 @@ export default function TrustedContactsPage() {
     <main className="flex-1 px-6 py-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/profile" className="text-ink-soft">
+          <Link href="/profile" aria-label="Back" className="text-ink-soft">
             <ChevronLeft size={20} />
           </Link>
           <h1 className="font-display text-2xl font-medium text-ink">Trusted Contacts</h1>
         </div>
-        <button onClick={() => setSheetOpen(true)} className="text-signal-blue">
+        <button onClick={() => setSheetOpen(true)} aria-label="Add trusted contact" className="text-signal-blue">
           <UserPlus size={22} />
         </button>
       </div>
@@ -90,7 +90,7 @@ export default function TrustedContactsPage() {
                   {c.relationship_label ? ` · ${c.relationship_label}` : ""}
                 </p>
               </div>
-              <button onClick={() => handleRemove(c.id)} className="text-alert-red">
+              <button onClick={() => handleRemove(c.id)} aria-label={`Remove ${c.name}`} className="text-alert-red">
                 <Trash2 size={16} />
               </button>
             </Card>
@@ -100,24 +100,19 @@ export default function TrustedContactsPage() {
       <BottomSheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <p className="text-sm font-medium text-ink">Add trusted contact</p>
         <div className="mt-3 flex flex-col gap-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Name"
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
-          />
-          <input
+          <Input size="sm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
+          <Input
+            size="sm"
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
             placeholder="Phone number"
             inputMode="numeric"
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
           />
-          <input
+          <Input
+            size="sm"
             value={relationship}
             onChange={(e) => setRelationship(e.target.value)}
             placeholder="Relationship (optional) — e.g. Parent, Spouse"
-            className="h-10 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
           />
           <Button disabled={!name.trim() || phone.trim().length < 10 || saving} onClick={handleAdd}>
             {saving ? "Saving…" : "Add contact"}

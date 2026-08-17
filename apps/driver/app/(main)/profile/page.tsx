@@ -3,7 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Button, Card, Skeleton, StatusPill } from "@ride-it/ui";
+import { Star } from "lucide-react";
+import { Button, Card, Input, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverProfile, setDriverUpiId, type DriverProfileRow } from "@ride-it/data";
@@ -94,7 +95,10 @@ export default function DriverProfilePage() {
                   {VERIFICATION_LABEL[profile.verification_status]}
                 </StatusPill>
               )}
-              <span className="text-xs text-ink-soft">★ {profile?.rating?.toFixed(1) ?? "5.0"} rating</span>
+              <span className="flex items-center gap-1 text-xs text-ink-soft">
+                <Star size={12} className="fill-marigold text-marigold" aria-hidden="true" />
+                {(profile?.rating ?? 5).toFixed(1)} rating
+              </span>
             </div>
           </>
         )}
@@ -114,12 +118,14 @@ export default function DriverProfilePage() {
           must verify it before it can be shown to passengers.
         </p>
         {editingUpi ? (
-          <div className="mt-3 flex items-center gap-2">
-            <input
+          <div className="mt-3 flex items-end gap-2">
+            <Input
+              label="UPI ID"
+              size="sm"
+              className="flex-1"
               value={upiInput}
               onChange={(e) => setUpiInput(e.target.value)}
               placeholder="yourname@bank"
-              className="h-9 flex-1 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
             />
             <Button size="sm" disabled={savingUpi || !upiInput.trim()} onClick={handleSaveUpi}>
               Save

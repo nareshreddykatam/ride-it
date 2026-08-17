@@ -1,10 +1,19 @@
 "use client";
 
 import * as React from "react";
+import { Bike, Car } from "lucide-react";
 import { BottomSheet, Button, MeterValue, StatusPill } from "@ride-it/ui";
-import type { FareEstimate, GeoPoint } from "@ride-it/types";
+import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB, type FareEstimate, type GeoPoint } from "@ride-it/types";
 
 const OFFER_WINDOW_SECONDS = 15;
+
+function VehicleIcon({ vehicleType }: { vehicleType: VehicleType }) {
+  return vehicleType === VehicleType.BIKE || vehicleType === VehicleType.SCOOTY ? (
+    <Bike size={16} aria-hidden="true" />
+  ) : (
+    <Car size={16} aria-hidden="true" />
+  );
+}
 
 export interface RideRequestSheetProps {
   open: boolean;
@@ -61,6 +70,11 @@ export function RideRequestSheet({
       <div className="flex items-center justify-between">
         <StatusPill tone="info">New ride request</StatusPill>
         <MeterValue value={String(secondsLeft).padStart(2, "0")} size="md" />
+      </div>
+
+      <div className="mt-3 flex items-center gap-1.5 text-sm font-medium text-ink">
+        <VehicleIcon vehicleType={fare.vehicleType} />
+        {VEHICLE_TYPE_LABELS_DB[vehicleTypeToDb(fare.vehicleType)]}
       </div>
 
       <div className="mt-4 space-y-2 text-sm">

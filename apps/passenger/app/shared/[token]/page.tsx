@@ -58,7 +58,7 @@ export default function SharedRidePage() {
     return (
       <main className="flex flex-1 flex-col px-6 py-8">
         <Skeleton className="h-6 w-40" />
-        <Skeleton className="mt-4 h-48 rounded-xl" />
+        <Skeleton className="mt-4 h-48 rounded-lg" />
       </main>
     );
   }

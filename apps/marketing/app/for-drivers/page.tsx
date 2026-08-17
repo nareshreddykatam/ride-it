@@ -1,3 +1,4 @@
+import { CheckCircle2 } from "lucide-react";
 import { Button, Card, MeterValue, StatusPill } from "@ride-it/ui";
 
 const PLANS = [
@@ -35,15 +36,22 @@ export default function ForDriversPage() {
         ))}
       </div>
 
-      <section className="mt-16 rounded-xl border border-border bg-white p-8">
+      <section className="mt-16 rounded-lg border border-border bg-white p-8">
         <h2 className="font-display text-xl font-medium text-ink">What you&apos;ll need</h2>
         <ul className="mt-4 grid grid-cols-1 gap-2 text-sm text-ink-soft sm:grid-cols-2">
-          <li>Aadhaar Card</li>
-          <li>Valid Driving License</li>
-          <li>Vehicle Registration Certificate (RC)</li>
-          <li>Vehicle Insurance</li>
-          <li>A selfie for identity verification</li>
-          <li>A Bike or Auto</li>
+          {[
+            "Aadhaar Card",
+            "Valid Driving License",
+            "Vehicle Registration Certificate (RC)",
+            "Vehicle Insurance",
+            "A selfie for identity verification",
+            "A Bike or Auto",
+          ].map((item) => (
+            <li key={item} className="flex items-center gap-2">
+              <CheckCircle2 size={15} className="shrink-0 text-meter-green" aria-hidden="true" />
+              {item}
+            </li>
+          ))}
         </ul>
       </section>
     </main>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, Card, CardHeader, CardTitle, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, SkeletonRow, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listDriverDocuments, uploadDriverDocument, type DocumentType, type DriverDocumentRow } from "@ride-it/data";
@@ -23,6 +23,7 @@ export default function DocumentsPage() {
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [docs, setDocs] = React.useState<Record<string, DriverDocumentRow>>({});
+  const [loading, setLoading] = React.useState(true);
   const [uploading, setUploading] = React.useState<DocumentType | null>(null);
   const fileInputs = React.useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -35,7 +36,7 @@ export default function DocumentsPage() {
   }, [supabase, user]);
 
   React.useEffect(() => {
-    refresh();
+    refresh().finally(() => setLoading(false));
   }, [refresh]);
 
   async function handleFileSelected(documentType: DocumentType, file: File | undefined) {
@@ -59,7 +60,8 @@ export default function DocumentsPage() {
       </p>
 
       <div className="mt-6 flex flex-col gap-3">
-        {REQUIRED_DOCUMENTS.map((doc) => {
+        {loading && REQUIRED_DOCUMENTS.map((doc) => <SkeletonRow key={doc.key} />)}
+        {!loading && REQUIRED_DOCUMENTS.map((doc) => {
           const uploaded = docs[doc.key];
           return (
             <Card key={doc.key} className="flex items-center justify-between p-4">

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Button } from "@ride-it/ui";
+import { Button, StatusPill } from "@ride-it/ui";
 import { FareLineHero } from "../components/fare-line-hero";
 
 const STEPS = [
@@ -22,8 +22,13 @@ export default function MarketingHomePage() {
           subscription instead of a cut out of every fare — keep 100% of what
           you earn.
         </p>
-        <div className="mt-8 flex gap-3">
-          <Button size="lg">Download the app</Button>
+        <div className="mt-8 flex flex-wrap items-center gap-3">
+          <Button size="lg" disabled>
+            Download the app
+          </Button>
+          <StatusPill tone="pending" dot={false}>
+            Coming soon
+          </StatusPill>
           <Link href="/for-drivers">
             <Button size="lg" variant="outline">
               See driver plans

@@ -195,12 +195,15 @@ export default function RideCompletePage() {
         </Card>
 
         <p className="mt-6 text-sm font-medium text-ink">Pay with</p>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex gap-2" role="radiogroup" aria-label="Payment method">
           {METHODS.map(({ value, label, icon: Icon }) => {
             const active = method === value;
             return (
               <button
                 key={value}
+                type="button"
+                role="radio"
+                aria-checked={active}
                 onClick={() => {
                   setMethod(value);
                   setOnlineState("idle");

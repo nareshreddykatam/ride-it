@@ -42,10 +42,12 @@ export default function EarningsPage() {
     <main className="flex-1 px-6 py-8">
       <h1 className="font-display text-2xl font-medium text-ink">Earnings</h1>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex gap-2" role="tablist" aria-label="Earnings range">
         {RANGES.map((r) => (
           <button
             key={r.key}
+            role="tab"
+            aria-selected={range === r.key}
             onClick={() => setRange(r.key)}
             className={`rounded-full px-3 py-1.5 text-xs font-medium ${
               range === r.key ? "bg-signal-blue text-white" : "bg-ink/5 text-ink-soft"

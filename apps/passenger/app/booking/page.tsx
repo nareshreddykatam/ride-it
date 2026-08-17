@@ -120,13 +120,13 @@ function BookingPageContent() {
         <p className="mt-4 text-sm text-ink-soft">To</p>
         <h1 className="font-display text-xl font-medium text-ink">{destination}</h1>
 
-        <div className="mt-6 flex flex-col gap-3">
+        <div className="mt-6 flex flex-col gap-3" role="radiogroup" aria-label="Vehicle type">
           {estimates.map(({ type, estimate }) => {
             const meta = VEHICLE_META[type];
             const Icon = meta.icon;
             const active = selected === type;
             return (
-              <button key={type} onClick={() => setSelected(type)} className="text-left">
+              <button key={type} type="button" role="radio" aria-checked={active} onClick={() => setSelected(type)} className="text-left">
                 <div
                   className={cn(
                     "flex items-center justify-between rounded-lg border bg-white p-4",

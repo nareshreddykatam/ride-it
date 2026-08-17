@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
+import { Card, MeterValue, Skeleton, StatusPill, Button, cn } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
@@ -44,19 +44,25 @@ export default function DashboardPage() {
   const [togglingOnline, setTogglingOnline] = React.useState(false);
   const [pendingOffer, setPendingOffer] = React.useState<RideOfferRow | null>(null);
   const [requestOpen, setRequestOpen] = React.useState(false);
+  const [loadError, setLoadError] = React.useState(false);
 
   const loadAll = React.useCallback(async () => {
     if (!user) return;
-    const [driverProfile, activeSub, earnings, wallet] = await Promise.all([
-      getDriverProfile(supabase, user.id),
-      getActiveSubscription(supabase, user.id),
-      getDriverEarningsSummary(supabase, user.id, "today"),
-      getWallet(supabase, user.id),
-    ]);
-    setProfile(driverProfile);
-    setSubscription(activeSub);
-    setEarningsToday({ total: earnings.totalEarnings, rides: earnings.ridesCompleted });
-    setWalletBalance(wallet?.balance ?? 0);
+    setLoadError(false);
+    try {
+      const [driverProfile, activeSub, earnings, wallet] = await Promise.all([
+        getDriverProfile(supabase, user.id),
+        getActiveSubscription(supabase, user.id),
+        getDriverEarningsSummary(supabase, user.id, "today"),
+        getWallet(supabase, user.id),
+      ]);
+      setProfile(driverProfile);
+      setSubscription(activeSub);
+      setEarningsToday({ total: earnings.totalEarnings, rides: earnings.ridesCompleted });
+      setWalletBalance(wallet?.balance ?? 0);
+    } catch {
+      setLoadError(true);
+    }
   }, [supabase, user]);
 
   React.useEffect(() => {
@@ -175,7 +181,7 @@ export default function DashboardPage() {
     return (
       <main className="flex-1 px-6 py-8">
         <Skeleton className="h-4 w-40" />
-        <Skeleton className="mt-6 h-24 w-full rounded-xl" />
+        <Skeleton className="mt-6 h-24 w-full rounded-lg" />
         <div className="mt-6 grid grid-cols-2 gap-4">
           <Skeleton className="h-24 rounded-lg" />
           <Skeleton className="h-24 rounded-lg" />
@@ -186,6 +192,14 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 px-6 py-8">
+      {loadError && (
+        <div className="mb-4 flex items-center justify-between rounded-lg border border-alert-red/30 bg-alert-red/5 px-4 py-3 text-sm text-alert-red">
+          <span>Couldn't load your dashboard.</span>
+          <button type="button" onClick={() => loadAll()} className="font-medium underline underline-offset-2">
+            Retry
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <p className="text-xs text-ink-soft">Subscription</p>
@@ -203,7 +217,7 @@ export default function DashboardPage() {
         disabled={togglingOnline || (!subscription && !profile?.is_online)}
         whileTap={{ scale: 0.98 }}
         className={cn(
-          "mt-6 flex w-full flex-col items-center justify-center gap-1 rounded-xl py-8 transition-colors disabled:opacity-60",
+          "mt-6 flex w-full flex-col items-center justify-center gap-1 rounded-lg py-8 transition-colors disabled:opacity-60",
           profile?.is_online ? "bg-meter-green text-white" : "bg-ink text-white"
         )}
       >
@@ -218,6 +232,16 @@ export default function DashboardPage() {
               : "Tap to start receiving ride requests"}
         </span>
       </motion.button>
+
+      {!subscription && (
+        <Button
+          variant="marigold"
+          className="mt-3 w-full"
+          onClick={() => router.push("/subscription")}
+        >
+          View subscription plans
+        </Button>
+      )}
 
       <div className="mt-6 grid grid-cols-2 gap-4">
         <Card>

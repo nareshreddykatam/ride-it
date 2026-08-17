@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -38,6 +38,17 @@ const STATUS_TONE: Record<string, "pending" | "info" | "online" | "alert"> = {
   rated: "online",
 };
 
+const PAYMENT_STATUS_TONE: Record<string, "pending" | "info" | "online" | "alert" | "offline"> = {
+  captured: "online",
+  paid: "online",
+  succeeded: "online",
+  failed: "alert",
+  pending: "pending",
+  created: "pending",
+  refunded: "info",
+  not_selected: "offline",
+};
+
 export default function RideDetailPage({ params }: { params: { id: string } }) {
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
@@ -56,6 +67,8 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
   const [reassignTo, setReassignTo] = React.useState("");
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [confirmRefundOpen, setConfirmRefundOpen] = React.useState(false);
+  const [confirmFlagOpen, setConfirmFlagOpen] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
     const [r, ev, tk] = await Promise.all([
@@ -171,6 +184,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
     setBusy(true);
     try {
       await setDriverVerificationStatus(supabase, ride.driver_id, "in_review", `Flagged from ride #${ride.id.slice(0, 8)} dispute`);
+      setConfirmFlagOpen(false);
       await refresh();
     } finally {
       setBusy(false);
@@ -196,6 +210,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
         setRefundError(data.error ?? "Refund failed");
         return;
       }
+      setConfirmRefundOpen(false);
       await refresh();
     } catch (e) {
       setRefundError(e instanceof Error ? e.message : "Refund failed");
@@ -249,10 +264,24 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
             <div className="flex justify-between"><dt className="text-ink-soft">Driver</dt><dd className="text-ink">{ride.driver_name ?? "Unassigned"}</dd></div>
             <div className="flex justify-between"><dt className="text-ink-soft">Fare</dt><dd className="font-meter text-ink">₹{ride.total_fare}</dd></div>
             <div className="flex justify-between"><dt className="text-ink-soft">Payment method</dt><dd className="text-ink">{ride.payment_method ?? "Not selected"}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-soft">Payment status</dt><dd className="text-ink">{ride.payment_status}</dd></div>
+            <div className="flex justify-between">
+              <dt className="text-ink-soft">Payment status</dt>
+              <dd>
+                <StatusPill tone={PAYMENT_STATUS_TONE[ride.payment_status] ?? "info"} dot={false}>
+                  {ride.payment_status}
+                </StatusPill>
+              </dd>
+            </div>
             {payment && (
               <>
-                <div className="flex justify-between"><dt className="text-ink-soft">Gateway status</dt><dd className="text-ink">{payment.status}</dd></div>
+                <div className="flex justify-between">
+                  <dt className="text-ink-soft">Gateway status</dt>
+                  <dd>
+                    <StatusPill tone={PAYMENT_STATUS_TONE[payment.status] ?? "info"} dot={false}>
+                      {payment.status}
+                    </StatusPill>
+                  </dd>
+                </div>
                 <div className="flex justify-between"><dt className="text-ink-soft">Gateway reference</dt><dd className="text-ink">{payment.provider_payment_id ?? payment.provider_order_id ?? "—"}</dd></div>
                 {payment.captured_at && (
                   <div className="flex justify-between"><dt className="text-ink-soft">Captured</dt><dd className="text-ink">{formatDateTime(payment.captured_at)}</dd></div>
@@ -337,7 +366,11 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
             <p className="text-sm text-ink-soft">No other approved {ride.vehicle_type} drivers available.</p>
           ) : (
             <div className="flex gap-2">
+              <label htmlFor="reassign-driver" className="sr-only">
+                Reassign to driver
+              </label>
               <select
+                id="reassign-driver"
                 value={reassignTo}
                 onChange={(e) => setReassignTo(e.target.value)}
                 className="h-9 flex-1 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
@@ -360,7 +393,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
       <div className="mt-6 flex flex-wrap items-center gap-3">
         {payment?.status === "captured" ? (
           <div className="flex flex-col gap-1">
-            <Button variant="outline" disabled={refunding} onClick={handleRefund}>
+            <Button variant="outline" disabled={refunding} onClick={() => setConfirmRefundOpen(true)}>
               {refunding ? "Processing refund…" : "Issue refund"}
             </Button>
             {refundError && <p className="text-xs text-alert-red">{refundError}</p>}
@@ -371,7 +404,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
           </Button>
         )}
         {ride.driver_id && (
-          <Button variant="outline" disabled={busy} onClick={handleFlagDriver}>
+          <Button variant="outline" disabled={busy} onClick={() => setConfirmFlagOpen(true)}>
             Flag driver for review
           </Button>
         )}
@@ -397,6 +430,26 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
             </Button>
           ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmRefundOpen}
+        onOpenChange={setConfirmRefundOpen}
+        title="Issue refund?"
+        description={`This refunds ₹${ride.total_fare} to the passenger for ride #${ride.id.slice(0, 8)}. This cannot be undone.`}
+        confirmLabel="Issue refund"
+        tone="destructive"
+        loading={refunding}
+        onConfirm={handleRefund}
+      />
+      <ConfirmDialog
+        open={confirmFlagOpen}
+        onOpenChange={setConfirmFlagOpen}
+        title="Flag driver for review?"
+        description="This sets the driver's verification status to 'in review', which may block them from going online until an admin clears the flag."
+        confirmLabel="Flag driver"
+        loading={busy}
+        onConfirm={handleFlagDriver}
+      />
     </div>
   );
 }

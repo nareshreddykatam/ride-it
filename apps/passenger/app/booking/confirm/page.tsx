@@ -68,29 +68,31 @@ function ConfirmBookingPageContent() {
   // this always re-geocoded the text, which could silently return
   // different coordinates than whatever the Booking screen's distance/fare
   // estimate was actually computed from.
-  React.useEffect(() => {
-    let active = true;
-    (async () => {
-      const position = await getCurrentPositionOnce();
-      if (!active) return;
-      if (position) setPickup(position);
-      else setUsedFallback(true);
+  const resolveLocations = React.useCallback(async () => {
+    setResolvingLocations(true);
+    const position = await getCurrentPositionOnce();
+    if (position) {
+      setPickup(position);
+      setUsedFallback(false);
+    } else {
+      setUsedFallback(true);
+    }
 
-      if (knownDrop) {
-        setDrop(knownDrop);
-      } else {
-        const geocoded = await fetchGeocode(destination);
-        if (!active) return;
-        if (geocoded) setDrop({ lat: geocoded.lat, lng: geocoded.lng });
-        else setUsedFallback(true);
-      }
-      setResolvingLocations(false);
-    })();
-    return () => {
-      active = false;
-    };
+    if (knownDrop) {
+      setDrop(knownDrop);
+    } else {
+      const geocoded = await fetchGeocode(destination);
+      if (geocoded) setDrop({ lat: geocoded.lat, lng: geocoded.lng });
+      else setUsedFallback(true);
+    }
+    setResolvingLocations(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destination, destLatParam, destLngParam]);
+
+  React.useEffect(() => {
+    resolveLocations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleConfirmBooking() {
     if (!user) return;
@@ -125,7 +127,7 @@ function ConfirmBookingPageContent() {
         <h1 className="font-display text-xl font-medium text-ink">Confirm your ride</h1>
 
         {resolvingLocations ? (
-          <Skeleton className="mt-4 h-44 w-full rounded-xl" />
+          <Skeleton className="mt-4 h-44 w-full rounded-lg" />
         ) : (
           <RideMap pickup={pickup} drop={drop} routePolyline={routePolyline} fallbackVariant="route" className="mt-4 h-44" />
         )}
@@ -144,8 +146,13 @@ function ConfirmBookingPageContent() {
                 <p className="text-sm text-ink">Current location</p>
               </div>
             </div>
-            <button className="flex items-center gap-1 text-xs text-signal-blue">
-              <Pencil size={12} /> Edit
+            <button
+              type="button"
+              onClick={resolveLocations}
+              disabled={resolvingLocations}
+              className="flex items-center gap-1 text-xs text-signal-blue disabled:opacity-50"
+            >
+              <Pencil size={12} /> {resolvingLocations ? "Locating…" : "Refresh"}
             </button>
           </div>
           <div className="my-3 ml-1 h-4 border-l border-dashed border-border" />

@@ -1,5 +1,9 @@
+"use client";
+
+import * as React from "react";
 import Link from "next/link";
-import { Button } from "@ride-it/ui";
+import { Menu, X } from "lucide-react";
+import { BottomSheet, Button, StatusPill } from "@ride-it/ui";
 
 const LINKS = [
   { href: "/how-it-works", label: "How it works" },
@@ -10,21 +14,59 @@ const LINKS = [
 ];
 
 export function SiteHeader() {
+  const [menuOpen, setMenuOpen] = React.useState(false);
+
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
         <Link href="/" className="font-display text-lg font-medium text-ink-blue">
           Ride It
         </Link>
-        <nav className="hidden gap-6 md:flex">
+        <nav aria-label="Main" className="hidden gap-6 md:flex">
           {LINKS.map((link) => (
             <Link key={link.href} href={link.href} className="text-sm text-ink-soft hover:text-ink">
               {link.label}
             </Link>
           ))}
         </nav>
-        <Button size="sm">Download app</Button>
+        <div className="hidden items-center gap-2 md:flex">
+          <Button size="sm" disabled>
+            Download app
+          </Button>
+          <StatusPill tone="pending" dot={false}>
+            Coming soon
+          </StatusPill>
+        </div>
+        <button
+          type="button"
+          aria-label="Open menu"
+          onClick={() => setMenuOpen(true)}
+          className="text-ink md:hidden"
+        >
+          <Menu size={22} />
+        </button>
       </div>
+
+      <BottomSheet open={menuOpen} onOpenChange={setMenuOpen}>
+        <div className="flex items-center justify-between">
+          <p className="font-display text-base font-medium text-ink">Menu</p>
+          <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="text-ink-soft">
+            <X size={20} />
+          </button>
+        </div>
+        <nav aria-label="Main" className="mt-4 flex flex-col gap-1">
+          {LINKS.map((link) => (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={() => setMenuOpen(false)}
+              className="rounded-lg px-3 py-3 text-sm text-ink hover:bg-ink/5"
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+      </BottomSheet>
     </header>
   );
 }

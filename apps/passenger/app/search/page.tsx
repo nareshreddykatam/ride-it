@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { MapPin, Home, Briefcase, Users, GraduationCap, Clock, Search } from "lucide-react";
-import { cn } from "@ride-it/ui";
+import { cn, EmptyState, SkeletonRow } from "@ride-it/ui";
 import {
   RideMap,
   isGoogleMapsConfigured,
@@ -62,6 +62,7 @@ export default function SearchPage() {
   const [query, setQuery] = React.useState("");
   const [savedPlaces, setSavedPlaces] = React.useState<SavedPlaceRow[]>([]);
   const [recentLocations, setRecentLocations] = React.useState<RecentLocationRow[]>([]);
+  const [placesLoading, setPlacesLoading] = React.useState(true);
   const [suggestions, setSuggestions] = React.useState<PlaceSuggestion[]>([]);
   const [searching, setSearching] = React.useState(false);
   const [resolvingId, setResolvingId] = React.useState<string | null>(null);
@@ -71,8 +72,12 @@ export default function SearchPage() {
 
   React.useEffect(() => {
     if (!user) return;
-    listSavedPlaces(supabase, user.id).then(setSavedPlaces);
-    listRecentLocations(supabase, user.id, 8).then(setRecentLocations);
+    Promise.all([listSavedPlaces(supabase, user.id), listRecentLocations(supabase, user.id, 8)])
+      .then(([places, recents]) => {
+        setSavedPlaces(places);
+        setRecentLocations(recents);
+      })
+      .finally(() => setPlacesLoading(false));
   }, [supabase, user]);
 
   // Debounced real Places Autocomplete — one request per pause in typing,
@@ -184,6 +189,30 @@ export default function SearchPage() {
             />
           </div>
         </div>
+
+        {!showSuggestionsPanel && placesLoading && (
+          <div className="mt-5 flex flex-col gap-2">
+            <SkeletonRow />
+            <SkeletonRow />
+          </div>
+        )}
+
+        {!showSuggestionsPanel && !placesLoading && savedPlaces.length === 0 && recentLocations.length === 0 && (
+          <EmptyState
+            className="mt-6"
+            icon={<MapPin size={20} />}
+            title="No saved places yet"
+            description="Save places like Home or Work for quick access every time you book a ride."
+            action={
+              <button
+                onClick={() => router.push("/saved-places")}
+                className="text-sm font-medium text-signal-blue"
+              >
+                Add a saved place
+              </button>
+            }
+          />
+        )}
 
         {!showSuggestionsPanel && savedPlaces.length > 0 && (
           <div className="mt-5">

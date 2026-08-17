@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Check } from "lucide-react";
 import { Card, CardHeader, CardTitle, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -96,7 +97,12 @@ export default function AdminUsersPage() {
                   return perms.length === 0 ? (
                     <li>No permissions assigned</li>
                   ) : (
-                    perms.map((code) => <li key={code}>• {code}</li>)
+                    perms.map((code) => (
+                      <li key={code} className="flex items-center gap-1.5">
+                        <Check size={12} className="shrink-0 text-meter-green" aria-hidden="true" />
+                        {code}
+                      </li>
+                    ))
                   );
                 })()}
               </ul>

@@ -8,3 +8,7 @@ export * from "./components/bottom-sheet";
 export * from "./components/star-rating";
 export * from "./components/skeleton";
 export * from "./components/empty-state";
+export * from "./components/input";
+export * from "./components/switch";
+export * from "./components/dialog";
+export * from "./components/confirm-dialog";

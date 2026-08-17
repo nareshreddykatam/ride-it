@@ -76,7 +76,14 @@ export default function RidesPage() {
       </p>
       {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}
       <div className="mt-6">
-        <DataTable columns={columns} rows={rides} keyField={(r) => r.id} loading={loading} emptyLabel="No live rides right now" />
+        <DataTable
+          columns={columns}
+          rows={rides}
+          keyField={(r) => r.id}
+          loading={loading}
+          emptyLabel="No live rides right now"
+          ariaLabel="Live rides table"
+        />
       </div>
     </div>
   );

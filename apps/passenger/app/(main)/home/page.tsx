@@ -68,7 +68,7 @@ export default function HomePage() {
         initial={{ y: 24, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: "spring", damping: 22, stiffness: 260 }}
-        className="relative z-10 -mt-6 flex-1 rounded-t-xl bg-paper px-6 pb-6 pt-6 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.12)]"
+        className="relative z-10 -mt-6 flex-1 rounded-t-lg bg-paper px-6 pb-6 pt-6 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.12)]"
       >
         <h1 className="font-display text-2xl font-medium text-ink">Where to?</h1>
 

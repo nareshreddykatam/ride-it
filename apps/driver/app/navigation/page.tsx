@@ -4,8 +4,8 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, Flag, Phone, ShieldAlert, X } from "lucide-react";
-import { Button, Card, MeterValue, OtpInput, Skeleton, StatusPill } from "@ride-it/ui";
+import { AlertTriangle, CheckCircle2, Flag, Phone, ShieldAlert, X } from "lucide-react";
+import { BottomSheet, Button, Card, MeterValue, OtpInput, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -244,30 +244,19 @@ function NavigationPageContent() {
         </motion.div>
       )}
 
-      {safetyOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 px-6 pb-8"
-          onClick={() => setSafetyOpen(false)}
-        >
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="w-full max-w-md rounded-xl bg-white p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-display text-lg font-medium text-ink">
-                {safetyView === "menu" && "Safety"}
-                {safetyView === "sos_confirm" && "Confirm SOS"}
-                {safetyView === "sos_done" && "SOS recorded"}
-                {safetyView === "report" && "Report passenger"}
-              </p>
-              <button onClick={() => setSafetyOpen(false)} className="text-ink-soft">
-                <X size={18} />
-              </button>
-            </div>
+      <BottomSheet open={safetyOpen} onOpenChange={setSafetyOpen}>
+        <>
+          <div className="flex items-center justify-between">
+            <p className="font-display text-lg font-medium text-ink">
+              {safetyView === "menu" && "Safety"}
+              {safetyView === "sos_confirm" && "Confirm SOS"}
+              {safetyView === "sos_done" && "SOS recorded"}
+              {safetyView === "report" && "Report passenger"}
+            </p>
+            <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="text-ink-soft">
+              <X size={18} />
+            </button>
+          </div>
 
             {safetyView === "menu" && (
               <div className="mt-4 flex flex-col gap-2">
@@ -308,8 +297,14 @@ function NavigationPageContent() {
               <div className="mt-2 text-center">
                 <p className="text-sm text-ink">Here&apos;s exactly what happened:</p>
                 <ul className="mt-3 space-y-2 text-left text-sm text-ink-soft">
-                  <li>✓ A safety event was recorded with your ride and approximate location.</li>
-                  <li>✓ Ride It&apos;s safety team has been notified and will review it.</li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
+                    A safety event was recorded with your ride and approximate location.
+                  </li>
+                  <li className="flex gap-2">
+                    <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
+                    Ride It&apos;s safety team has been notified and will review it.
+                  </li>
                 </ul>
                 <p className="mt-3 text-xs text-alert-red">
                   Ride It has not contacted police or emergency services on your behalf. If you are in immediate danger, call{" "}
@@ -335,9 +330,8 @@ function NavigationPageContent() {
                 </Button>
               </div>
             )}
-          </motion.div>
-        </motion.div>
-      )}
+        </>
+      </BottomSheet>
     </main>
   );
 }
