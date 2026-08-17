@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@ride-it/ui";
 
 /**
@@ -75,9 +75,10 @@ function PinMarker({ x, y, color, delay = 0 }: { x: number; y: number; color: st
 
 export function MockMap({ variant = "static", className, progress = 0.4 }: MockMapProps) {
   const routeLength = 260;
+  const reduceMotion = useReducedMotion();
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-xl border border-border", className)}>
+    <div className={cn("relative w-full overflow-hidden rounded-lg border border-border", className)}>
       <svg viewBox="0 0 320 320" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
         <RoadGrid />
 
@@ -89,31 +90,37 @@ export function MockMap({ variant = "static", className, progress = 0.4 }: MockM
             strokeWidth={4}
             strokeLinecap="round"
             strokeDasharray={routeLength}
-            initial={{ strokeDashoffset: routeLength }}
+            initial={reduceMotion ? { strokeDashoffset: 0 } : { strokeDashoffset: routeLength }}
             animate={{ strokeDashoffset: 0 }}
-            transition={{ duration: 1, ease: "easeOut" }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 1, ease: "easeOut" }}
           />
         )}
 
-        {variant === "searching" && (
-          <g>
-            {[0, 0.6, 1.2].map((delay) => (
-              <motion.circle
-                key={delay}
-                cx={160}
-                cy={160}
-                r={10}
-                fill="none"
-                stroke="var(--signal-blue)"
-                strokeWidth={2}
-                initial={{ r: 10, opacity: 0.8 }}
-                animate={{ r: 90, opacity: 0 }}
-                transition={{ duration: 2, repeat: Infinity, delay, ease: "easeOut" }}
-              />
-            ))}
-            <circle cx={160} cy={160} r={8} fill="var(--signal-blue)" />
-          </g>
-        )}
+        {variant === "searching" &&
+          (reduceMotion ? (
+            <g>
+              <circle cx={160} cy={160} r={50} fill="none" stroke="var(--signal-blue)" strokeWidth={2} opacity={0.3} />
+              <circle cx={160} cy={160} r={8} fill="var(--signal-blue)" />
+            </g>
+          ) : (
+            <g>
+              {[0, 0.6, 1.2].map((delay) => (
+                <motion.circle
+                  key={delay}
+                  cx={160}
+                  cy={160}
+                  r={10}
+                  fill="none"
+                  stroke="var(--signal-blue)"
+                  strokeWidth={2}
+                  initial={{ r: 10, opacity: 0.8 }}
+                  animate={{ r: 90, opacity: 0 }}
+                  transition={{ duration: 2, repeat: Infinity, delay, ease: "easeOut" }}
+                />
+              ))}
+              <circle cx={160} cy={160} r={8} fill="var(--signal-blue)" />
+            </g>
+          ))}
 
         {(variant === "route" || variant === "live" || variant === "searching") && (
           <>
@@ -122,12 +129,18 @@ export function MockMap({ variant = "static", className, progress = 0.4 }: MockM
           </>
         )}
 
-        {variant === "static" && (
-          <motion.g animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-            <circle cx={160} cy={160} r={7} fill="var(--signal-blue)" fillOpacity={0.25} />
-            <circle cx={160} cy={160} r={4} fill="var(--signal-blue)" />
-          </motion.g>
-        )}
+        {variant === "static" &&
+          (reduceMotion ? (
+            <g>
+              <circle cx={160} cy={160} r={7} fill="var(--signal-blue)" fillOpacity={0.25} />
+              <circle cx={160} cy={160} r={4} fill="var(--signal-blue)" />
+            </g>
+          ) : (
+            <motion.g animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }}>
+              <circle cx={160} cy={160} r={7} fill="var(--signal-blue)" fillOpacity={0.25} />
+              <circle cx={160} cy={160} r={4} fill="var(--signal-blue)" />
+            </motion.g>
+          ))}
 
         {variant === "live" && (
           <motion.g

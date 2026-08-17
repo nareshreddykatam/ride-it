@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { StatusPill } from "@ride-it/ui";
+import { Input, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listPassengersAdmin, type AdminPassengerListRow } from "@ride-it/data";
@@ -65,11 +65,13 @@ export default function PassengersPage() {
         View ride history, handle complaints, and manage account suspensions.
       </p>
 
-      <input
+      <Input
+        size="sm"
+        className="mt-4 w-56"
+        aria-label="Search passengers by name or phone"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search name or phone"
-        className="mt-4 h-9 w-56 rounded-lg border border-border bg-white px-3 text-sm text-ink outline-none focus:border-signal-blue"
       />
 
       {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}

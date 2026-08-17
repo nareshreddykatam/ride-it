@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Star } from "lucide-react";
-import { StatusPill } from "@ride-it/ui";
+import { Input, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listDriversAdmin, type AdminDriverListRow } from "@ride-it/data";
@@ -94,18 +94,23 @@ export default function DriversPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <input
+        <Input
+          size="sm"
+          className="w-56"
+          aria-label="Search drivers by name or phone"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name or phone"
-          className="h-9 w-56 rounded-lg border border-border bg-white px-3 text-sm text-ink outline-none focus:border-signal-blue"
         />
-        <div className="flex gap-1.5">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Filter by verification status">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.value}
+              type="button"
+              role="tab"
+              aria-selected={status === f.value}
               onClick={() => setStatus(f.value)}
-              className={`rounded-full px-3 py-1 text-xs font-medium ${
+              className={`rounded-full px-3 py-1.5 text-xs font-medium ${
                 status === f.value ? "bg-signal-blue text-white" : "bg-ink/5 text-ink-soft"
               }`}
             >

@@ -18,6 +18,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@ride-it/admin", "run", "dev"],
       "port": 3003
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ride-it/marketing", "run", "dev"],
+      "port": 3004
     }
   ]
 }

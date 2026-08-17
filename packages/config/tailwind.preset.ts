@@ -19,15 +19,19 @@ const preset: Omit<Config, "content"> = {
         },
         signal: {
           blue: "var(--signal-blue)",
+          "blue-text": "var(--signal-blue-text)",
         },
         marigold: {
           DEFAULT: "var(--marigold)",
+          text: "var(--marigold-text)",
         },
         meter: {
           green: "var(--meter-green)",
+          "green-text": "var(--meter-green-text)",
         },
         alert: {
           red: "var(--alert-red)",
+          "red-text": "var(--alert-red-text)",
         },
         paper: "var(--paper)",
         border: "var(--border)",

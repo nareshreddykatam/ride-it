@@ -37,7 +37,7 @@ export default function SettingsPage() {
   return (
     <main className="flex-1 px-6 py-8">
       <div className="flex items-center gap-2">
-        <Link href="/profile" aria-label="Back" className="text-ink-soft">
+        <Link href="/profile" aria-label="Back" className="-m-2.5 p-2.5 text-ink-soft">
           <ChevronLeft size={20} />
         </Link>
         <h1 className="font-display text-2xl font-medium text-ink">Settings</h1>

@@ -80,12 +80,15 @@ export default function SafetyDashboardPage() {
         here requires human review.
       </p>
 
-      <div className="mt-4 flex gap-1.5">
+      <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Filter by event status">
         {["open", "acknowledged", "investigating", "resolved", "all"].map((s) => (
           <button
             key={s}
+            type="button"
+            role="tab"
+            aria-selected={statusFilter === s}
             onClick={() => setStatusFilter(s)}
-            className={`rounded-full px-3 py-1 text-xs font-medium ${
+            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
               statusFilter === s ? "bg-signal-blue text-white" : "bg-ink/5 text-ink-soft"
             }`}
           >

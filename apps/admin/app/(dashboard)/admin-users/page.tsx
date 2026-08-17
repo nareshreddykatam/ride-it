@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Check } from "lucide-react";
-import { Card, CardHeader, CardTitle, Skeleton, StatusPill } from "@ride-it/ui";
+import { Card, CardHeader, CardTitle, Select, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -128,17 +128,19 @@ export default function AdminUsersPage() {
                 <div className="flex items-center gap-2">
                   {a.is_super_admin && <StatusPill tone="alert">Super admin</StatusPill>}
                   {currentAdmin?.is_super_admin && !a.is_super_admin ? (
-                    <select
+                    <Select
+                      size="sm"
+                      className="w-40"
+                      aria-label={`Role for ${a.full_name ?? a.email ?? "admin"}`}
                       value={a.admin_role_id}
                       onChange={(e) => handleRoleChange(a.id, e.target.value)}
-                      className="h-8 rounded-lg border border-border bg-white px-2 text-xs outline-none focus:border-signal-blue"
                     >
                       {roles.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.name.replace(/_/g, " ")}
                         </option>
                       ))}
-                    </select>
+                    </Select>
                   ) : (
                     <StatusPill tone="info">{a.role_name?.replace(/_/g, " ") ?? "—"}</StatusPill>
                   )}

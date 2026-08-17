@@ -35,8 +35,20 @@ export function ConfirmDialog({
   tone = "default",
   loading,
 }: ConfirmDialogProps) {
+  const titleId = React.useId();
+  const descriptionId = React.useId();
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} aria-label={title}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      // Can't be dismissed (Escape/backdrop) mid-action — an in-flight
+      // refund/suspend/maintenance-mode toggle should never disappear
+      // from under the admin while it's still running.
+      dismissible={!loading}
+      aria-labelledby={titleId}
+      aria-describedby={description ? descriptionId : undefined}
+    >
       <div className="flex items-start gap-3">
         {tone === "destructive" && (
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-alert-red/10 text-alert-red">
@@ -44,8 +56,14 @@ export function ConfirmDialog({
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h2 className="font-display text-base font-medium text-ink">{title}</h2>
-          {description && <p className="mt-1.5 text-sm text-ink-soft">{description}</p>}
+          <h2 id={titleId} className="font-display text-base font-medium text-ink">
+            {title}
+          </h2>
+          {description && (
+            <p id={descriptionId} className="mt-1.5 text-sm text-ink-soft">
+              {description}
+            </p>
+          )}
         </div>
       </div>
       <div className="mt-6 flex justify-end gap-2">

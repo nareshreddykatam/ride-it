@@ -278,7 +278,7 @@ export default function RideStatusPage() {
       </div>
 
       {tracking?.driverLocation && driverStale && (
-        <p className="mt-2 text-xs text-marigold">
+        <p className="mt-2 text-xs text-marigold-text">
           Your driver&apos;s location hasn&apos;t updated recently — position shown may be outdated.
         </p>
       )}
@@ -423,7 +423,7 @@ export default function RideStatusPage() {
                 {safetyView === "share" && "Share this ride"}
                 {safetyView === "report" && "Report an issue"}
               </p>
-              <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="text-ink-soft">
+              <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="-m-2.5 p-2.5 text-ink-soft">
                 <X size={18} />
               </button>
             </div>

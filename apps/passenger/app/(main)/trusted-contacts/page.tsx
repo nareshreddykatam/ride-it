@@ -56,12 +56,12 @@ export default function TrustedContactsPage() {
     <main className="flex-1 px-6 py-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/profile" aria-label="Back" className="text-ink-soft">
+          <Link href="/profile" aria-label="Back" className="-m-2.5 p-2.5 text-ink-soft">
             <ChevronLeft size={20} />
           </Link>
           <h1 className="font-display text-2xl font-medium text-ink">Trusted Contacts</h1>
         </div>
-        <button onClick={() => setSheetOpen(true)} aria-label="Add trusted contact" className="text-signal-blue">
+        <button onClick={() => setSheetOpen(true)} aria-label="Add trusted contact" className="-m-2.5 p-2.5 text-signal-blue">
           <UserPlus size={22} />
         </button>
       </div>
@@ -90,7 +90,7 @@ export default function TrustedContactsPage() {
                   {c.relationship_label ? ` · ${c.relationship_label}` : ""}
                 </p>
               </div>
-              <button onClick={() => handleRemove(c.id)} aria-label={`Remove ${c.name}`} className="text-alert-red">
+              <button onClick={() => handleRemove(c.id)} aria-label={`Remove ${c.name}`} className="-m-2.5 p-2.5 text-alert-red">
                 <Trash2 size={16} />
               </button>
             </Card>

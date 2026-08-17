@@ -47,7 +47,7 @@ export default function MarketingHomePage() {
           <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step) => (
               <div key={step.title}>
-                <p className="font-meter text-sm text-marigold">{String(STEPS.indexOf(step) + 1).padStart(2, "0")}</p>
+                <p className="font-meter text-sm text-marigold-text">{String(STEPS.indexOf(step) + 1).padStart(2, "0")}</p>
                 <h3 className="mt-1 font-display text-base font-medium text-ink">{step.title}</h3>
                 <p className="mt-1.5 text-sm text-ink-soft">{step.body}</p>
               </div>

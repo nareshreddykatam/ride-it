@@ -7,11 +7,15 @@ const pillVariants = cva(
   {
     variants: {
       tone: {
-        online: "bg-meter-green/10 text-meter-green",
+        // Text uses a darkened "-text" shade of each brand color — the
+        // brand tokens themselves are tuned to work as solid button fills,
+        // not as small text on a light tint; see globals.css for the
+        // WCAG-AA-driven rationale.
+        online: "bg-meter-green/10 text-meter-green-text",
         offline: "bg-ink-soft/10 text-ink-soft",
-        pending: "bg-marigold/15 text-marigold",
-        alert: "bg-alert-red/10 text-alert-red",
-        info: "bg-signal-blue/10 text-signal-blue",
+        pending: "bg-marigold/15 text-marigold-text",
+        alert: "bg-alert-red/10 text-alert-red-text",
+        info: "bg-signal-blue/10 text-signal-blue-text",
       },
     },
     defaultVariants: { tone: "info" },

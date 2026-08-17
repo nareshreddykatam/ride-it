@@ -162,14 +162,14 @@ export default function SavedPlacesPage() {
                     <p className="text-xs text-ink-soft">{place.address}</p>
                   </div>
                 </button>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => openEdit(place)} aria-label={`Edit ${place.label}`} className="p-1.5 text-ink-soft hover:text-signal-blue">
+                <div className="flex items-center">
+                  <button onClick={() => openEdit(place)} aria-label={`Edit ${place.label}`} className="p-2.5 text-ink-soft hover:text-signal-blue">
                     <Pencil size={15} />
                   </button>
                   <button
                     onClick={() => handleDelete(place.id)}
                     aria-label={`Remove ${place.label}`}
-                    className="p-1.5 text-ink-soft hover:text-alert-red"
+                    className="p-2.5 text-ink-soft hover:text-alert-red"
                   >
                     <Trash2 size={15} />
                   </button>

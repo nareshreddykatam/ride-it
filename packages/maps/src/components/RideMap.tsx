@@ -191,7 +191,7 @@ export function RideMap({
   }
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-xl border border-border bg-ink/5", className)}>
+    <div className={cn("relative w-full overflow-hidden rounded-lg border border-border bg-ink/5", className)}>
       <div ref={containerRef} className="h-full w-full" />
       {loadState === "loading" && (
         <div className="absolute inset-0 flex items-center justify-center bg-paper/60 text-xs text-ink-soft">

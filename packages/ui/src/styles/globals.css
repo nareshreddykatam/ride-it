@@ -14,6 +14,16 @@
   --ink-soft: #5b6270;
   --border: #e6e4df;
 
+  /* Text-on-tint variants — same hue family as the brand token above it,
+     darkened until it clears 4.5:1 against --paper (WCAG AA for normal
+     text). The brand tokens themselves stay untouched since they already
+     work as solid button fills (white text on top) and status dots; only
+     small-text-on-a-light-tint (StatusPill) needed a darker shade. */
+  --marigold-text: #986716;
+  --meter-green-text: #18825a;
+  --alert-red-text: #c94537;
+  --signal-blue-text: #1d6dea;
+
   /* Type tokens */
   --font-display: "Space Grotesk", sans-serif;
   --font-body: "Inter", sans-serif;

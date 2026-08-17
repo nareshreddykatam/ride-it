@@ -16,13 +16,17 @@ export function DriverTabBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="sticky bottom-0 flex border-t border-border bg-white">
+    <nav
+      aria-label="Primary"
+      className="sticky bottom-0 flex border-t border-border bg-white pb-[env(safe-area-inset-bottom)]"
+    >
       {TABS.map(({ href, label, icon: Icon }) => {
         const active = pathname?.startsWith(href);
         return (
           <Link
             key={href}
             href={href}
+            aria-current={active ? "page" : undefined}
             className={cn(
               "flex flex-1 flex-col items-center gap-0.5 py-2.5 text-xs",
               active ? "text-signal-blue" : "text-ink-soft"

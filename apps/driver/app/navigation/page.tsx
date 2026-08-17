@@ -253,7 +253,7 @@ function NavigationPageContent() {
               {safetyView === "sos_done" && "SOS recorded"}
               {safetyView === "report" && "Report passenger"}
             </p>
-            <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="text-ink-soft">
+            <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="-m-2.5 p-2.5 text-ink-soft">
               <X size={18} />
             </button>
           </div>

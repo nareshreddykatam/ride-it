@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Input, Select, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -344,12 +344,13 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
             ))}
           </div>
         )}
-        <div className="mt-3 flex gap-2">
-          <input
+        <div className="mt-3 flex items-end gap-2">
+          <Input
+            size="sm"
+            className="flex-1"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add an internal note"
-            className="h-9 flex-1 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
           />
           <Button size="sm" variant="outline" disabled={!note.trim() || busy} onClick={handleAddNote}>
             Add note
@@ -365,15 +366,13 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
           {candidateDrivers.length === 0 ? (
             <p className="text-sm text-ink-soft">No other approved {ride.vehicle_type} drivers available.</p>
           ) : (
-            <div className="flex gap-2">
-              <label htmlFor="reassign-driver" className="sr-only">
-                Reassign to driver
-              </label>
-              <select
-                id="reassign-driver"
+            <div className="flex items-end gap-2">
+              <Select
+                size="sm"
+                className="flex-1"
+                aria-label="Reassign to driver"
                 value={reassignTo}
                 onChange={(e) => setReassignTo(e.target.value)}
-                className="h-9 flex-1 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
               >
                 <option value="">Select a driver…</option>
                 {candidateDrivers.map((d) => (
@@ -381,7 +380,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
                     {d.full_name ?? d.id.slice(0, 8)}
                   </option>
                 ))}
-              </select>
+              </Select>
               <Button size="sm" disabled={!reassignTo || busy} onClick={handleReassign}>
                 Reassign
               </Button>
@@ -410,12 +409,12 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
         )}
         {!isTerminal &&
           (showCancel ? (
-            <div className="flex items-center gap-2">
-              <input
+            <div className="flex items-end gap-2">
+              <Input
+                size="sm"
                 value={cancelReason}
                 onChange={(e) => setCancelReason(e.target.value)}
                 placeholder="Cancellation reason"
-                className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
               />
               <Button size="sm" variant="destructive" disabled={!cancelReason.trim() || busy} onClick={handleCancel}>
                 Confirm cancel

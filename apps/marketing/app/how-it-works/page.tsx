@@ -41,7 +41,7 @@ export default function HowItWorksPage() {
         <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {DRIVER_STEPS.map((step, i) => (
             <div key={step.title}>
-              <p className="font-meter text-sm text-marigold">{String(i + 1).padStart(2, "0")}</p>
+              <p className="font-meter text-sm text-marigold-text">{String(i + 1).padStart(2, "0")}</p>
               <h3 className="mt-1 font-display text-base font-medium text-ink">{step.title}</h3>
               <p className="mt-1.5 text-sm text-ink-soft">{step.body}</p>
             </div>

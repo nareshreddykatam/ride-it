@@ -41,7 +41,7 @@ export function SiteHeader() {
           type="button"
           aria-label="Open menu"
           onClick={() => setMenuOpen(true)}
-          className="text-ink md:hidden"
+          className="-m-2.5 p-2.5 text-ink md:hidden"
         >
           <Menu size={22} />
         </button>
@@ -50,7 +50,7 @@ export function SiteHeader() {
       <BottomSheet open={menuOpen} onOpenChange={setMenuOpen}>
         <div className="flex items-center justify-between">
           <p className="font-display text-base font-medium text-ink">Menu</p>
-          <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="text-ink-soft">
+          <button type="button" aria-label="Close menu" onClick={() => setMenuOpen(false)} className="-m-2.5 p-2.5 text-ink-soft">
             <X size={20} />
           </button>
         </div>

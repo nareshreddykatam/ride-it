@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { cn } from "../lib/cn";
+
+const FOCUSABLE_SELECTOR =
+  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export interface BottomSheetProps {
   open: boolean;
@@ -21,6 +24,49 @@ export function BottomSheet({
   dismissible = true,
   className,
 }: BottomSheetProps) {
+  const reduceMotion = useReducedMotion();
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const lastFocusedRef = React.useRef<HTMLElement | null>(null);
+
+  // Same Escape-to-dismiss + Tab focus trap as Dialog — a bottom sheet is
+  // a modal too, just anchored to the bottom edge for thumb reach.
+  React.useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && dismissible) {
+        onOpenChange?.(false);
+        return;
+      }
+      if (e.key !== "Tab" || !panelRef.current) return;
+      const focusable = Array.from(panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) return;
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open, dismissible, onOpenChange]);
+
+  React.useEffect(() => {
+    if (open) {
+      lastFocusedRef.current = document.activeElement as HTMLElement | null;
+      const id = requestAnimationFrame(() => {
+        const focusable = panelRef.current?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+        (focusable ?? panelRef.current)?.focus();
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    lastFocusedRef.current?.focus();
+    lastFocusedRef.current = null;
+  }, [open]);
+
   return (
     <AnimatePresence>
       {open && (
@@ -30,17 +76,20 @@ export function BottomSheet({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={reduceMotion ? { duration: 0 } : undefined}
             onClick={() => dismissible && onOpenChange?.(false)}
           />
           <motion.div
+            ref={panelRef}
             role="dialog"
             aria-modal="true"
-            initial={{ y: "100%" }}
-            animate={{ y: 0 }}
-            exit={{ y: "100%" }}
-            transition={{ type: "spring", damping: 28, stiffness: 320 }}
+            tabIndex={-1}
+            initial={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+            animate={reduceMotion ? { opacity: 1 } : { y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
+            transition={reduceMotion ? { duration: 0.1 } : { type: "spring", damping: 28, stiffness: 320 }}
             className={cn(
-              "relative z-10 w-full max-w-md rounded-sheet border-t border-border bg-white p-6 pb-8",
+              "relative z-10 w-full max-w-md rounded-sheet border-t border-border bg-white p-6 pb-8 outline-none",
               className
             )}
           >

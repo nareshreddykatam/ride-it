@@ -11,7 +11,7 @@ import { motion } from "framer-motion";
  */
 export function FareLineHero() {
   return (
-    <div className="w-full rounded-xl border border-border bg-white p-6">
+    <div className="w-full rounded-lg border border-border bg-white p-6">
       <svg viewBox="0 0 480 160" className="w-full" role="img" aria-label="Ride It flat subscription fee compared to competitors' variable per-ride commission">
         {/* Jagged competitor line */}
         <motion.path

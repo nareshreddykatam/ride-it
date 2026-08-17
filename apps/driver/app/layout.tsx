@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "@ride-it/ui/styles/globals.css";
 import { AuthProvider } from "@ride-it/auth";
@@ -14,6 +14,13 @@ const meter = IBM_Plex_Mono({
 export const metadata: Metadata = {
   title: "Ride It Driver",
   description: "Go online, accept rides, keep 100% of your earnings.",
+};
+
+export const viewport: Viewport = {
+  themeColor: "#0B3B8C",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

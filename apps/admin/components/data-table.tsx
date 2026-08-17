@@ -11,7 +11,6 @@ export interface Column<T> {
 export interface DataTableProps<T> {
   columns: Column<T>[];
   rows: T[];
-  getRowHref?: (row: T) => string;
   keyField: (row: T) => string;
   loading?: boolean;
   emptyLabel?: string;
@@ -44,7 +43,7 @@ export function DataTable<T>({
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={`skeleton-${i}`} className="border-b border-border last:border-b-0">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-3">
+                    <td key={col.key} className="px-4 py-2.5">
                       <Skeleton className="h-4 w-24" />
                     </td>
                   ))}
@@ -57,7 +56,7 @@ export function DataTable<T>({
                   className="border-b border-border transition-colors last:border-b-0 hover:bg-ink/[0.02]"
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={cn("px-4 py-3 text-ink", col.className)}>
+                    <td key={col.key} className={cn("px-4 py-2.5 text-ink", col.className)}>
                       {col.render(row)}
                     </td>
                   ))}

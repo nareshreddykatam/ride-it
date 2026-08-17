@@ -22,7 +22,11 @@ export const viewport: Viewport = {
   themeColor: "#0B3B8C",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // No maximumScale lock — capping pinch-zoom blocks low-vision users from
+  // scaling content (WCAG 1.4.4). viewportFit lets safe-area-inset-* env()
+  // vars resolve to real values on notched/home-indicator devices instead
+  // of always being 0.
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
