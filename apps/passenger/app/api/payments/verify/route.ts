@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const payment = await markRidePaymentCaptured(supabase, body.paymentId, body.providerPaymentId);
+    const payment = await markRidePaymentCaptured(supabase, body.paymentId, body.providerPaymentId, body.providerOrderId);
     return NextResponse.json({ status: payment.status });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Verification failed" }, { status: 400 });

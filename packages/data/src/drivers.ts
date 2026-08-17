@@ -333,15 +333,23 @@ export async function attachSubscriptionPaymentOrder(
   return data as unknown as PendingSubscriptionPayment;
 }
 
-/** Called from the subscription verify Route Handler only, after server-side signature verification — the only path that actually activates a subscription. */
+/**
+ * Called from the subscription verify Route Handler only, after
+ * server-side signature verification — the only path that actually
+ * activates a subscription. providerOrderId is required
+ * (20260825090000) — same cross-order/payment confusion fix as
+ * markRidePaymentCaptured.
+ */
 export async function markSubscriptionPaymentCaptured(
   supabase: SupabaseClient,
   paymentId: string,
-  providerPaymentId: string
+  providerPaymentId: string,
+  providerOrderId: string
 ): Promise<PendingSubscriptionPayment> {
   const { data, error } = await supabase.rpc("mark_subscription_payment_captured", {
     p_payment_id: paymentId,
     p_provider_payment_id: providerPaymentId,
+    p_provider_order_id: providerOrderId,
   });
   if (error) throw error;
   return data as unknown as PendingSubscriptionPayment;

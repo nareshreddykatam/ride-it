@@ -49,15 +49,26 @@ export async function getRidePayment(supabase: SupabaseClient, rideId: string): 
   return (data as unknown as PaymentRow | null) ?? null;
 }
 
-/** Called from Route Handlers only (after server-side signature verification or from the webhook handler) — never from a UI component directly. */
+/**
+ * Called from Route Handlers only (after server-side signature
+ * verification or from the webhook handler) — never from a UI component
+ * directly. providerOrderId is required (20260825090000) — the RPC
+ * rejects (silently, no state change) any order id that doesn't match
+ * the one actually attached to paymentId via attachRidePaymentOrder,
+ * closing a cross-order/payment confusion vulnerability: a validly-signed
+ * payment for one order could otherwise be replayed against a different,
+ * more expensive ride's payment record.
+ */
 export async function markRidePaymentCaptured(
   supabase: SupabaseClient,
   paymentId: string,
-  providerPaymentId: string
+  providerPaymentId: string,
+  providerOrderId: string
 ): Promise<PaymentRow> {
   const { data, error } = await supabase.rpc("mark_ride_payment_captured", {
     p_payment_id: paymentId,
     p_provider_payment_id: providerPaymentId,
+    p_provider_order_id: providerOrderId,
   });
   if (error) throw error;
   return data as unknown as PaymentRow;
