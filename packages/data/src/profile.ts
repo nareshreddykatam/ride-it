@@ -1,8 +1,19 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PassengerProfileRow } from "./types";
 
+// users!passengers_id_fkey (not the bare `users:id`) — passengers.id is
+// both this table's PK and its FK to users(id), but passengers is ALSO
+// the target of several other one-to-many FKs (rides.passenger_id,
+// saved_places.passenger_id, recent_locations.passenger_id, etc.).
+// PostgREST's embed hint resolution doesn't narrow to "the FK where id is
+// the local column" from a bare `id` hint alone — confirmed live against
+// the hosted project: PGRST201 "more than one relationship was found for
+// 'passengers' and 'id'", with passengers_id_fkey listed as one of eight
+// ambiguous candidates. The explicit constraint-name hint is required.
+// Same root cause and fix already applied in drivers.ts and admin.ts's
+// ADMIN_RIDE_COLUMNS.
 const PROFILE_COLUMNS =
-  "id, rating, total_rides, default_payment_method, users:id(full_name, phone, email, date_of_birth, gender)";
+  "id, rating, total_rides, default_payment_method, users!passengers_id_fkey(full_name, phone, email, date_of_birth, gender)";
 
 export async function getPassengerProfile(
   supabase: SupabaseClient,

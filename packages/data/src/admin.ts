@@ -211,8 +211,12 @@ export interface AdminDriverListRow {
   is_online: boolean;
 }
 
+// users!drivers_id_fkey — see ADMIN_RIDE_COLUMNS's comment below for why
+// the bare `users:id` hint is ambiguous (PGRST201, confirmed live) for
+// drivers/passengers/admin_users specifically: each is the target of
+// several other one-to-many FKs besides its own PK-as-FK link to users.
 const ADMIN_DRIVER_LIST_COLUMNS =
-  "id, vehicle_type, verification_status, rating, is_online, users:id(full_name, phone)";
+  "id, vehicle_type, verification_status, rating, is_online, users!drivers_id_fkey(full_name, phone)";
 
 function normalizeUserJoin<T>(
   row: T & { users: { full_name: string | null; phone: string | null } | Array<{ full_name: string | null; phone: string | null }> }
@@ -383,7 +387,10 @@ export async function listPassengersAdmin(
 ): Promise<AdminPassengerListRow[]> {
   const { data, error } = await supabase
     .from("passengers")
-    .select("id, rating, total_rides, users:id(full_name, phone, is_active)")
+    // users!passengers_id_fkey — bare `users:id` is ambiguous (PGRST201,
+    // confirmed live) since passengers is also the target of several
+    // other one-to-many FKs. See ADMIN_RIDE_COLUMNS's comment below.
+    .select("id, rating, total_rides, users!passengers_id_fkey(full_name, phone, is_active)")
     .order("created_at", { ascending: false });
   if (error) throw error;
 
@@ -416,7 +423,8 @@ export async function listPassengersAdmin(
 export async function getPassengerAdminDetail(supabase: SupabaseClient, passengerId: string) {
   const { data, error } = await supabase
     .from("passengers")
-    .select("id, rating, total_rides, default_payment_method, users:id(full_name, phone, email, is_active)")
+    // users!passengers_id_fkey — see listPassengersAdmin's comment above.
+    .select("id, rating, total_rides, default_payment_method, users!passengers_id_fkey(full_name, phone, email, is_active)")
     .eq("id", passengerId)
     .maybeSingle();
   if (error) throw error;
@@ -574,17 +582,21 @@ export async function updateSupportTicketStatus(
 // ---------------------------------------------------------------------------
 
 // The nested `users:id(...)` embeds below use explicit FK-constraint hints
-// (`users!passengers_id_fkey`, `users!drivers_id_fkey`) rather than the
-// bare column-name hint `users:id(...)` used elsewhere in this file. The
-// bare form is ambiguous to PostgREST here — confirmed directly against
-// the real hosted project (PGRST201: "Could not embed because more than
-// one relationship was found for 'drivers'/'passengers' and 'id'", since
-// each of those tables has several one-to-many FKs pointing at it besides
-// their own PK-as-FK link to users) — the exact same root cause already
-// fixed once in packages/data/src/drivers.ts. passengers_id_fkey and
-// drivers_id_fkey are Postgres's default auto-generated constraint names
-// for `id uuid primary key references public.users(id)` on each table
-// (20260803120300_users_and_profiles.sql), not guessed.
+// (`users!passengers_id_fkey`, `users!drivers_id_fkey`) rather than a bare
+// column-name hint. The bare form is ambiguous to PostgREST here —
+// confirmed directly against the real hosted project (PGRST201: "Could
+// not embed because more than one relationship was found for
+// 'drivers'/'passengers' and 'id'", since each of those tables has
+// several one-to-many FKs pointing at it besides their own PK-as-FK link
+// to users) — the same root cause as drivers.ts, and as every other
+// `users:id(...)` embed in this file (all now fixed the same way; see
+// each one's own comment for its specific constraint name). passengers_id_fkey,
+// drivers_id_fkey, and admin_users_id_fkey are Postgres's default
+// auto-generated constraint names for `id uuid primary key references
+// public.users(id)` on each table (20260803120300_users_and_profiles.sql),
+// not guessed — and, for every occurrence in this file, directly
+// reproduced live and confirmed against the actual PGRST201 error's own
+// `hint` field, not assumed from this comment alone.
 const ADMIN_RIDE_COLUMNS =
   "id, passenger_id, driver_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, total_fare, currency, payment_method, payment_status, cancelled_by, cancellation_reason, requested_at, completed_at, cancelled_at, passenger:passenger_id(id, users!passengers_id_fkey(full_name)), driver:driver_id(id, users!drivers_id_fkey(full_name))";
 
@@ -769,7 +781,9 @@ export async function listSubscriptionPaymentsAdmin(supabase: SupabaseClient, li
   const { data, error } = await supabase
     .from("subscription_payments")
     .select(
-      "id, driver_id, amount, status, payment_method, provider, paid_at, created_at, driver:driver_id(id, users:id(full_name))"
+      // users!drivers_id_fkey — see ADMIN_RIDE_COLUMNS's comment below;
+      // same ambiguity applies to the nested drivers->users embed here.
+      "id, driver_id, amount, status, payment_method, provider, paid_at, created_at, driver:driver_id(id, users!drivers_id_fkey(full_name))"
     )
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -959,7 +973,13 @@ export interface AdminUserRow {
 export async function listAdminUsers(supabase: SupabaseClient): Promise<AdminUserRow[]> {
   const { data, error } = await supabase
     .from("admin_users")
-    .select("id, admin_role_id, is_super_admin, users:id(full_name, email), admin_roles:admin_role_id(name)");
+    // users!admin_users_id_fkey — admin_users is also the target of
+    // several other one-to-many FKs (app_settings.updated_by,
+    // driver_documents.reviewed_by, support_tickets.assigned_admin_id,
+    // etc.), so the bare `users:id` hint is ambiguous (PGRST201,
+    // confirmed live). admin_roles:admin_role_id is unaffected — admin_users
+    // has only one FK to admin_roles, so that hint already resolves uniquely.
+    .select("id, admin_role_id, is_super_admin, users!admin_users_id_fkey(full_name, email), admin_roles:admin_role_id(name)");
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as Array<{
