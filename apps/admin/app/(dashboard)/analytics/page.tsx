@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardHeader, CardTitle, EmptyState, Skeleton } from "@ride-it/ui";
+import { Card, CardHeader, CardTitle, EmptyState, Skeleton, StatCard } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -14,7 +14,7 @@ import {
   type AdminRatingsSummary,
   type CancellationRateStats,
 } from "@ride-it/data";
-import { BarChart3 } from "lucide-react";
+import { BarChart3, Percent, Star, TrendingUp, Users } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -53,15 +53,59 @@ export default function AnalyticsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Analytics</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Ride volume, subscriber growth, and platform health at a glance.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
+          <BarChart3 size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Analytics</h1>
+          <p className="text-sm text-ink-soft">
+            Ride volume, subscriber growth, and platform health at a glance.
+          </p>
+        </div>
+      </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => (
+            <Card key={i}>
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="mt-2 h-7 w-16" />
+            </Card>
+          ))
+        ) : (
+          <>
+            <StatCard
+              label="Driver average rating"
+              value={ratings?.driverAverage?.toFixed(1) ?? "—"}
+              icon={Star}
+              tone="marigold"
+            />
+            <StatCard
+              label="Passenger average rating"
+              value={ratings?.passengerAverage?.toFixed(1) ?? "—"}
+              icon={Users}
+              tone="blue"
+            />
+            <StatCard
+              label={cancellation ? `${cancellation.cancelled} of ${cancellation.requested} requested this week` : "Cancellation rate"}
+              value={
+                cancellation?.ratePercent !== null && cancellation?.ratePercent !== undefined
+                  ? `${cancellation.ratePercent.toFixed(1)}%`
+                  : "—"
+              }
+              icon={Percent}
+              tone="red"
+            />
+          </>
+        )}
+      </div>
+
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card accent="blue">
           <CardHeader>
             <CardTitle>Rides this week</CardTitle>
+            <TrendingUp size={16} className="text-signal-blue" aria-hidden="true" />
           </CardHeader>
           <div className="h-56">
             {loading ? (
@@ -82,9 +126,10 @@ export default function AnalyticsPage() {
           </div>
         </Card>
 
-        <Card>
+        <Card accent="marigold">
           <CardHeader>
             <CardTitle>Subscriber growth</CardTitle>
+            <TrendingUp size={16} className="text-marigold-text" aria-hidden="true" />
           </CardHeader>
           <div className="h-56">
             {loading ? (
@@ -103,46 +148,6 @@ export default function AnalyticsPage() {
               </ResponsiveContainer>
             )}
           </div>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Average ratings</CardTitle>
-          </CardHeader>
-          {loading ? (
-            <Skeleton className="h-10 w-40" />
-          ) : (
-            <div className="flex gap-8">
-              <div>
-                <p className="font-meter text-3xl text-ink">{ratings?.driverAverage?.toFixed(1) ?? "—"}</p>
-                <p className="text-xs text-ink-soft">Driver average</p>
-              </div>
-              <div>
-                <p className="font-meter text-3xl text-ink">{ratings?.passengerAverage?.toFixed(1) ?? "—"}</p>
-                <p className="text-xs text-ink-soft">Passenger average</p>
-              </div>
-            </div>
-          )}
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Cancellation rate</CardTitle>
-          </CardHeader>
-          {loading ? (
-            <Skeleton className="h-10 w-24" />
-          ) : (
-            <>
-              <p className="font-meter text-3xl text-ink">
-                {cancellation?.ratePercent !== null && cancellation?.ratePercent !== undefined
-                  ? `${cancellation.ratePercent.toFixed(1)}%`
-                  : "—"}
-              </p>
-              <p className="text-xs text-ink-soft">
-                {cancellation ? `${cancellation.cancelled} of ${cancellation.requested} requested rides` : ""} this week
-              </p>
-            </>
-          )}
         </Card>
       </div>
     </div>

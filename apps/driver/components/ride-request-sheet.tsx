@@ -1,19 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Bike, Car } from "lucide-react";
-import { BottomSheet, Button, MeterValue, StatusPill } from "@ride-it/ui";
-import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB, type FareEstimate, type GeoPoint } from "@ride-it/types";
+import { BottomSheet, RideOfferCard, MeterValue, VEHICLE_VISUALS } from "@ride-it/ui";
+import { vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB, type FareEstimate, type GeoPoint } from "@ride-it/types";
 
 const OFFER_WINDOW_SECONDS = 15;
-
-function VehicleIcon({ vehicleType }: { vehicleType: VehicleType }) {
-  return vehicleType === VehicleType.BIKE || vehicleType === VehicleType.SCOOTY ? (
-    <Bike size={16} aria-hidden="true" />
-  ) : (
-    <Car size={16} aria-hidden="true" />
-  );
-}
 
 export interface RideRequestSheetProps {
   open: boolean;
@@ -65,42 +56,29 @@ export function RideRequestSheet({
     return () => clearTimeout(t);
   }, [open, secondsLeft, expiresAt, onExpire]);
 
+  const vehicleKind = vehicleTypeToDb(fare.vehicleType);
+  const VehicleIcon = VEHICLE_VISUALS[vehicleKind].icon;
+
   return (
-    <BottomSheet open={open} dismissible={false}>
-      <div className="flex items-center justify-between">
-        <StatusPill tone="info">New ride request</StatusPill>
-        <MeterValue value={String(secondsLeft).padStart(2, "0")} size="md" />
+    <BottomSheet open={open} dismissible={false} className="p-4 pb-8">
+      <div className="flex items-center justify-between px-1.5 pt-1">
+        <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
+          <VehicleIcon size={18} style={{ color: VEHICLE_VISUALS[vehicleKind].colorVar }} />
+          {VEHICLE_TYPE_LABELS_DB[vehicleKind]}
+          <span className="text-ink-soft">· {fare.etaMinutes} min away</span>
+        </span>
+        <MeterValue value={String(secondsLeft).padStart(2, "0")} size="sm" />
       </div>
 
-      <div className="mt-3 flex items-center gap-1.5 text-sm font-medium text-ink">
-        <VehicleIcon vehicleType={fare.vehicleType} />
-        {VEHICLE_TYPE_LABELS_DB[vehicleTypeToDb(fare.vehicleType)]}
-      </div>
-
-      <div className="mt-4 space-y-2 text-sm">
-        <div className="flex gap-2">
-          <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-meter-green" />
-          <span className="text-ink">{pickup.address ?? `${pickup.lat}, ${pickup.lng}`}</span>
-        </div>
-        <div className="flex gap-2">
-          <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-alert-red" />
-          <span className="text-ink">{drop.address ?? `${drop.lat}, ${drop.lng}`}</span>
-        </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-        <MeterValue value={`₹${fare.totalFare.toFixed(2)}`} label={`${fare.distanceKm} km fare`} size="lg" />
-        <span className="text-xs text-ink-soft">{fare.etaMinutes} min away</span>
-      </div>
-
-      <div className="mt-6 flex gap-3">
-        <Button variant="outline" className="flex-1" onClick={onReject}>
-          Reject
-        </Button>
-        <Button className="flex-1" onClick={onAccept}>
-          Accept
-        </Button>
-      </div>
+      <RideOfferCard
+        className="mt-3"
+        pickupLabel={pickup.address ?? `${pickup.lat}, ${pickup.lng}`}
+        pickupDistance={`${fare.distanceKm} km`}
+        dropLabel={drop.address ?? `${drop.lat}, ${drop.lng}`}
+        fare={`₹${fare.totalFare.toFixed(2)}`}
+        onAccept={onAccept}
+        onReject={onReject}
+      />
     </BottomSheet>
   );
 }

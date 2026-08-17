@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, Card, CardHeader, CardTitle, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, EmptyState, SafetyIcon, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -13,7 +13,7 @@ import {
   type AdminSafetyEventRow,
   type SupportTicketRow,
 } from "@ride-it/data";
-import { LifeBuoy } from "lucide-react";
+import { LifeBuoy, ShieldAlert } from "lucide-react";
 
 const SAFETY_EVENT_TONE: Record<string, "pending" | "info" | "online" | "alert"> = {
   open: "alert",
@@ -74,11 +74,18 @@ export default function SafetyDashboardPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Safety</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        SOS events and safety-related reports. Ride It has no automated emergency-service integration — every event
-        here requires human review.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-alert-red/10 text-alert-red-text">
+          <SafetyIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Safety</h1>
+          <p className="text-sm text-ink-soft">
+            SOS events and safety-related reports. Ride It has no automated emergency-service integration — every
+            event here requires human review.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Filter by event status">
         {["open", "acknowledged", "investigating", "resolved", "all"].map((s) => (
@@ -97,7 +104,7 @@ export default function SafetyDashboardPage() {
         ))}
       </div>
 
-      <Card className="mt-4">
+      <Card className="mt-4" accent="red">
         <CardHeader>
           <CardTitle>SOS events</CardTitle>
         </CardHeader>
@@ -108,7 +115,16 @@ export default function SafetyDashboardPage() {
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {events.map((e) => (
-              <div key={e.id} className="py-3">
+              <div key={e.id} className="flex gap-3 py-3">
+                <span
+                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+                    e.status === "open" ? "bg-alert-red/10 text-alert-red-text" : "bg-tint-blue text-signal-blue"
+                  }`}
+                  aria-hidden="true"
+                >
+                  <ShieldAlert size={16} />
+                </span>
+                <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-ink">
@@ -144,13 +160,14 @@ export default function SafetyDashboardPage() {
                     </Button>
                   </div>
                 )}
+                </div>
               </div>
             ))}
           </div>
         )}
       </Card>
 
-      <Card className="mt-4">
+      <Card className="mt-4" accent="marigold">
         <CardHeader>
           <CardTitle>Open safety reports</CardTitle>
         </CardHeader>

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Input, Select, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Input, MeterValue, Select, Skeleton, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -242,8 +242,19 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-2xl font-medium text-ink">Ride #{ride.id.slice(0, 8)}</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"} · {ride.vehicle_type === "auto" ? "Auto" : "Bike"}
+          <p className="mt-1 flex items-center gap-1.5 text-sm text-ink-soft">
+            {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
+            <span className="text-ink-soft/50">·</span>
+            {(() => {
+              const visual = VEHICLE_VISUALS[ride.vehicle_type];
+              const Icon = visual.icon;
+              return (
+                <span className="flex items-center gap-1">
+                  <Icon size={14} style={{ color: visual.colorVar }} />
+                  {visual.label}
+                </span>
+              );
+            })()}
           </p>
         </div>
         <StatusPill tone={STATUS_TONE[ride.status] ?? "info"}>{ride.status.replace("_", " ")}</StatusPill>
@@ -258,14 +269,14 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
       />
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+        <Card accent="marigold">
           <CardHeader>
             <CardTitle>Trip details</CardTitle>
           </CardHeader>
           <dl className="space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-ink-soft">Passenger</dt><dd className="text-ink">{ride.passenger_name ?? "—"}</dd></div>
             <div className="flex justify-between"><dt className="text-ink-soft">Driver</dt><dd className="text-ink">{ride.driver_name ?? "Unassigned"}</dd></div>
-            <div className="flex justify-between"><dt className="text-ink-soft">Fare</dt><dd className="font-meter text-ink">₹{ride.total_fare}</dd></div>
+            <div className="flex items-center justify-between"><dt className="text-ink-soft">Fare</dt><dd><MeterValue value={`₹${ride.total_fare}`} size="sm" /></dd></div>
             <div className="flex justify-between"><dt className="text-ink-soft">Payment method</dt><dd className="text-ink">{ride.payment_method ?? "Not selected"}</dd></div>
             <div className="flex justify-between">
               <dt className="text-ink-soft">Payment status</dt>
@@ -301,7 +312,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
           </dl>
         </Card>
 
-        <Card>
+        <Card accent="red">
           <CardHeader>
             <CardTitle>Complaints</CardTitle>
           </CardHeader>
@@ -328,7 +339,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
         </Card>
       </div>
 
-      <Card className="mt-4">
+      <Card className="mt-4" accent="blue">
         <CardHeader>
           <CardTitle>Ride event history</CardTitle>
         </CardHeader>
@@ -362,7 +373,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
       </Card>
 
       {!isTerminal && (
-        <Card className="mt-4">
+        <Card className="mt-4" accent="violet">
           <CardHeader>
             <CardTitle>Reassign driver</CardTitle>
           </CardHeader>

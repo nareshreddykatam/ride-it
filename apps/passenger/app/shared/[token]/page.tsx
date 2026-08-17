@@ -3,19 +3,12 @@
 import * as React from "react";
 import { useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bike, Car, CarFront, ShieldOff, Zap } from "lucide-react";
-import { Card, Skeleton, StatusPill } from "@ride-it/ui";
+import { ShieldOff } from "lucide-react";
+import { Card, PinGlyph, Skeleton, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getSharedRideInfo, type SharedRideInfo } from "@ride-it/data";
 import { RideMap } from "@ride-it/maps";
 import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
-
-const VEHICLE_ICON_DB: Record<"bike" | "scooty" | "auto" | "car", typeof Bike> = {
-  bike: Bike,
-  scooty: Zap,
-  auto: Car,
-  car: CarFront,
-};
 
 const STATUS_LABEL: Record<string, string> = {
   requested: "Finding a driver",
@@ -75,21 +68,25 @@ export default function SharedRidePage() {
     );
   }
 
-  const Icon = VEHICLE_ICON_DB[info.vehicleType] ?? Car;
+  const visual = VEHICLE_VISUALS[info.vehicleType];
+  const VehicleIcon = visual.icon;
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <p className="text-xs text-ink-soft">Shared by a Ride It passenger</p>
-        <h1 className="font-display text-xl font-medium text-ink">Live ride status</h1>
+        <p className="text-xs font-medium text-signal-blue">Shared by a Ride It passenger</p>
+        <h1 className="mt-1 font-display text-xl font-semibold text-ink">Live ride status</h1>
 
-        <RideMap driverLocation={info.driverLocation} fallbackVariant="live" className="mt-4 h-48" />
+        <RideMap driverLocation={info.driverLocation} fallbackVariant="live" className="mt-4 h-48 rounded-2xl" />
 
-        <Card className="mt-4">
+        <Card tone="elevated" className="mt-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-signal-blue/10 text-signal-blue">
-                <Icon size={18} />
+            <div className="flex items-center gap-3">
+              <span
+                className="flex h-10 w-10 items-center justify-center rounded-lg"
+                style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+              >
+                <VehicleIcon size={20} strokeWidth={1.7} />
               </span>
               <div>
                 <p className="text-sm font-medium text-ink">{info.driverName ?? "Driver assigned"}</p>
@@ -102,15 +99,15 @@ export default function SharedRidePage() {
 
         <Card className="mt-4">
           <div className="flex gap-3">
-            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-meter-green" />
+            <PinGlyph tone="pickup" size={18} className="mt-0.5 shrink-0" />
             <div>
               <p className="text-xs text-ink-soft">Pickup</p>
               <p className="text-sm text-ink">{info.pickupAddress ?? "—"}</p>
             </div>
           </div>
-          <div className="my-3 ml-1 h-4 border-l border-dashed border-border" />
+          <div className="my-3 ml-[9px] h-4 w-px border-l border-dashed border-border" />
           <div className="flex gap-3">
-            <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-alert-red" />
+            <PinGlyph tone="drop" size={18} className="mt-0.5 shrink-0" />
             <div>
               <p className="text-xs text-ink-soft">Destination</p>
               <p className="text-sm text-ink">{info.dropAddress ?? "—"}</p>

@@ -82,13 +82,21 @@ export default function RatePage() {
   if (existingRating) {
     return (
       <main className="flex flex-1 flex-col items-center px-6 py-10 text-center">
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
-          <CheckCircle2 size={40} className="mx-auto text-meter-green" />
-          <h1 className="mt-3 font-display text-xl font-medium text-ink">Thanks for your feedback</h1>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+        >
+          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-meter-green/10 text-meter-green">
+            <CheckCircle2 size={32} strokeWidth={1.8} />
+          </span>
+          <h1 className="mt-4 font-display text-xl font-semibold text-ink">Thanks for your feedback</h1>
           <div className="mt-4">
             <StarRating value={existingRating.rating} readOnly size={32} />
           </div>
-          {existingRating.comment && <p className="mt-3 max-w-xs text-sm text-ink-soft">&ldquo;{existingRating.comment}&rdquo;</p>}
+          {existingRating.comment && (
+            <p className="mt-3 max-w-xs text-sm text-ink-soft">&ldquo;{existingRating.comment}&rdquo;</p>
+          )}
         </motion.div>
         <Button className="mt-8 w-full" onClick={() => router.push("/home")}>
           Done
@@ -116,12 +124,12 @@ export default function RatePage() {
         transition={{ duration: 0.3 }}
         className="flex flex-1 flex-col items-center pt-10 text-center"
       >
-        <h1 className="font-display text-2xl font-medium text-ink">How was your ride?</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">How was your ride?</h1>
         <p className="mt-1 text-sm text-ink-soft">
           {driverName ? `Rate your trip with ${driverName}` : "Rate your driver"}
         </p>
 
-        <div className="mt-6">
+        <div className="mt-8 rounded-2xl border border-border bg-surface px-6 py-8 shadow-sm">
           <StarRating value={rating} onChange={setRating} size={40} />
         </div>
 
@@ -131,7 +139,7 @@ export default function RatePage() {
           placeholder="Tell us about your experience (optional)"
           rows={3}
           maxLength={1000}
-          className="mt-6 w-full resize-none rounded-lg border border-border bg-white p-3 text-sm text-ink outline-none placeholder:text-ink-soft focus:border-signal-blue"
+          className="mt-6 w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none placeholder:text-ink-soft focus:border-signal-blue"
         />
         {error && <p className="mt-2 text-xs text-alert-red">{error}</p>}
       </motion.div>

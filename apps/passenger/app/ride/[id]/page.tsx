@@ -4,8 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Phone, Share2, ShieldAlert, Smartphone, Star, Users, Flag, X } from "lucide-react";
-import { Button, Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
+import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Phone, MessageCircle, Share2, ShieldAlert, Smartphone, Users, Flag, X } from "lucide-react";
+import { Button, Card, DriverCard, MeterValue, Skeleton, StatusPill, cn, VEHICLE_VISUALS, SafetyIcon } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getRide,
@@ -257,6 +257,11 @@ export default function RideStatusPage() {
   const canCancel = status === "accepted";
   const driverStale = tracking?.driverLocationUpdatedAt ? isStale(tracking.driverLocationUpdatedAt) : false;
 
+  const driverEtaLabel =
+    tracking?.distanceToPickupMeters != null && status === "accepted"
+      ? `${(tracking.distanceToPickupMeters / 1000).toFixed(1)} km`
+      : undefined;
+
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <div className="relative">
@@ -267,11 +272,16 @@ export default function RideStatusPage() {
           driverLocationStale={driverStale}
           fallbackVariant="live"
           fallbackProgress={0.15 + stepIndex * 0.28}
-          className="h-48"
+          className="h-56 rounded-2xl"
         />
+        <div className="absolute right-3 top-3 flex items-center gap-2">
+          <StatusPill tone="online" className="shadow-md">
+            {STEPS[stepIndex]?.label ?? "In progress"}
+          </StatusPill>
+        </div>
         <button
           onClick={openSafety}
-          className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-alert-red px-3 py-1.5 text-xs font-medium text-white shadow-md"
+          className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-alert-red px-3 py-1.5 text-xs font-medium text-white shadow-md"
         >
           <ShieldAlert size={13} /> Safety
         </button>
@@ -283,7 +293,7 @@ export default function RideStatusPage() {
         </p>
       )}
 
-      <div className="mt-6">
+      <div className="mt-5">
         <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
           <motion.div
             className="h-full rounded-full bg-signal-blue"
@@ -301,35 +311,65 @@ export default function RideStatusPage() {
         </div>
       </div>
 
-      <Card className="mt-6">
-        <div className="flex items-center justify-between">
-          <div>
-            {loading ? (
-              <Skeleton className="h-5 w-32" />
-            ) : (
-              <>
-                <p className="font-display text-base font-medium text-ink">{driver?.full_name ?? "Your driver"}</p>
-                <p className="flex items-center gap-1 text-xs text-ink-soft">
-                  {driver ? (driver.vehicle_type === "auto" ? "Auto" : "Bike") : ""}
-                  {driver && driver.rating > 0 && (
-                    <span className="inline-flex items-center gap-0.5">
-                      · <Star size={11} className="fill-marigold text-marigold" aria-hidden="true" />
-                      {driver.rating.toFixed(1)}
-                    </span>
-                  )}
-                  {tracking?.distanceToPickupMeters != null && status === "accepted"
-                    ? ` · ${(tracking.distanceToPickupMeters / 1000).toFixed(1)} km away`
-                    : ""}
-                </p>
-              </>
-            )}
+      {loading ? (
+        <div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-lg">
+          <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-36" />
           </div>
-          <StatusPill tone="online">{STEPS[stepIndex]?.label ?? "In progress"}</StatusPill>
         </div>
-      </Card>
+      ) : (
+        driver && (
+          <DriverCard
+            className="mt-5"
+            name={driver.full_name ?? "Your driver"}
+            rating={driver.rating}
+            vehicleLabel={VEHICLE_VISUALS[driver.vehicle_type].label}
+            plateNumber=""
+            etaLabel={driverEtaLabel}
+          />
+        )
+      )}
+
+      {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          <a href={driver.phone ? `tel:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+              <Phone size={18} className="text-signal-blue" />
+              <span className="text-[11px] text-ink-soft">Call</span>
+            </div>
+          </a>
+          <a href={driver.phone ? `sms:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+              <MessageCircle size={18} className="text-signal-blue" />
+              <span className="text-[11px] text-ink-soft">Message</span>
+            </div>
+          </a>
+          <button type="button" onClick={openSafety} className="w-full">
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+              <SafetyIcon size={18} className="text-alert-red" />
+              <span className="text-[11px] text-ink-soft">Safety</span>
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setSafetyOpen(true);
+              openShare();
+            }}
+            className="w-full"
+          >
+            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+              <Share2 size={18} className="text-signal-blue" />
+              <span className="text-[11px] text-ink-soft">Share</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {(status === "accepted" || status === "driver_arriving") && ridePin && (
-        <Card className="mt-4 text-center">
+        <Card tone="tinted" className="mt-4 text-center">
           <p className="text-sm font-medium text-ink">Your Ride PIN</p>
           <div className="mt-2 flex justify-center">
             <MeterValue value={ridePin} size="lg" />
@@ -374,8 +414,8 @@ export default function RideStatusPage() {
                   <button key={value} disabled={selectingPayment} onClick={() => handleSelectPaymentMethod(value)} className="flex-1">
                     <div
                       className={cn(
-                        "flex flex-col items-center gap-1.5 rounded-lg border bg-white py-4",
-                        active ? "border-2 border-signal-blue" : "border-border"
+                        "flex flex-col items-center gap-1.5 rounded-lg border bg-surface py-4",
+                        active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
                       )}
                     >
                       <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />
@@ -412,7 +452,7 @@ export default function RideStatusPage() {
           <motion.div
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="w-full max-w-md rounded-lg bg-white p-6"
+            className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
@@ -550,7 +590,7 @@ export default function RideStatusPage() {
                   onChange={(e) => setReportDescription(e.target.value)}
                   placeholder="What happened?"
                   rows={3}
-                  className="w-full resize-none rounded-lg border border-border bg-white p-3 text-sm text-ink outline-none focus:border-signal-blue"
+                  className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
                 />
                 <Button className="mt-3 w-full" disabled={!reportDescription.trim() || submittingReport} onClick={handleSubmitReport}>
                   {submittingReport ? "Submitting…" : "Submit report"}

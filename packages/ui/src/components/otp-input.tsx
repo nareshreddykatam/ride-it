@@ -72,7 +72,7 @@ export function OtpInput({
         <div
           key={i}
           className={cn(
-            "relative h-14 w-11 overflow-hidden rounded-lg border bg-white",
+            "relative h-14 w-11 overflow-hidden rounded-lg border bg-surface",
             error ? "border-alert-red" : "border-border",
             "focus-within:border-signal-blue focus-within:ring-2 focus-within:ring-signal-blue/20"
           )}

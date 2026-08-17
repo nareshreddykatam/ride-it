@@ -14,6 +14,18 @@
   --ink-soft: #5b6270;
   --border: #e6e4df;
 
+  /* v2 — energetic accent trio, each owned by one vehicle class. Chosen to
+     sit clearly apart (in hue) from signal-blue (interactive), meter-green
+     (status/online) and alert-red (danger) so a colored icon container
+     never gets misread as a status color. See DESIGN_SYSTEM.md §Color v2. */
+  --violet: #6d4cff; /* Bike — energetic */
+  --rose: #ef3f7a; /* Scooty — complementary */
+  --cyan: #0a89a6; /* Car — cool */
+  --surface: #ffffff;
+  --tint-blue: #eef3ff;
+  --tint-marigold: #fff6e6;
+  --tint-violet: #f2efff;
+
   /* Text-on-tint variants — same hue family as the brand token above it,
      darkened until it clears 4.5:1 against --paper (WCAG AA for normal
      text). The brand tokens themselves stay untouched since they already
@@ -23,6 +35,23 @@
   --meter-green-text: #18825a;
   --alert-red-text: #c94537;
   --signal-blue-text: #1d6dea;
+  --violet-text: #5636d9;
+  --rose-text: #c22a5e;
+  --cyan-text: #086a80;
+
+  /* Gradients — used sparingly on hero surfaces and the primary booking
+     CTA, never as a full-page wash. */
+  --gradient-brand: linear-gradient(135deg, #0b3b8c 0%, #1e6fef 60%, #6d4cff 100%);
+  --gradient-cta: linear-gradient(135deg, #f5a623 0%, #ff7a45 100%);
+  --gradient-hero: linear-gradient(160deg, #071a3d 0%, #0b3b8c 45%, #6d4cff 120%);
+  --gradient-online: linear-gradient(135deg, #1c9b6b 0%, #0a89a6 100%);
+
+  /* Elevation — a real depth scale instead of ad hoc shadow-sm/md everywhere */
+  --shadow-sm: 0 1px 2px rgba(17, 24, 39, 0.06), 0 1px 1px rgba(17, 24, 39, 0.04);
+  --shadow-md: 0 6px 16px -4px rgba(17, 24, 39, 0.12), 0 2px 6px -2px rgba(17, 24, 39, 0.06);
+  --shadow-lg: 0 16px 32px -8px rgba(17, 24, 39, 0.18), 0 6px 12px -4px rgba(17, 24, 39, 0.08);
+  --shadow-brand: 0 10px 24px -6px rgba(30, 111, 239, 0.4);
+  --shadow-marigold: 0 10px 24px -6px rgba(245, 166, 35, 0.45);
 
   /* Type tokens */
   --font-display: "Space Grotesk", sans-serif;
@@ -35,6 +64,13 @@
   --ink: #f2f2f0;
   --ink-soft: #9aa1ad;
   --border: #262b35;
+  --surface: #171b24;
+  --tint-blue: #16213d;
+  --tint-marigold: #2a2013;
+  --tint-violet: #201c3a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 16px -4px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 16px 32px -8px rgba(0, 0, 0, 0.55);
 }
 
 @layer base {

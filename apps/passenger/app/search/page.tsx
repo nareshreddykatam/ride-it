@@ -3,8 +3,8 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { MapPin, Home, Briefcase, Users, GraduationCap, Clock, Search } from "lucide-react";
-import { cn, EmptyState, SkeletonRow } from "@ride-it/ui";
+import { MapPin, GraduationCap, Clock, Search } from "lucide-react";
+import { EmptyState, SkeletonRow, PinGlyph, HomeIcon, OfficeIcon, FriendsIcon } from "@ride-it/ui";
 import {
   RideMap,
   isGoogleMapsConfigured,
@@ -18,10 +18,10 @@ import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listSavedPlaces, listRecentLocations, recordRecentLocation, type SavedPlaceRow, type RecentLocationRow } from "@ride-it/data";
 
 const PLACE_ICONS: Record<string, typeof MapPin> = {
-  home: Home,
-  office: Briefcase,
-  work: Briefcase,
-  friends: Users,
+  home: HomeIcon,
+  office: OfficeIcon,
+  work: OfficeIcon,
+  friends: FriendsIcon,
   college: GraduationCap,
   other: MapPin,
 };
@@ -170,16 +170,17 @@ export default function SearchPage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        <RideMap fallbackVariant="static" className="h-28" />
-        <h1 className="mt-4 font-display text-2xl font-medium text-ink">Where to?</h1>
+        <RideMap fallbackVariant="static" className="h-28 rounded-2xl" />
+        <h1 className="mt-4 font-display text-2xl font-semibold text-ink">Where to?</h1>
 
-        <div className="mt-5 flex flex-col gap-2">
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-white px-4 py-3">
-            <span className="h-2 w-2 rounded-full bg-meter-green" />
+        <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
+          <div className="flex items-center gap-3 px-4 py-3.5">
+            <PinGlyph tone="pickup" size={18} />
             <span className="text-sm text-ink-soft">Current location</span>
           </div>
-          <div className="flex items-center gap-3 rounded-lg border border-signal-blue bg-white px-4 py-3">
-            <Search size={16} className="text-ink-soft" />
+          <div className="mx-4 h-px bg-border" />
+          <div className="flex items-center gap-3 px-4 py-3.5 ring-1 ring-inset ring-transparent focus-within:ring-signal-blue/40">
+            <Search size={16} className="shrink-0 text-signal-blue" />
             <input
               autoFocus
               value={query}
@@ -216,7 +217,7 @@ export default function SearchPage() {
 
         {!showSuggestionsPanel && savedPlaces.length > 0 && (
           <div className="mt-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Saved places</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Saved places</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {savedPlaces.map((place) => {
                 const Icon = PLACE_ICONS[place.icon ?? "other"] ?? MapPin;
@@ -224,7 +225,7 @@ export default function SearchPage() {
                   <button
                     key={place.id}
                     onClick={() => handleSelectKnownPlace(place.address, place.lat, place.lng)}
-                    className="flex items-center gap-1.5 rounded-full border border-border bg-white px-3 py-1.5 text-xs text-ink hover:border-signal-blue"
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs font-medium text-ink shadow-sm hover:border-signal-blue hover:text-signal-blue"
                   >
                     <Icon size={13} className="text-signal-blue" /> {place.label}
                   </button>
@@ -236,7 +237,7 @@ export default function SearchPage() {
 
         {!showSuggestionsPanel && recentLocations.length > 0 && (
           <div className="mt-5">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Recent</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Recent</p>
             <div className="mt-1 flex flex-col">
               {recentLocations.map((loc, i) => (
                 <motion.button
@@ -247,7 +248,9 @@ export default function SearchPage() {
                   transition={{ delay: i * 0.03 }}
                   className="flex items-center gap-3 border-b border-border py-3 text-left last:border-b-0"
                 >
-                  <Clock size={16} className="shrink-0 text-ink-soft" />
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink-soft">
+                    <Clock size={14} />
+                  </span>
                   <p className="text-sm text-ink">{loc.label ?? loc.address}</p>
                 </motion.button>
               ))}
@@ -257,7 +260,7 @@ export default function SearchPage() {
 
         {showSuggestionsPanel && (
           <div className="mt-6 flex flex-col">
-            <p className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">Search results</p>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Search results</p>
 
             {mapsConfigured ? (
               <>
@@ -270,7 +273,7 @@ export default function SearchPage() {
                       disabled={resolvingId === s.placeId}
                       className="flex items-center gap-3 border-b border-border py-3.5 text-left last:border-b-0 disabled:opacity-50"
                     >
-                      <MapPin size={16} className="shrink-0 text-ink-soft" />
+                      <PinGlyph tone="drop" size={18} className="shrink-0" />
                       <div>
                         <p className="text-sm text-ink">{s.primaryText}</p>
                         {s.secondaryText && <p className="text-xs text-ink-soft">{s.secondaryText}</p>}
@@ -297,7 +300,7 @@ export default function SearchPage() {
                     whileTap={{ scale: 0.98 }}
                     className="flex items-center gap-3 border-b border-border py-3.5 text-left last:border-b-0"
                   >
-                    <MapPin size={16} className="shrink-0 text-ink-soft" />
+                    <PinGlyph tone="drop" size={18} className="shrink-0" />
                     <p className="text-sm text-ink">{s.name}</p>
                   </motion.button>
                 ))}

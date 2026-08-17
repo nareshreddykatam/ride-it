@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card, EmptyState, MeterValue, SkeletonRow } from "@ride-it/ui";
+import { Card, EmptyState, MeterValue, SkeletonRow, cn } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverEarningsSummary, type EarningsRange, type RideRow } from "@ride-it/data";
@@ -49,16 +49,17 @@ export default function EarningsPage() {
             role="tab"
             aria-selected={range === r.key}
             onClick={() => setRange(r.key)}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium ${
-              range === r.key ? "bg-signal-blue text-white" : "bg-ink/5 text-ink-soft"
-            }`}
+            className={cn(
+              "rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors",
+              range === r.key ? "bg-signal-blue text-white shadow-sm" : "bg-ink/5 text-ink-soft"
+            )}
           >
             {r.label}
           </button>
         ))}
       </div>
 
-      <Card className="mt-4">
+      <Card tone="elevated" accent="marigold" className="mt-4 rounded-2xl">
         <MeterValue value={`₹${total}`} label={`Total earned — ${rangeLabel.toLowerCase()}`} size="lg" />
         <p className="mt-2 text-xs text-ink-soft">{rides.length} rides completed</p>
       </Card>
@@ -75,16 +76,16 @@ export default function EarningsPage() {
         )}
 
         {!loading && rides.length > 0 && (
-          <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-white px-4">
+          <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface px-4 shadow-sm">
             {rides.map((ride) => (
               <div key={ride.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm text-ink">
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink">
                     {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
                   </p>
                   <p className="text-xs text-ink-soft">{formatTime(ride.requested_at)}</p>
                 </div>
-                <span className="font-meter text-sm text-ink">₹{ride.total_fare}</span>
+                <span className="shrink-0 font-meter text-sm font-medium text-meter-green-text">₹{ride.total_fare}</span>
               </div>
             ))}
           </div>

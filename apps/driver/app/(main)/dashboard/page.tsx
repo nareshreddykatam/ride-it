@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
-import { Card, MeterValue, Skeleton, StatusPill, Button, cn } from "@ride-it/ui";
+import { OnlineToggle, StatCard, Skeleton, StatusPill, Button, WalletIcon, RideIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
@@ -180,11 +179,11 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <main className="flex-1 px-6 py-8">
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="mt-6 h-24 w-full rounded-lg" />
+        <Skeleton className="h-11 w-full rounded-xl" />
+        <Skeleton className="mt-6 h-36 w-full rounded-2xl" />
         <div className="mt-6 grid grid-cols-2 gap-4">
-          <Skeleton className="h-24 rounded-lg" />
-          <Skeleton className="h-24 rounded-lg" />
+          <Skeleton className="h-24 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
         </div>
       </main>
     );
@@ -200,7 +199,7 @@ export default function DashboardPage() {
           </button>
         </div>
       )}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
         <div>
           <p className="text-xs text-ink-soft">Subscription</p>
           <p className="font-display text-sm font-medium text-ink">
@@ -209,29 +208,23 @@ export default function DashboardPage() {
               : "No active subscription"}
           </p>
         </div>
-        <StatusPill tone={subscription ? "online" : "alert"}>{subscription ? "Active" : "Inactive"}</StatusPill>
+        <StatusPill tone={subscription ? "verified" : "alert"}>{subscription ? "Active" : "Inactive"}</StatusPill>
       </div>
 
-      <motion.button
-        onClick={handleToggleOnline}
+      <OnlineToggle
+        online={!!profile?.is_online}
         disabled={togglingOnline || (!subscription && !profile?.is_online)}
-        whileTap={{ scale: 0.98 }}
-        className={cn(
-          "mt-6 flex w-full flex-col items-center justify-center gap-1 rounded-lg py-8 transition-colors disabled:opacity-60",
-          profile?.is_online ? "bg-meter-green text-white" : "bg-ink text-white"
-        )}
-      >
-        <span className="font-display text-xl font-medium">
-          {profile?.is_online ? "You're online" : "Go online"}
-        </span>
-        <span className="text-xs opacity-80">
-          {!subscription
+        loading={togglingOnline}
+        subtitle={
+          !subscription
             ? "Subscribe to start accepting rides"
             : profile?.is_online
               ? "Looking for rides nearby…"
-              : "Tap to start receiving ride requests"}
-        </span>
-      </motion.button>
+              : "Tap to start receiving ride requests"
+        }
+        onToggle={handleToggleOnline}
+        className="mt-6"
+      />
 
       {!subscription && (
         <Button
@@ -244,14 +237,19 @@ export default function DashboardPage() {
       )}
 
       <div className="mt-6 grid grid-cols-2 gap-4">
-        <Card>
-          <MeterValue value={`₹${earningsToday.total}`} label="Earned today" size="lg" />
-          <p className="mt-2 text-xs text-ink-soft">{earningsToday.rides} rides completed</p>
-        </Card>
-        <Card>
-          <MeterValue value={`₹${walletBalance}`} label="Wallet balance" size="lg" />
-          <p className="mt-2 text-xs text-ink-soft">Available to withdraw</p>
-        </Card>
+        <StatCard
+          label="Earned today"
+          value={`₹${earningsToday.total}`}
+          icon={RideIcon}
+          tone="marigold"
+          trend={`${earningsToday.rides} rides`}
+        />
+        <StatCard
+          label="Wallet balance"
+          value={`₹${walletBalance}`}
+          icon={WalletIcon}
+          tone="blue"
+        />
       </div>
 
       {pendingOffer && (

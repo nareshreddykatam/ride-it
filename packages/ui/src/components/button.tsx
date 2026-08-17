@@ -8,11 +8,13 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        primary: "bg-signal-blue text-white shadow-sm hover:bg-ink-blue hover:shadow-md",
-        marigold: "bg-marigold text-ink shadow-sm hover:brightness-95 hover:shadow-md",
+        primary: "bg-signal-blue text-white shadow-sm hover:bg-ink-blue hover:shadow-brand",
+        brand: "bg-gradient-brand text-white shadow-sm hover:shadow-brand",
+        marigold: "bg-gradient-cta text-white shadow-sm hover:shadow-marigold",
         outline: "border border-border bg-transparent text-ink hover:border-ink/30 hover:bg-ink/[0.03]",
         ghost: "bg-transparent text-ink hover:bg-ink/5",
         destructive: "bg-alert-red text-white shadow-sm hover:brightness-95 hover:shadow-md",
+        success: "bg-meter-green text-white shadow-sm hover:brightness-95 hover:shadow-md",
       },
       size: {
         sm: "h-9 px-3 text-sm",

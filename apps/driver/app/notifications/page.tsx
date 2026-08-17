@@ -68,14 +68,21 @@ export default function DriverNotificationsPage() {
 
         {!loading &&
           items.map((n) => (
-            <button key={n.id} onClick={() => handleTap(n)} className="text-left">
-              <Card interactive className="flex items-start gap-3">
-                {!n.is_read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-signal-blue" />}
-                <div className={n.is_read ? "ml-5" : ""}>
-                  <p className="text-sm font-medium text-ink">{n.title}</p>
+            <button key={n.id} onClick={() => handleTap(n)} className="w-full text-left">
+              <Card interactive accent={n.is_read ? undefined : "blue"} className="flex items-start gap-3 rounded-xl">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    n.is_read ? "bg-ink/5 text-ink-soft" : "bg-tint-blue text-signal-blue"
+                  }`}
+                >
+                  <Bell size={16} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={`text-sm ${n.is_read ? "text-ink" : "font-semibold text-ink"}`}>{n.title}</p>
                   {n.body && <p className="mt-0.5 text-xs text-ink-soft">{n.body}</p>}
                   <p className="mt-1 text-xs text-ink-soft">{timeAgo(n.created_at)}</p>
                 </div>
+                {!n.is_read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-signal-blue" aria-hidden="true" />}
               </Card>
             </button>
           ))}

@@ -130,7 +130,7 @@ export function RideMap({
 
       if (driverLocation) {
         if (!driverMarkerRef.current) {
-          const el = new PinElement({ background: "#0B3B8C", borderColor: "#ffffff", glyphColor: "#ffffff", scale: 0.9 }).element;
+          const el = new PinElement({ background: "#1E6FEF", borderColor: "#ffffff", glyphColor: "#ffffff", scale: 0.95 }).element;
           driverMarkerRef.current = new AdvancedMarkerElement({ map, content: el });
         }
         driverMarkerRef.current.position = driverLocation;
@@ -155,9 +155,9 @@ export function RideMap({
         if (!polylineRef.current) {
           polylineRef.current = new g.maps.Polyline({
             map,
-            strokeColor: "#0B3B8C",
-            strokeOpacity: 0.85,
-            strokeWeight: 4,
+            strokeColor: "#1E6FEF",
+            strokeOpacity: 0.9,
+            strokeWeight: 5,
           });
         }
         polylineRef.current.setPath(routePolyline);

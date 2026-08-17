@@ -47,7 +47,7 @@ export default function NotificationsPage() {
 
   return (
     <main className="flex-1 px-6 py-8">
-      <h1 className="font-display text-2xl font-medium text-ink">Notifications</h1>
+      <h1 className="font-display text-2xl font-semibold text-ink">Notifications</h1>
 
       <div className="mt-4 flex flex-col gap-3">
         {loading && Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
@@ -63,9 +63,12 @@ export default function NotificationsPage() {
         {!loading &&
           items.map((n) => (
             <button key={n.id} onClick={() => handleTap(n)} className="text-left">
-              <Card interactive className="flex items-start gap-3">
-                {!n.is_read && <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-signal-blue" />}
-                <div className={n.is_read ? "ml-5" : ""}>
+              <Card interactive tone={n.is_read ? "default" : "tinted"} className="flex items-start gap-3">
+                <span
+                  className={n.is_read ? "mt-1.5 h-2 w-2 shrink-0 rounded-full" : "mt-1.5 h-2 w-2 shrink-0 rounded-full bg-signal-blue"}
+                  aria-hidden="true"
+                />
+                <div>
                   <p className="text-sm font-medium text-ink">{n.title}</p>
                   {n.body && <p className="mt-0.5 text-xs text-ink-soft">{n.body}</p>}
                   <p className="mt-1 text-xs text-ink-soft">{timeAgo(n.created_at)}</p>

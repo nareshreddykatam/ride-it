@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Star } from "lucide-react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, DriverIcon, MeterValue, Skeleton, StatCard, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -56,7 +56,7 @@ const DOCUMENT_LABELS: Record<DocumentType, string> = {
 const STATUS_TONE = {
   pending: "pending",
   in_review: "pending",
-  approved: "online",
+  approved: "verified",
   rejected: "alert",
   suspended: "alert",
 } as const;
@@ -139,7 +139,7 @@ function DocumentCard({
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Reason for rejection"
-                className="h-9 rounded-lg border border-border bg-white px-3 text-xs outline-none focus:border-signal-blue"
+                className="h-9 rounded-lg border border-border bg-surface px-3 text-xs outline-none focus:border-signal-blue"
               />
               <div className="flex gap-2">
                 <Button size="sm" variant="ghost" className="flex-1" onClick={() => setRejecting(false)}>
@@ -219,7 +219,7 @@ function DriverQrCard({ profile, onReviewed }: { profile: DriverProfileRow; onRe
   }
 
   return (
-    <Card className="mt-6">
+    <Card className="mt-6" accent="green">
       <CardHeader>
         <CardTitle>UPI QR Payment</CardTitle>
         {profile.upi_qr_path && <StatusPill tone={STATUS_TONE[profile.upi_qr_status]}>{profile.upi_qr_status.replace("_", " ")}</StatusPill>}
@@ -246,7 +246,7 @@ function DriverQrCard({ profile, onReviewed }: { profile: DriverProfileRow; onRe
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Rejection reason"
-                className="h-9 w-full rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
+                className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-signal-blue"
               />
               <div className="mt-2 flex gap-2">
                 <Button size="sm" variant="outline" className="flex-1" disabled={submitting} onClick={() => setRejecting(false)}>
@@ -375,35 +375,29 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card>
-          <p className="text-xs text-ink-soft">Rating</p>
-          <p className="mt-1 flex items-center gap-1 font-meter text-lg text-ink">
-            {profile.rating > 0 ? (
-              <>
-                <Star size={16} className="fill-marigold text-marigold" aria-hidden="true" />
-                {profile.rating.toFixed(1)}
-              </>
-            ) : (
-              "—"
-            )}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs text-ink-soft">Online now</p>
-          <div className="mt-1">
-            <StatusPill tone={profile.is_online ? "online" : "offline"}>{profile.is_online ? "Online" : "Offline"}</StatusPill>
-          </div>
-        </Card>
-        <Card>
-          <MeterValue value={subscription ? subscription.plan : "None"} label="Subscription" size="sm" />
-        </Card>
-        <Card>
-          <MeterValue value={`₹${earnings?.totalEarnings ?? 0}`} label={`${earnings?.totalRides ?? 0} completed rides`} size="sm" />
-        </Card>
+        <StatCard
+          label="Rating"
+          value={profile.rating > 0 ? profile.rating.toFixed(1) : "—"}
+          icon={Star}
+          tone="marigold"
+        />
+        <StatCard
+          label={profile.is_online ? "Online now" : "Offline"}
+          value={profile.is_online ? "Online" : "Offline"}
+          icon={DriverIcon}
+          tone={profile.is_online ? "green" : "blue"}
+        />
+        <StatCard label="Subscription" value={subscription ? subscription.plan : "None"} icon={WalletIcon} tone="violet" />
+        <StatCard
+          label={`${earnings?.totalRides ?? 0} completed rides`}
+          value={`₹${earnings?.totalEarnings ?? 0}`}
+          icon={WalletIcon}
+          tone="green"
+        />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+        <Card accent="blue">
           <CardHeader>
             <CardTitle>Personal information</CardTitle>
           </CardHeader>
@@ -426,9 +420,22 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
           </div>
         </Card>
 
-        <Card>
+        <Card accent="marigold">
           <CardHeader>
             <CardTitle>Vehicle information</CardTitle>
+            {vehicle &&
+              (() => {
+                const visual = VEHICLE_VISUALS[vehicle.vehicle_type];
+                const Icon = visual.icon;
+                return (
+                  <span
+                    className="flex h-8 w-8 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+                  >
+                    <Icon size={16} />
+                  </span>
+                );
+              })()}
           </CardHeader>
           {vehicle ? (
             <div className="flex flex-col gap-1.5 text-sm">
@@ -457,7 +464,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         ))}
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6" accent="green">
         <CardHeader>
           <CardTitle>Driver UPI</CardTitle>
           {profile && (
@@ -507,7 +514,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         )}
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6" accent="violet">
         <CardHeader>
           <CardTitle>Verification decision</CardTitle>
         </CardHeader>
@@ -516,7 +523,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Notes for this decision (visible to other admins)"
           rows={2}
-          className="w-full resize-none rounded-lg border border-border bg-white p-3 text-sm text-ink outline-none focus:border-signal-blue"
+          className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
         />
         <div className="mt-3 flex flex-wrap gap-3">
           <Button disabled={savingStatus} onClick={() => handleSetStatus("approved")}>

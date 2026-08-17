@@ -95,7 +95,8 @@ export default function PassengerOnboardingPage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <h1 className="font-display text-2xl font-medium text-ink">A few details before you ride</h1>
+        <p className="font-display text-sm font-medium text-signal-blue">Almost there</p>
+        <h1 className="mt-2 font-display text-2xl font-semibold leading-tight text-ink">A few details before you ride</h1>
         <p className="mt-2 text-sm text-ink-soft">
           We need this to keep your account secure and your rides personal.
         </p>
@@ -107,7 +108,7 @@ export default function PassengerOnboardingPage() {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Your full name"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
             />
           </div>
 
@@ -118,7 +119,7 @@ export default function PassengerOnboardingPage() {
               onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
               placeholder="98765 43210"
               inputMode="numeric"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
             />
             {phone.trim().length > 0 && !phoneValid && (
               <p className="mt-1 text-xs text-alert-red">Enter a valid 10-digit mobile number.</p>
@@ -132,7 +133,7 @@ export default function PassengerOnboardingPage() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
               type="email"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
             />
             {email.trim().length > 0 && !emailValid && <p className="mt-1 text-xs text-alert-red">Enter a valid email address.</p>}
           </div>
@@ -144,7 +145,7 @@ export default function PassengerOnboardingPage() {
               onChange={(e) => setDateOfBirth(e.target.value)}
               type="date"
               max={todayMinusYears(MIN_AGE_YEARS)}
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
             />
             {dateOfBirth.length > 0 && !dobValid && (
               <p className="mt-1 text-xs text-alert-red">You must be at least {MIN_AGE_YEARS} years old.</p>
@@ -161,8 +162,10 @@ export default function PassengerOnboardingPage() {
                   role="radio"
                   aria-checked={gender === opt.value}
                   onClick={() => setGender(opt.value)}
-                  className={`h-11 rounded-lg border text-sm ${
-                    gender === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"
+                  className={`h-11 rounded-lg border text-sm transition-colors ${
+                    gender === opt.value
+                      ? "border-2 border-signal-blue bg-tint-blue font-medium text-signal-blue"
+                      : "border-border bg-surface text-ink"
                   }`}
                 >
                   {opt.label}

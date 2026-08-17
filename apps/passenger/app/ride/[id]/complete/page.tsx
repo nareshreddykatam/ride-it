@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Banknote, CreditCard, Smartphone } from "lucide-react";
+import { Banknote, CheckCircle2, CreditCard, Smartphone } from "lucide-react";
 import { Button, Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
 import { PaymentMethod } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
@@ -161,10 +161,18 @@ export default function RideCompletePage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <h1 className="font-display text-2xl font-medium text-ink">Ride completed</h1>
+        <motion.span
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ type: "spring", stiffness: 300, damping: 20 }}
+          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-meter-green/10 text-meter-green"
+        >
+          <CheckCircle2 size={28} strokeWidth={1.8} />
+        </motion.span>
+        <h1 className="mt-4 font-display text-2xl font-semibold text-ink">Ride completed</h1>
         <p className="mt-1 text-sm text-ink-soft">Here&apos;s your fare breakdown.</p>
 
-        <Card className="mt-6">
+        <Card tone="elevated" className="mt-6">
           {loading || !ride ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -186,9 +194,9 @@ export default function RideCompletePage() {
                 <span>Distance fare</span>
                 <span className="font-meter text-ink">₹{ride.distance_fare}</span>
               </div>
-              <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+              <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                 <span className="text-sm font-medium text-ink">Total</span>
-                <MeterValue value={`₹${ride.total_fare}`} size="md" />
+                <MeterValue value={`₹${ride.total_fare}`} size="lg" />
               </div>
             </>
           )}
@@ -213,8 +221,8 @@ export default function RideCompletePage() {
               >
                 <div
                   className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-lg border bg-white py-4",
-                    active ? "border-2 border-signal-blue" : "border-border"
+                    "flex flex-col items-center gap-1.5 rounded-xl border bg-surface py-4",
+                    active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
                   )}
                 >
                   <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />

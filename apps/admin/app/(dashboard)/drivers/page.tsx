@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
-import { Button, Input, StatusPill } from "@ride-it/ui";
+import { Button, DriverIcon, Input, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listDriversAdmin, type AdminDriverListRow } from "@ride-it/data";
@@ -12,7 +12,7 @@ import { DataTable, type Column } from "../../../components/data-table";
 const STATUS_TONE = {
   pending: "pending",
   in_review: "pending",
-  approved: "online",
+  approved: "verified",
   rejected: "alert",
   suspended: "alert",
 } as const;
@@ -39,7 +39,25 @@ const columns: Column<AdminDriverListRow>[] = [
     ),
   },
   { key: "phone", header: "Phone", render: (row) => (row.phone ? `+91 ${row.phone}` : "—") },
-  { key: "vehicleType", header: "Vehicle", render: (row) => (row.vehicle_type === "auto" ? "Auto" : "Bike") },
+  {
+    key: "vehicleType",
+    header: "Vehicle",
+    render: (row) => {
+      const visual = VEHICLE_VISUALS[row.vehicle_type];
+      const Icon = visual.icon;
+      return (
+        <span className="flex items-center gap-1.5">
+          <span
+            className="flex h-6 w-6 items-center justify-center rounded-md"
+            style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+          >
+            <Icon size={14} />
+          </span>
+          {visual.label}
+        </span>
+      );
+    },
+  },
   {
     key: "status",
     header: "Status",
@@ -103,11 +121,16 @@ export default function DriversPage() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-medium text-ink">Drivers</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Review documents, approve or reject registrations, and manage suspensions.
-          </p>
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
+            <DriverIcon size={20} />
+          </span>
+          <div>
+            <h1 className="font-display text-2xl font-medium text-ink">Drivers</h1>
+            <p className="text-sm text-ink-soft">
+              Review documents, approve or reject registrations, and manage suspensions.
+            </p>
+          </div>
         </div>
       </div>
 

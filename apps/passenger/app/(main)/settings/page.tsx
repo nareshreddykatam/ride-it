@@ -40,12 +40,12 @@ export default function SettingsPage() {
         <Link href="/profile" aria-label="Back" className="-m-2.5 p-2.5 text-ink-soft">
           <ChevronLeft size={20} />
         </Link>
-        <h1 className="font-display text-2xl font-medium text-ink">Settings</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">Settings</h1>
       </div>
 
       <div className="mt-6">
-        <p className="text-xs font-medium text-ink-soft">Notifications</p>
-        <div className="mt-1 divide-y divide-border rounded-lg border border-border bg-white px-4">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Notifications</p>
+        <div className="mt-2 divide-y divide-border rounded-2xl border border-border bg-surface px-4 shadow-sm">
           <ToggleRow label="Ride status" description="Driver arrival, ride start, completion" checked={rideUpdates} onChange={setRideUpdates} />
           <ToggleRow label="Offers & promotions" checked={offers} onChange={setOffers} />
           <ToggleRow label="Payment confirmations" checked={paymentConfirm} onChange={setPaymentConfirm} />
@@ -53,8 +53,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-6">
-        <p className="text-xs font-medium text-ink-soft">Default payment method</p>
-        <div className="mt-1 flex gap-2" role="radiogroup" aria-label="Default payment method">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Default payment method</p>
+        <div className="mt-2 flex gap-2" role="radiogroup" aria-label="Default payment method">
           {[PaymentMethod.CASH, PaymentMethod.DRIVER_UPI].map((m) => (
             <button
               key={m}
@@ -62,9 +62,9 @@ export default function SettingsPage() {
               role="radio"
               aria-checked={defaultPayment === m}
               onClick={() => setDefaultPayment(m)}
-              className={`flex-1 rounded-lg border px-3 py-2.5 text-sm ${
-                defaultPayment === m ? "border-2 border-signal-blue text-ink" : "border-border text-ink-soft"
-              } bg-white`}
+              className={`flex-1 rounded-xl border px-3 py-2.5 text-sm shadow-sm transition-colors ${
+                defaultPayment === m ? "border-2 border-signal-blue bg-tint-blue font-medium text-signal-blue" : "border-border bg-surface text-ink-soft"
+              }`}
             >
               {m === PaymentMethod.CASH ? "Cash" : "Driver UPI"}
             </button>
@@ -73,8 +73,8 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-6">
-        <p className="text-xs font-medium text-ink-soft">Language</p>
-        <div className="mt-1 rounded-lg border border-border bg-white px-4 py-3 text-sm text-ink">
+        <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Language</p>
+        <div className="mt-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-ink shadow-sm">
           English
           <span className="ml-2 text-xs text-ink-soft">
             (only supported language — full list pending confirmation)

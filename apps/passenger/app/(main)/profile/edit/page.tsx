@@ -79,7 +79,7 @@ export default function EditPassengerProfilePage() {
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
-      <h1 className="font-display text-2xl font-medium text-ink">Personal details</h1>
+      <h1 className="font-display text-2xl font-semibold text-ink">Personal details</h1>
 
       <div className="mt-6 flex flex-col gap-4">
         <div>
@@ -87,7 +87,7 @@ export default function EditPassengerProfilePage() {
           <input
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
-            className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+            className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
           />
         </div>
         <div>
@@ -96,7 +96,7 @@ export default function EditPassengerProfilePage() {
             value={phone}
             onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
             inputMode="numeric"
-            className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+            className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
           />
         </div>
         <div>
@@ -105,7 +105,7 @@ export default function EditPassengerProfilePage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
-            className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+            className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
           />
         </div>
         <div>
@@ -114,7 +114,7 @@ export default function EditPassengerProfilePage() {
             value={dateOfBirth}
             onChange={(e) => setDateOfBirth(e.target.value)}
             type="date"
-            className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+            className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
           />
         </div>
         <div>
@@ -127,8 +127,10 @@ export default function EditPassengerProfilePage() {
                 role="radio"
                 aria-checked={gender === opt.value}
                 onClick={() => setGender(opt.value)}
-                className={`h-11 rounded-lg border text-sm ${
-                  gender === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"
+                className={`h-11 rounded-lg border text-sm transition-colors ${
+                  gender === opt.value
+                    ? "border-2 border-signal-blue bg-tint-blue font-medium text-signal-blue"
+                    : "border-border bg-surface text-ink"
                 }`}
               >
                 {opt.label}

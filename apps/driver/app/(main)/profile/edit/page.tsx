@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Skeleton } from "@ride-it/ui";
+import { Button, Input, Skeleton, DriverIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverProfile, updateDriverPersonalInfo, type GenderRow } from "@ride-it/data";
@@ -79,7 +79,12 @@ export default function EditDriverProfilePage() {
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
-      <h1 className="font-display text-2xl font-medium text-ink">Personal details</h1>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
+          <DriverIcon size={20} aria-hidden="true" />
+        </span>
+        <h1 className="font-display text-2xl font-medium text-ink">Personal details</h1>
+      </div>
 
       <div className="mt-6 flex flex-col gap-4">
         <Input label="Full name" value={fullName} onChange={(e) => setFullName(e.target.value)} />

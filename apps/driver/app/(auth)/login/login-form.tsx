@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "@ride-it/ui";
+import { Button, DriverIcon } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, requestEmailOtp, detectIdentifier } from "@ride-it/auth";
 
@@ -52,7 +52,10 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <p className="font-display text-sm font-medium text-ink-blue">Ride It Driver</p>
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand text-white shadow-brand">
+          <DriverIcon size={24} aria-hidden="true" />
+        </span>
+        <p className="mt-4 font-display text-sm font-medium text-ink-blue">Ride It Driver</p>
         <h1 className="mt-2 font-display text-3xl font-medium leading-tight text-ink">
           Keep 100%
           <br />
@@ -66,7 +69,7 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
           <label htmlFor="identifier" className="mb-1.5 block text-sm font-medium text-ink">
             Email or mobile number
           </label>
-          <div className="flex items-center rounded-lg border border-border bg-white focus-within:border-ink-blue focus-within:ring-2 focus-within:ring-ink-blue/20">
+          <div className="flex items-center rounded-lg border border-border bg-surface focus-within:border-ink-blue focus-within:ring-2 focus-within:ring-ink-blue/20">
             {detected.type === "phone" && <span className="pl-4 pr-2 font-meter text-sm text-ink-soft">+91</span>}
             <input
               id="identifier"

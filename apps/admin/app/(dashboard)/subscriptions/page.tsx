@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, MeterValue, Skeleton, StatusPill, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -68,17 +68,24 @@ export default function SubscriptionsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Subscriptions</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Configure plan pricing and review subscription payments. This is Ride It&apos;s only source of platform revenue.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-marigold text-marigold-text">
+          <WalletIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Subscriptions</h1>
+          <p className="text-sm text-ink-soft">
+            Configure plan pricing and review subscription payments. This is Ride It&apos;s only source of platform revenue.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
           : plans.map((p) => (
-              <Card key={p.plan}>
-                <p className="text-xs text-ink-soft">{p.plan.charAt(0).toUpperCase() + p.plan.slice(1)}</p>
+              <Card key={p.plan} tone="elevated" accent="marigold">
+                <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">{p.plan.charAt(0).toUpperCase() + p.plan.slice(1)}</p>
                 <div className="mt-1 flex items-center justify-between">
                   {editing === p.plan ? (
                     <input
@@ -112,7 +119,7 @@ export default function SubscriptionsPage() {
             ))}
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6" accent="blue">
         <CardHeader>
           <CardTitle>Payment reports</CardTitle>
         </CardHeader>

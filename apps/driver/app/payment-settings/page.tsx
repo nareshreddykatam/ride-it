@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, Skeleton, StatusPill } from "@ride-it/ui";
+import { Banknote, Smartphone, Globe } from "lucide-react";
+import { Button, Card, Skeleton, StatusPill, Switch } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@ride-it/data";
 
 const QR_STATUS_TONE = {
-  approved: "online",
+  approved: "verified",
   pending: "pending",
   in_review: "pending",
   rejected: "alert",
@@ -107,21 +108,25 @@ export default function PaymentSettingsPage() {
       <Card className="mt-4">
         {(
           [
-            { key: "cash" as const, label: "Cash", enabled: profile?.accepts_cash ?? false },
-            { key: "driver_upi" as const, label: "UPI (paid directly to you)", enabled: profile?.accepts_driver_upi ?? false },
-            { key: "online" as const, label: "Online (Ride It Online / Razorpay)", enabled: profile?.accepts_online ?? false },
+            { key: "cash" as const, label: "Cash", icon: Banknote, enabled: profile?.accepts_cash ?? false },
+            { key: "driver_upi" as const, label: "UPI (paid directly to you)", icon: Smartphone, enabled: profile?.accepts_driver_upi ?? false },
+            { key: "online" as const, label: "Online (Ride It Online / Razorpay)", icon: Globe, enabled: profile?.accepts_online ?? false },
           ] as const
         ).map((m) => (
-          <label key={m.key} className="flex items-center justify-between border-b border-border py-3 last:border-b-0">
-            <span className="text-sm text-ink">{m.label}</span>
-            <input
-              type="checkbox"
+          <div key={m.key} className="flex items-center justify-between gap-3 border-b border-border py-3.5 last:border-b-0">
+            <span className="flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
+                <m.icon size={17} aria-hidden="true" />
+              </span>
+              <span className="text-sm text-ink">{m.label}</span>
+            </span>
+            <Switch
               checked={m.enabled}
               disabled={savingMethods}
-              onChange={() => handleToggleMethod(m.key)}
-              className="h-5 w-5 accent-signal-blue"
+              onCheckedChange={() => handleToggleMethod(m.key)}
+              label={`Accept ${m.label}`}
             />
-          </label>
+          </div>
         ))}
       </Card>
 

@@ -2,21 +2,22 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, Card, CardHeader, CardTitle, SkeletonRow, StatusPill } from "@ride-it/ui";
+import { Contact, FileText, ShieldCheck, FileCheck2, ScanFace, Car as CarLucide } from "lucide-react";
+import { Button, Card, SkeletonRow, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listDriverDocuments, uploadDriverDocument, type DocumentType, type DriverDocumentRow } from "@ride-it/data";
 
-const REQUIRED_DOCUMENTS: { key: DocumentType; label: string }[] = [
-  { key: "aadhaar", label: "Aadhaar Card" },
-  { key: "driving_license", label: "Driving License" },
-  { key: "rc", label: "Vehicle RC" },
-  { key: "insurance", label: "Insurance" },
-  { key: "selfie", label: "Selfie Verification" },
-  { key: "vehicle_photo", label: "Vehicle Photo (with number plate)" },
+const REQUIRED_DOCUMENTS: { key: DocumentType; label: string; icon: React.ElementType }[] = [
+  { key: "aadhaar", label: "Aadhaar Card", icon: Contact },
+  { key: "driving_license", label: "Driving License", icon: FileText },
+  { key: "rc", label: "Vehicle RC", icon: FileCheck2 },
+  { key: "insurance", label: "Insurance", icon: ShieldCheck },
+  { key: "selfie", label: "Selfie Verification", icon: ScanFace },
+  { key: "vehicle_photo", label: "Vehicle Photo (with number plate)", icon: CarLucide },
 ];
 
-const STATUS_TONE = { pending: "pending", approved: "online", rejected: "alert" } as const;
+const STATUS_TONE = { pending: "pending", approved: "verified", rejected: "alert" } as const;
 const STATUS_LABEL = { pending: "Pending review", approved: "Approved", rejected: "Rejected" } as const;
 
 export default function DocumentsPage() {
@@ -63,17 +64,27 @@ export default function DocumentsPage() {
         {loading && REQUIRED_DOCUMENTS.map((doc) => <SkeletonRow key={doc.key} />)}
         {!loading && REQUIRED_DOCUMENTS.map((doc) => {
           const uploaded = docs[doc.key];
+          const Icon = doc.icon;
           return (
-            <Card key={doc.key} className="flex items-center justify-between p-4">
-              <CardHeader className="m-0">
-                <CardTitle className="text-sm">{doc.label}</CardTitle>
-              </CardHeader>
-              <div className="flex items-center gap-2">
-                {uploaded ? (
-                  <StatusPill tone={STATUS_TONE[uploaded.status]}>{STATUS_LABEL[uploaded.status]}</StatusPill>
-                ) : (
-                  <StatusPill tone="pending">Not uploaded</StatusPill>
-                )}
+            <Card key={doc.key} className="flex items-center justify-between gap-3 p-4">
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
+                  <Icon size={18} aria-hidden="true" />
+                </span>
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-medium text-ink">{doc.label}</span>
+                  {uploaded ? (
+                    <StatusPill tone={STATUS_TONE[uploaded.status]} className="mt-1">
+                      {STATUS_LABEL[uploaded.status]}
+                    </StatusPill>
+                  ) : (
+                    <StatusPill tone="offline" className="mt-1">
+                      Not uploaded
+                    </StatusPill>
+                  )}
+                </span>
+              </span>
+              <div className="flex shrink-0 items-center gap-2">
                 <input
                   ref={(el) => {
                     fileInputs.current[doc.key] = el;

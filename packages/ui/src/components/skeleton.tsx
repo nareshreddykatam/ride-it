@@ -12,7 +12,7 @@ export function Skeleton({ className }: { className?: string }) {
 /** Common pattern: a card-shaped skeleton for list rows */
 export function SkeletonRow({ className }: { className?: string }) {
   return (
-    <div className={cn("flex items-center gap-3 rounded-lg border border-border bg-white p-4", className)}>
+    <div className={cn("flex items-center gap-3 rounded-lg border border-border bg-surface p-4", className)}>
       <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
       <div className="flex-1 space-y-2">
         <Skeleton className="h-3.5 w-2/3" />

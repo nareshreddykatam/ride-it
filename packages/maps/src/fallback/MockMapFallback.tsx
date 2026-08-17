@@ -46,15 +46,15 @@ const ROUTE_PATH = "M70,210 C110,190 90,150 130,130 C170,110 150,90 190,80 C220,
 function RoadGrid() {
   return (
     <>
-      <rect width="320" height="320" fill="#eef1ef" />
+      <rect width="320" height="320" fill="#eef3fb" />
       {BLOCKS.map((b, i) => (
-        <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={4} fill="#e2e6e2" />
+        <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={6} fill="#dde6f5" />
       ))}
       {[0, 90, 170, 250, 310].map((y, i) => (
-        <rect key={`h${i}`} x={0} y={y} width={320} height={y === 0 || y === 310 ? 10 : 14} fill="#ffffff" />
+        <rect key={`h${i}`} x={0} y={y} width={320} height={y === 0 || y === 310 ? 10 : 14} fill="#f8fafd" />
       ))}
       {[10, 95, 175, 255].map((x, i) => (
-        <rect key={`v${i}`} x={x} y={0} width={12} height={320} fill="#ffffff" />
+        <rect key={`v${i}`} x={x} y={0} width={12} height={320} fill="#f8fafd" />
       ))}
     </>
   );

@@ -2,10 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Button, Input, Skeleton } from "@ride-it/ui";
+import { Button, Input, Skeleton, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getActiveVehicle, upsertActiveVehicle } from "@ride-it/data";
+import { getActiveVehicle, upsertActiveVehicle, getDriverProfile, type DriverProfileRow } from "@ride-it/data";
 
 const VEHICLE_TYPE_OPTIONS: { value: "bike" | "scooty" | "auto" | "car"; label: string }[] = [
   { value: "bike", label: "Bike" },
@@ -15,6 +15,22 @@ const VEHICLE_TYPE_OPTIONS: { value: "bike" | "scooty" | "auto" | "car"; label: 
 ];
 
 const PLATE_SHAPE = /^[A-Z0-9-\s]{5,15}$/i;
+
+const VERIFICATION_TONE = {
+  approved: "verified",
+  pending: "pending",
+  in_review: "pending",
+  rejected: "alert",
+  suspended: "alert",
+} as const;
+
+const VERIFICATION_LABEL = {
+  approved: "Verified",
+  pending: "Pending",
+  in_review: "In review",
+  rejected: "Rejected",
+  suspended: "Suspended",
+} as const;
 
 export default function DriverVehiclePage() {
   const router = useRouter();
@@ -29,10 +45,11 @@ export default function DriverVehiclePage() {
   const [make, setMake] = React.useState("");
   const [model, setModel] = React.useState("");
   const [color, setColor] = React.useState("");
+  const [verificationStatus, setVerificationStatus] = React.useState<DriverProfileRow["verification_status"] | null>(null);
 
   React.useEffect(() => {
     if (!user) return;
-    getActiveVehicle(supabase, user.id).then((vehicle) => {
+    Promise.all([getActiveVehicle(supabase, user.id), getDriverProfile(supabase, user.id)]).then(([vehicle, profile]) => {
       if (vehicle) {
         setVehicleType(vehicle.vehicle_type);
         setRegistrationNumber(vehicle.registration_number);
@@ -40,6 +57,7 @@ export default function DriverVehiclePage() {
         setModel(vehicle.model ?? "");
         setColor(vehicle.color ?? "");
       }
+      if (profile) setVerificationStatus(profile.verification_status);
       setLoading(false);
     });
   }, [supabase, user]);
@@ -80,29 +98,63 @@ export default function DriverVehiclePage() {
     );
   }
 
+  const visuals = VEHICLE_VISUALS[vehicleType];
+  const VehicleIcon = visuals.icon;
+
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <h1 className="font-display text-2xl font-medium text-ink">Vehicle information</h1>
       <p className="mt-1 text-xs text-ink-soft">Changing your vehicle type may affect the rides you're matched to.</p>
 
+      <div
+        className="mt-4 flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 shadow-sm"
+      >
+        <span
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
+          style={{ backgroundColor: visuals.tintVar, color: visuals.colorVar }}
+        >
+          <VehicleIcon size={32} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="font-display text-base font-medium text-ink">
+            {registrationNumber.trim() || "No registration on file"}
+          </p>
+          <p className="truncate text-xs text-ink-soft">
+            {[make, model, color].filter(Boolean).join(" · ") || visuals.label}
+          </p>
+          {verificationStatus && (
+            <StatusPill tone={VERIFICATION_TONE[verificationStatus]} className="mt-2">
+              {VERIFICATION_LABEL[verificationStatus]}
+            </StatusPill>
+          )}
+        </div>
+      </div>
+
       <div className="mt-6 flex flex-col gap-4">
         <div>
           <label className="mb-1.5 block text-sm font-medium text-ink">Vehicle type</label>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Vehicle type">
-            {VEHICLE_TYPE_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                role="radio"
-                aria-checked={vehicleType === opt.value}
-                onClick={() => setVehicleType(opt.value)}
-                className={`h-11 rounded-lg border text-sm ${
-                  vehicleType === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
+            {VEHICLE_TYPE_OPTIONS.map((opt) => {
+              const optVisuals = VEHICLE_VISUALS[opt.value];
+              const OptIcon = optVisuals.icon;
+              const active = vehicleType === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setVehicleType(opt.value)}
+                  className={`flex h-12 items-center justify-center gap-2 rounded-lg border text-sm transition-colors ${
+                    active ? "border-2 font-medium" : "border-border text-ink"
+                  }`}
+                  style={active ? { borderColor: optVisuals.colorVar, color: optVisuals.textVar } : undefined}
+                >
+                  <OptIcon size={18} />
+                  {opt.label}
+                </button>
+              );
+            })}
           </div>
         </div>
         <Input

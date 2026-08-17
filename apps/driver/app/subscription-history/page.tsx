@@ -99,18 +99,19 @@ export default function DriverSubscriptionHistoryPage() {
 }
 
 function SubscriptionCard({ sub }: { sub: SubscriptionRow }) {
+  const active = sub.status === "active";
   return (
-    <Card>
+    <Card accent={active ? "marigold" : undefined} className={active ? "rounded-xl bg-tint-marigold" : "rounded-xl"}>
       <div className="flex items-center justify-between">
         <div>
-          <p className="text-sm text-ink">{PLAN_LABEL[sub.plan]} plan</p>
+          <p className="text-sm font-medium text-ink">{PLAN_LABEL[sub.plan]} plan</p>
           <p className="text-xs text-ink-soft">
             {formatDate(sub.starts_at)} → {formatDate(sub.expires_at)}
           </p>
         </div>
         <div className="text-right">
-          <p className="font-meter text-sm text-ink">₹{sub.amount}</p>
-          <StatusPill tone={STATUS_TONE[sub.status]} dot={false} className="mt-1">
+          <p className="font-meter text-sm font-medium text-ink">₹{sub.amount}</p>
+          <StatusPill tone={sub.status === "active" ? "verified" : STATUS_TONE[sub.status]} dot={false} className="mt-1">
             {STATUS_LABEL[sub.status]}
           </StatusPill>
         </div>

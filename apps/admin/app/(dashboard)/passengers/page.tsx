@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
-import { Button, Input, StatusPill } from "@ride-it/ui";
+import { Button, Input, PassengerIcon, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listPassengersAdmin, type AdminPassengerListRow } from "@ride-it/data";
@@ -72,10 +72,17 @@ export default function PassengersPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Passengers</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        View ride history, handle complaints, and manage account suspensions.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-violet text-violet-text">
+          <PassengerIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Passengers</h1>
+          <p className="text-sm text-ink-soft">
+            View ride history, handle complaints, and manage account suspensions.
+          </p>
+        </div>
+      </div>
 
       <Input
         size="sm"

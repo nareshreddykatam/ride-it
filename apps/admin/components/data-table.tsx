@@ -26,13 +26,17 @@ export function DataTable<T>({
   ariaLabel,
 }: DataTableProps<T>) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-white">
+    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
       <div className="overflow-x-auto">
         <table aria-label={ariaLabel} className="w-full min-w-[640px] text-left text-sm">
           <thead>
-            <tr className="border-b border-border bg-ink/[0.02]">
+            <tr className="border-b border-border bg-tint-blue/60">
               {columns.map((col) => (
-                <th key={col.key} className="whitespace-nowrap px-4 py-2.5 text-xs font-medium text-ink-soft">
+                <th
+                  key={col.key}
+                  scope="col"
+                  className="whitespace-nowrap px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-ink-soft"
+                >
                   {col.header}
                 </th>
               ))}
@@ -43,7 +47,7 @@ export function DataTable<T>({
               Array.from({ length: 4 }).map((_, i) => (
                 <tr key={`skeleton-${i}`} className="border-b border-border last:border-b-0">
                   {columns.map((col) => (
-                    <td key={col.key} className="px-4 py-2.5">
+                    <td key={col.key} className="px-4 py-3">
                       <Skeleton className="h-4 w-24" />
                     </td>
                   ))}
@@ -53,10 +57,10 @@ export function DataTable<T>({
               rows.map((row) => (
                 <tr
                   key={keyField(row)}
-                  className="border-b border-border transition-colors last:border-b-0 hover:bg-ink/[0.02]"
+                  className="border-b border-border transition-colors last:border-b-0 hover:bg-signal-blue/[0.04]"
                 >
                   {columns.map((col) => (
-                    <td key={col.key} className={cn("px-4 py-2.5 text-ink", col.className)}>
+                    <td key={col.key} className={cn("px-4 py-3 text-ink", col.className)}>
                       {col.render(row)}
                     </td>
                   ))}

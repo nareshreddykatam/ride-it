@@ -4,21 +4,13 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Bike, Car, CarFront, Zap } from "lucide-react";
 import { Pencil } from "lucide-react";
-import { Button, MeterValue, Skeleton } from "@ride-it/ui";
+import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { createRide, startMatching } from "@ride-it/data";
 import { RideMap, getCurrentPositionOnce, fetchGeocode, decodePolyline, type LatLng } from "@ride-it/maps";
-
-const VEHICLE_ICON: Record<VehicleType, typeof Bike> = {
-  [VehicleType.BIKE]: Bike,
-  [VehicleType.SCOOTY]: Zap,
-  [VehicleType.AUTO]: Car,
-  [VehicleType.CAR]: CarFront,
-};
 
 // Fallback ONLY when real geolocation/geocoding is unavailable (permission
 // denied, no Google API key configured, network failure) — not the
@@ -54,7 +46,8 @@ function ConfirmBookingPageContent() {
   const [usedFallback, setUsedFallback] = React.useState(false);
   const [booking, setBooking] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const Icon = VEHICLE_ICON[vehicleType] ?? Car;
+  const visual = VEHICLE_VISUALS[vehicleTypeToDb(vehicleType)];
+  const VehicleIcon = visual.icon;
 
   // Resolve real coordinates once, on mount — not on every keystroke or
   // re-render. Pickup: fresh browser geolocation (deliberately re-resolved
@@ -114,7 +107,7 @@ function ConfirmBookingPageContent() {
       // Matching screen's own heartbeat (advanceMatching) takes over from
       // this point; this call just avoids an idle first tick.
       await startMatching(supabase, ride.id);
-      router.push(`/booking/matching?rideId=${ride.id}`);
+      router.push(`/booking/matching?rideId=${ride.id}&vehicleType=${vehicleTypeToDb(vehicleType)}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't book your ride. Try again.");
       setBooking(false);
@@ -124,12 +117,18 @@ function ConfirmBookingPageContent() {
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        <h1 className="font-display text-xl font-medium text-ink">Confirm your ride</h1>
+        <h1 className="font-display text-xl font-semibold text-ink">Confirm your ride</h1>
 
         {resolvingLocations ? (
-          <Skeleton className="mt-4 h-44 w-full rounded-lg" />
+          <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
         ) : (
-          <RideMap pickup={pickup} drop={drop} routePolyline={routePolyline} fallbackVariant="route" className="mt-4 h-44" />
+          <RideMap
+            pickup={pickup}
+            drop={drop}
+            routePolyline={routePolyline}
+            fallbackVariant="route"
+            className="mt-4 h-44 rounded-2xl"
+          />
         )}
         {usedFallback && !resolvingLocations && (
           <p className="mt-1.5 text-xs text-ink-soft">
@@ -137,10 +136,10 @@ function ConfirmBookingPageContent() {
           </p>
         )}
 
-        <div className="mt-4 rounded-lg border border-border bg-white p-4">
+        <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div className="flex gap-3">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-meter-green" />
+              <PinGlyph tone="pickup" size={18} className="mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-ink-soft">Pickup</p>
                 <p className="text-sm text-ink">Current location</p>
@@ -155,10 +154,10 @@ function ConfirmBookingPageContent() {
               <Pencil size={12} /> {resolvingLocations ? "Locating…" : "Refresh"}
             </button>
           </div>
-          <div className="my-3 ml-1 h-4 border-l border-dashed border-border" />
+          <div className="my-3 ml-[9px] h-4 w-px border-l border-dashed border-border" />
           <div className="flex items-start justify-between">
             <div className="flex gap-3">
-              <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-alert-red" />
+              <PinGlyph tone="drop" size={18} className="mt-0.5 shrink-0" />
               <div>
                 <p className="text-xs text-ink-soft">Drop</p>
                 <p className="text-sm text-ink">{destination}</p>
@@ -167,19 +166,22 @@ function ConfirmBookingPageContent() {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between rounded-lg border border-border bg-white p-4">
+        <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-surface p-4 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-signal-blue/10 text-signal-blue">
-              <Icon size={20} />
+            <span
+              className="flex h-11 w-11 items-center justify-center rounded-lg"
+              style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+            >
+              <VehicleIcon size={22} strokeWidth={1.7} />
             </span>
             <div>
-              <p className="font-display text-sm font-medium text-ink">
+              <p className="font-display text-sm font-semibold text-ink">
                 {VEHICLE_TYPE_LABELS_DB[vehicleTypeToDb(vehicleType)]}
               </p>
               <p className="text-xs text-ink-soft">Arrives in {etaMinutes} min</p>
             </div>
           </div>
-          <MeterValue value={`₹${fare}`} size="md" />
+          <MeterValue value={`₹${fare}`} size="lg" />
         </div>
 
         <p className="mt-4 text-xs text-ink-soft">

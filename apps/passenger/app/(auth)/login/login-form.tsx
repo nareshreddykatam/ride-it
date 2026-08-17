@@ -52,21 +52,23 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <p className="font-display text-sm font-medium text-signal-blue">Ride It</p>
-        <h1 className="mt-2 font-display text-3xl font-medium leading-tight text-ink">
+        <span className="inline-flex items-center rounded-full bg-gradient-brand px-3 py-1 font-display text-xs font-semibold text-white shadow-brand">
+          Ride It
+        </span>
+        <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-ink">
           Your ride.
           <br />
           Your way.
         </h1>
         <p className="mt-3 text-sm text-ink-soft">
-          Enter your email or mobile number to book a Bike or Auto ride.
+          Enter your email or mobile number to book a Bike, Auto, Scooty, or Car ride.
         </p>
 
         <div className="mt-8">
           <label htmlFor="identifier" className="mb-1.5 block text-sm font-medium text-ink">
             Email or mobile number
           </label>
-          <div className="flex items-center rounded-lg border border-border bg-white focus-within:border-signal-blue focus-within:ring-2 focus-within:ring-signal-blue/20">
+          <div className="flex items-center rounded-xl border border-border bg-surface shadow-sm focus-within:border-signal-blue focus-within:shadow-[0_0_0_3px_rgba(30,111,239,0.12)]">
             {detected.type === "phone" && <span className="pl-4 pr-2 font-meter text-sm text-ink-soft">+91</span>}
             <input
               id="identifier"

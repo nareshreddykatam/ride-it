@@ -72,7 +72,7 @@ export function BottomSheet({
       {open && (
         <div className="fixed inset-0 z-50 flex items-end justify-center">
           <motion.div
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-ink/50 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -89,10 +89,11 @@ export function BottomSheet({
             exit={reduceMotion ? { opacity: 0 } : { y: "100%" }}
             transition={reduceMotion ? { duration: 0.1 } : { type: "spring", damping: 28, stiffness: 320 }}
             className={cn(
-              "relative z-10 w-full max-w-md rounded-sheet border-t border-border bg-white p-6 pb-8 outline-none",
+              "relative z-10 w-full max-w-md rounded-sheet border-t border-border bg-surface p-6 pb-8 shadow-lg outline-none",
               className
             )}
           >
+            <span className="absolute left-1/2 top-2.5 h-1 w-10 -translate-x-1/2 rounded-full bg-ink/15" aria-hidden="true" />
             {children}
           </motion.div>
         </div>

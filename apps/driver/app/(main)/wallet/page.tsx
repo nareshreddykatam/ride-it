@@ -1,11 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, EmptyState, MeterValue, SkeletonRow } from "@ride-it/ui";
+import { ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { Button, Card, EmptyState, MeterValue, SkeletonRow, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getWallet, listWalletTransactions, type WalletTransactionRow } from "@ride-it/data";
-import { Wallet as WalletIcon } from "lucide-react";
 
 const REASON_LABEL: Record<WalletTransactionRow["reason"], string> = {
   ride_earning: "Ride earnings",
@@ -42,12 +42,17 @@ export default function WalletPage() {
     <main className="flex-1 px-6 py-8">
       <h1 className="font-display text-2xl font-medium text-ink">Wallet</h1>
 
-      <Card className="mt-4">
-        <MeterValue value={`₹${balance}`} label="Available balance" size="lg" />
+      <Card tone="outline" className="mt-4 rounded-2xl border-0 bg-gradient-online text-white shadow-md">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+          <WalletIcon size={20} aria-hidden="true" />
+        </span>
+        <div className="mt-3">
+          <MeterValue value={`₹${balance}`} label="Available balance" size="lg" className="[&_.text-ink]:text-white [&_.text-ink-soft]:text-white/70" />
+        </div>
         {/* Withdrawal requires a trusted server-side flow (wallet writes
             are service-role only, by design — see @ride-it/data/wallet.ts)
             not built this phase. Disabled rather than faking a working flow. */}
-        <Button className="mt-4 w-full" disabled title="Bank withdrawal isn't available yet">
+        <Button variant="outline" className="mt-4 w-full border-white/40 bg-white/10 text-white hover:bg-white/20" disabled title="Bank withdrawal isn't available yet">
           Withdraw to bank
         </Button>
       </Card>
@@ -64,14 +69,21 @@ export default function WalletPage() {
         )}
 
         {!loading && transactions.length > 0 && (
-          <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-white px-4">
+          <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface px-4 shadow-sm">
             {transactions.map((tx) => (
-              <div key={tx.id} className="flex items-center justify-between py-3">
-                <div>
-                  <p className="text-sm text-ink">{tx.description ?? REASON_LABEL[tx.reason]}</p>
+              <div key={tx.id} className="flex items-center gap-3 py-3">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    tx.type === "credit" ? "bg-meter-green/10 text-meter-green-text" : "bg-ink/5 text-ink-soft"
+                  }`}
+                >
+                  {tx.type === "credit" ? <ArrowDownLeft size={16} aria-hidden="true" /> : <ArrowUpRight size={16} aria-hidden="true" />}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm text-ink">{tx.description ?? REASON_LABEL[tx.reason]}</p>
                   <p className="text-xs text-ink-soft">{formatDate(tx.created_at)}</p>
                 </div>
-                <span className={`font-meter text-sm ${tx.type === "credit" ? "text-meter-green" : "text-ink"}`}>
+                <span className={`font-meter text-sm font-medium ${tx.type === "credit" ? "text-meter-green-text" : "text-ink"}`}>
                   {tx.type === "credit" ? "+" : "-"}₹{tx.amount}
                 </span>
               </div>

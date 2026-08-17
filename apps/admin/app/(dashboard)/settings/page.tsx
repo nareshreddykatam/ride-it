@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Button, Card, CardHeader, CardTitle, ConfirmDialog, Skeleton, StatusPill } from "@ride-it/ui";
+import { Settings as SettingsIcon } from "lucide-react";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
@@ -75,13 +76,20 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Settings</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Platform-wide configuration. Changes here affect all Passenger and Driver apps.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
+          <SettingsIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Settings</h1>
+          <p className="text-sm text-ink-soft">
+            Platform-wide configuration. Changes here affect all Passenger and Driver apps.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+        <Card accent="marigold">
           <CardHeader>
             <CardTitle>Pricing</CardTitle>
           </CardHeader>
@@ -93,7 +101,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card>
+        <Card accent={maintenanceOn ? "red" : "green"}>
           <CardHeader>
             <CardTitle>Maintenance mode</CardTitle>
             <StatusPill tone={maintenanceOn ? "alert" : "online"}>{maintenanceOn ? "Enabled" : "Disabled"}</StatusPill>
@@ -112,7 +120,7 @@ export default function SettingsPage() {
           </Button>
         </Card>
 
-        <Card>
+        <Card accent="violet">
           <CardHeader>
             <CardTitle>Notifications</CardTitle>
           </CardHeader>
@@ -124,7 +132,7 @@ export default function SettingsPage() {
           </Button>
         </Card>
 
-        <Card>
+        <Card accent="blue">
           <CardHeader>
             <CardTitle>App versions</CardTitle>
           </CardHeader>

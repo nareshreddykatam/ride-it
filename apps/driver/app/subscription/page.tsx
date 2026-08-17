@@ -111,11 +111,8 @@ export default function SubscriptionPage() {
             return (
               <button key={p.plan} onClick={() => setSelected(p.plan)} aria-pressed={active} className="text-left">
                 <Card
-                  className={
-                    active
-                      ? "border-2 border-signal-blue"
-                      : "border border-border"
-                  }
+                  tone={active ? "elevated" : "default"}
+                  className={active ? "rounded-2xl border-2 border-marigold" : "rounded-2xl border border-border"}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -134,7 +131,7 @@ export default function SubscriptionPage() {
         </div>
 
         {payState === "unavailable" && (
-          <Card className="mt-4 border-marigold bg-marigold/5">
+          <Card accent="marigold" className="mt-4 bg-tint-marigold">
             <p className="text-sm text-ink">Online subscription payment isn&apos;t available right now.</p>
             <p className="mt-1 text-xs text-ink-soft">{error}</p>
           </Card>
@@ -148,8 +145,8 @@ export default function SubscriptionPage() {
           </Card>
         )}
         {payState === "captured" && (
-          <Card className="mt-4 border-meter-green bg-meter-green/5">
-            <StatusPill tone="online">Payment successful</StatusPill>
+          <Card accent="green" className="mt-4 bg-meter-green/5">
+            <StatusPill tone="verified">Payment successful</StatusPill>
             <p className="mt-2 text-xs text-ink-soft">Activating your subscription…</p>
           </Card>
         )}
@@ -157,7 +154,7 @@ export default function SubscriptionPage() {
       </motion.div>
 
       <div className="mt-auto pt-8">
-        <Button className="w-full" disabled={busy} onClick={handlePurchase}>
+        <Button variant="marigold" className="w-full" disabled={busy} onClick={handlePurchase}>
           {payState === "creating"
             ? "Starting payment…"
             : payState === "awaiting_checkout"

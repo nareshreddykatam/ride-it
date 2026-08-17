@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button, OtpInput } from "@ride-it/ui";
+import { Button, OtpInput, SafetyIcon } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, verifyPhoneOtp, requestEmailOtp, verifyEmailOtp } from "@ride-it/auth";
 import { getDriverProfile, isDriverPersonalInfoComplete, getActiveVehicle } from "@ride-it/data";
@@ -82,7 +82,10 @@ function VerifyPageContent() {
   return (
     <main className="flex flex-1 flex-col justify-between px-6 py-10">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <h1 className="font-display text-2xl font-medium text-ink">Enter the code</h1>
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tint-blue text-signal-blue">
+          <SafetyIcon size={22} aria-hidden="true" />
+        </span>
+        <h1 className="mt-4 font-display text-2xl font-medium text-ink">Enter the code</h1>
         <p className="mt-2 text-sm text-ink-soft">
           We sent a 6-digit code to{" "}
           <span className="font-medium text-ink">

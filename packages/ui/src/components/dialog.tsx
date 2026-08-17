@@ -80,7 +80,7 @@ export function Dialog({
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <motion.div
-            className="absolute inset-0 bg-ink/40"
+            className="absolute inset-0 bg-ink/50 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -98,7 +98,7 @@ export function Dialog({
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.96, y: 8 }}
             transition={reduceMotion ? { duration: 0.1 } : { type: "spring", damping: 30, stiffness: 380 }}
             className={cn(
-              "relative z-10 w-full max-w-md rounded-lg border border-border bg-white p-6 shadow-lg outline-none",
+              "relative z-10 w-full max-w-md rounded-xl border border-border bg-surface p-6 shadow-lg outline-none",
               className
             )}
           >

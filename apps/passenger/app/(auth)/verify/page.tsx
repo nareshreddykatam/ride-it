@@ -105,11 +105,11 @@ function VerifyPageContent() {
     return (
       <main className="flex flex-1 flex-col justify-between px-6 py-10">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <h1 className="font-display text-2xl font-medium text-ink">Your Ride PIN</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">Your Ride PIN</h1>
           <p className="mt-2 text-sm text-ink-soft">
             Your Ride PIN is used to start your rides. Tell it only to your assigned driver when they arrive.
           </p>
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center rounded-2xl border border-border bg-surface py-8 shadow-sm">
             <MeterValue value={revealedPin} size="lg" />
           </div>
           <p className="mt-6 text-center text-xs text-ink-soft">
@@ -131,7 +131,7 @@ function VerifyPageContent() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <h1 className="font-display text-2xl font-medium text-ink">Enter the code</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">Enter the code</h1>
         <p className="mt-2 text-sm text-ink-soft">
           We sent a 6-digit code to{" "}
           <span className="font-medium text-ink">
@@ -139,7 +139,7 @@ function VerifyPageContent() {
           </span>
         </p>
 
-        <div className="mt-8">
+        <div className="mt-10">
           <OtpInput
             length={6}
             value={otp}

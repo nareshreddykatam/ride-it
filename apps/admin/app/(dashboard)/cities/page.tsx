@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, EmptyState, LocationIcon, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listCitiesAdmin, setCityActive, createCity, type CityRow } from "@ride-it/data";
@@ -45,13 +45,20 @@ export default function CitiesPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Cities</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Ride It launches city by city: Vijayawada → Hyderabad → additional cities. Activate or add cities as the
-        rollout expands — this is service-area scoping only, not a driver-matching/geofencing system.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
+          <LocationIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Cities</h1>
+          <p className="text-sm text-ink-soft">
+            Ride It launches city by city: Vijayawada → Hyderabad → additional cities. Activate or add cities as the
+            rollout expands — this is service-area scoping only, not a driver-matching/geofencing system.
+          </p>
+        </div>
+      </div>
 
-      <Card className="mt-4">
+      <Card className="mt-4" accent="blue">
         <div className="flex flex-wrap items-end gap-2">
           <div>
             <label className="mb-1 block text-xs text-ink-soft">City name</label>
@@ -59,7 +66,7 @@ export default function CitiesPage() {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Vijayawada"
-              className="h-9 w-48 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
+              className="h-9 w-48 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-signal-blue"
             />
           </div>
           <div>
@@ -68,7 +75,7 @@ export default function CitiesPage() {
               value={state}
               onChange={(e) => setState(e.target.value)}
               placeholder="e.g. Andhra Pradesh"
-              className="h-9 w-48 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-signal-blue"
+              className="h-9 w-48 rounded-lg border border-border bg-surface px-3 text-sm outline-none focus:border-signal-blue"
             />
           </div>
           <Button size="sm" disabled={!name.trim() || adding} onClick={handleAdd}>
@@ -89,7 +96,7 @@ export default function CitiesPage() {
         ) : (
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {cities.map((city) => (
-              <Card key={city.id}>
+              <Card key={city.id} accent={city.is_active ? "green" : undefined}>
                 <div className="flex items-center justify-between">
                   <p className="font-display text-sm font-medium text-ink">{city.name}</p>
                   <StatusPill tone={city.is_active ? "online" : "offline"}>{city.is_active ? "Live" : "Inactive"}</StatusPill>

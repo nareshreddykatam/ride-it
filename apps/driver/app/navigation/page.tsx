@@ -4,8 +4,8 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, CheckCircle2, Flag, Phone, ShieldAlert, X } from "lucide-react";
-import { BottomSheet, Button, Card, MeterValue, OtpInput, Skeleton, StatusPill } from "@ride-it/ui";
+import { AlertTriangle, CheckCircle2, Flag, Phone, X } from "lucide-react";
+import { BottomSheet, Button, Card, MeterValue, OtpInput, Skeleton, StatusPill, PinGlyph, SafetyIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -172,25 +172,34 @@ function NavigationPageContent() {
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
-      <div className="relative">
-        <RideMap pickup={tracking?.pickup} drop={tracking?.drop} driverLocation={selfLocation} fallbackVariant="route" className="h-40" />
+      <div className="relative -mx-6 -mt-8">
+        <RideMap pickup={tracking?.pickup} drop={tracking?.drop} driverLocation={selfLocation} fallbackVariant="route" className="h-56" />
         <button
           onClick={openSafety}
-          className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-alert-red px-3 py-1.5 text-xs font-medium text-white shadow-md"
+          className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-alert-red px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition-transform active:scale-95"
         >
-          <ShieldAlert size={13} /> Safety
+          <SafetyIcon size={14} aria-hidden="true" /> Safety
         </button>
       </div>
       {locationError && <p className="mt-1.5 text-xs text-alert-red">{LOCATION_ERROR_MESSAGE[locationError]}</p>}
 
-      <Card className="mt-6">
-        <div className="flex items-center justify-between">
-          <div>
+      <Card tone="elevated" className="relative z-10 -mt-6 rounded-2xl">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
             <p className="font-display text-base font-medium text-ink">Your passenger</p>
             {loading ? (
-              <Skeleton className="mt-1 h-3.5 w-40" />
+              <Skeleton className="mt-1.5 h-3.5 w-40" />
             ) : (
-              <p className="text-xs text-ink-soft">{phase === "TO_PICKUP" || phase === "VERIFY_PIN" ? pickupLabel : dropLabel}</p>
+              <div className="mt-1.5 flex items-start gap-1.5">
+                <PinGlyph
+                  tone={phase === "TO_PICKUP" || phase === "VERIFY_PIN" ? "pickup" : "drop"}
+                  size={15}
+                  className="mt-0.5 shrink-0"
+                />
+                <p className="truncate text-xs text-ink-soft">
+                  {phase === "TO_PICKUP" || phase === "VERIFY_PIN" ? pickupLabel : dropLabel}
+                </p>
+              </div>
             )}
           </div>
           <StatusPill tone="info">
@@ -323,7 +332,7 @@ function NavigationPageContent() {
                   onChange={(e) => setReportDescription(e.target.value)}
                   placeholder="What happened?"
                   rows={3}
-                  className="w-full resize-none rounded-lg border border-border bg-white p-3 text-sm text-ink outline-none focus:border-signal-blue"
+                  className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
                 />
                 <Button className="mt-3 w-full" disabled={!reportDescription.trim() || submittingReport} onClick={handleSubmitReport}>
                   {submittingReport ? "Submitting…" : "Submit report"}

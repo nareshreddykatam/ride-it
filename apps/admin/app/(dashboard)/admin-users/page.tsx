@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Check } from "lucide-react";
-import { Card, CardHeader, CardTitle, Select, Skeleton, StatusPill } from "@ride-it/ui";
+import { Card, CardHeader, CardTitle, SafetyIcon, Select, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -68,11 +68,18 @@ export default function AdminUsersPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Admin users &amp; roles</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Real RBAC data — roles and permissions are managed by super admins only.
-        {currentAdmin && !currentAdmin.is_super_admin && " You're viewing as a non-super-admin, so role reassignment is read-only for you."}
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-violet text-violet-text">
+          <SafetyIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Admin users &amp; roles</h1>
+          <p className="text-sm text-ink-soft">
+            Real RBAC data — roles and permissions are managed by super admins only.
+            {currentAdmin && !currentAdmin.is_super_admin && " You're viewing as a non-super-admin, so role reassignment is read-only for you."}
+          </p>
+        </div>
+      </div>
 
       {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}
 
@@ -85,7 +92,7 @@ export default function AdminUsersPage() {
       ) : (
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {roles.map((r) => (
-            <Card key={r.id}>
+            <Card key={r.id} accent="violet">
               <CardHeader>
                 <CardTitle className="text-sm">{r.name.replace(/_/g, " ")}</CardTitle>
               </CardHeader>
@@ -111,7 +118,7 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      <Card className="mt-6">
+      <Card className="mt-6" accent="blue">
         <CardHeader>
           <CardTitle>Admin accounts</CardTitle>
         </CardHeader>

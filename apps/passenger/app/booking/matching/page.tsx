@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button } from "@ride-it/ui";
+import { Button, SearchingIndicator, type VehicleKind } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { advanceMatching, cancelMatchingRide, subscribeToRide } from "@ride-it/data";
 import { MockMap } from "@ride-it/maps";
@@ -19,6 +19,9 @@ function MatchingPageContent() {
   const router = useRouter();
   const params = useSearchParams();
   const rideId = params.get("rideId");
+  const vehicleParam = params.get("vehicleType");
+  const vehicle: VehicleKind =
+    vehicleParam === "bike" || vehicleParam === "scooty" || vehicleParam === "car" ? vehicleParam : "auto";
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
 
   const [noDriversFound, setNoDriversFound] = React.useState(false);
@@ -78,7 +81,13 @@ function MatchingPageContent() {
   if (noDriversFound) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-        <p className="font-display text-lg font-medium text-ink">No drivers available right now</p>
+        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-alert-red/10 text-alert-red">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path d="M9 9l6 6M15 9l-6 6" />
+          </svg>
+        </span>
+        <p className="mt-4 font-display text-lg font-semibold text-ink">No drivers available right now</p>
         <p className="mt-1 max-w-xs text-sm text-ink-soft">
           We couldn&apos;t find a nearby driver for this ride. You haven&apos;t been charged.
         </p>
@@ -96,15 +105,16 @@ function MatchingPageContent() {
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
-      <MockMap variant="searching" className="h-64" />
+      <MockMap variant="searching" className="h-56 rounded-2xl" />
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className="mt-8 flex flex-1 flex-col items-center justify-center text-center"
+        transition={{ delay: 0.15 }}
+        className="flex flex-1 flex-col items-center justify-center text-center"
       >
-        <p className="font-display text-lg font-medium text-ink">Searching for nearby drivers…</p>
-        <p className="mt-1 text-sm text-ink-soft">Finding your driver — this can take up to a minute or so.</p>
+        <SearchingIndicator vehicle={vehicle} label="Looking for nearby drivers…" />
+        <p className="font-display text-lg font-semibold text-ink">Finding your ride</p>
+        <p className="mt-1 max-w-xs text-sm text-ink-soft">This can take up to a minute or so — we&apos;ll notify you the moment a driver accepts.</p>
       </motion.div>
       <Button variant="outline" className="w-full" disabled={cancelling} onClick={handleCancel}>
         {cancelling ? "Cancelling…" : "Cancel"}

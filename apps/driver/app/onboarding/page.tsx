@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button, Input, Skeleton } from "@ride-it/ui";
+import { Button, Input, Skeleton, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -154,8 +154,13 @@ export default function DriverOnboardingPage() {
     return (
       <main className="flex flex-1 flex-col px-6 py-10">
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-          <p className="text-xs font-medium uppercase tracking-wide text-signal-blue">Step 1 of 2</p>
-          <h1 className="mt-1 font-display text-2xl font-medium text-ink">Tell us about yourself</h1>
+          <div className="flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
+              <div className="h-full w-1/2 rounded-full bg-gradient-brand" />
+            </div>
+            <p className="shrink-0 text-xs font-medium text-ink-soft">1 of 2</p>
+          </div>
+          <h1 className="mt-4 font-display text-2xl font-medium text-ink">Tell us about yourself</h1>
 
           <div className="mt-6 flex flex-col gap-4">
             <Input
@@ -220,27 +225,39 @@ export default function DriverOnboardingPage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-10">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <p className="text-xs font-medium uppercase tracking-wide text-signal-blue">Step 2 of 2</p>
-        <h1 className="mt-1 font-display text-2xl font-medium text-ink">Your vehicle</h1>
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
+            <div className="h-full w-full rounded-full bg-gradient-brand" />
+          </div>
+          <p className="shrink-0 text-xs font-medium text-ink-soft">2 of 2</p>
+        </div>
+        <h1 className="mt-4 font-display text-2xl font-medium text-ink">Your vehicle</h1>
 
         <div className="mt-6 flex flex-col gap-4">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-ink">Vehicle type</label>
             <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Vehicle type">
-              {VEHICLE_TYPE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={vehicleType === opt.value}
-                  onClick={() => setVehicleType(opt.value)}
-                  className={`h-11 rounded-lg border text-sm ${
-                    vehicleType === opt.value ? "border-2 border-signal-blue font-medium text-signal-blue" : "border-border text-ink"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
+              {VEHICLE_TYPE_OPTIONS.map((opt) => {
+                const optVisuals = VEHICLE_VISUALS[opt.value];
+                const OptIcon = optVisuals.icon;
+                const active = vehicleType === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    onClick={() => setVehicleType(opt.value)}
+                    className={`flex h-12 items-center justify-center gap-2 rounded-lg border text-sm transition-colors ${
+                      active ? "border-2 font-medium" : "border-border text-ink"
+                    }`}
+                    style={active ? { borderColor: optVisuals.colorVar, color: optVisuals.textVar } : undefined}
+                  >
+                    <OptIcon size={18} />
+                    {opt.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
           <Input

@@ -1,9 +1,10 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { Check } from "lucide-react";
 import { cn } from "../lib/cn";
 
 const pillVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
   {
     variants: {
       tone: {
@@ -16,6 +17,8 @@ const pillVariants = cva(
         pending: "bg-marigold/15 text-marigold-text",
         alert: "bg-alert-red/10 text-alert-red-text",
         info: "bg-signal-blue/10 text-signal-blue-text",
+        verified: "bg-meter-green/10 text-meter-green-text",
+        violet: "bg-violet/10 text-violet-text",
       },
     },
     defaultVariants: { tone: "info" },
@@ -29,9 +32,14 @@ export interface StatusPillProps
 }
 
 export function StatusPill({ className, tone, dot = true, children, ...props }: StatusPillProps) {
+  const showCheck = tone === "verified";
   return (
     <span className={cn(pillVariants({ tone }), className)} {...props}>
-      {dot && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+      {showCheck ? (
+        <Check size={12} strokeWidth={3} aria-hidden="true" />
+      ) : (
+        dot && <span className="h-1.5 w-1.5 rounded-full bg-current" aria-hidden="true" />
+      )}
       {children}
     </span>
   );

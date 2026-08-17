@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card, EmptyState, SkeletonRow, StatusPill } from "@ride-it/ui";
+import { Card, EmptyState, SkeletonRow, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listPassengerRides, type RideRow } from "@ride-it/data";
@@ -38,7 +38,7 @@ export default function HistoryPage() {
 
   return (
     <main className="flex-1 px-6 py-8">
-      <h1 className="font-display text-2xl font-medium text-ink">Ride history</h1>
+      <h1 className="font-display text-2xl font-semibold text-ink">Ride history</h1>
 
       <div className="mt-4 flex flex-col gap-3">
         {loading &&
@@ -53,30 +53,40 @@ export default function HistoryPage() {
         )}
 
         {!loading &&
-          rides.map((ride) => (
-            <Card key={ride.id}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-ink">
-                    {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
-                  </p>
-                  <p className="text-xs text-ink-soft">
-                    {formatDate(ride.requested_at)} · {ride.vehicle_type === "auto" ? "Auto" : "Bike"}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-meter text-sm text-ink">₹{ride.total_fare}</p>
-                  <StatusPill
-                    tone={ride.status === "cancelled" ? "alert" : "online"}
-                    dot={false}
-                    className="mt-1"
+          rides.map((ride) => {
+            const visual = VEHICLE_VISUALS[ride.vehicle_type];
+            const VehicleIcon = visual.icon;
+            return (
+              <Card key={ride.id} tone="elevated">
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                    style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
                   >
-                    {statusLabel(ride.status)}
-                  </StatusPill>
+                    <VehicleIcon size={20} strokeWidth={1.7} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm text-ink">
+                      {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
+                    </p>
+                    <p className="text-xs text-ink-soft">
+                      {formatDate(ride.requested_at)} · {visual.label}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="font-meter text-sm text-ink">₹{ride.total_fare}</p>
+                    <StatusPill
+                      tone={ride.status === "cancelled" ? "alert" : "online"}
+                      dot={false}
+                      className="mt-1"
+                    >
+                      {statusLabel(ride.status)}
+                    </StatusPill>
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
       </div>
     </main>
   );

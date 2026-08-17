@@ -122,7 +122,7 @@ export default function DriverRatePage() {
           {passengerName ? `Rate your trip with ${passengerName}` : "Rate your passenger"}
         </p>
 
-        <div className="mt-6">
+        <div className="mt-6 rounded-2xl border border-border bg-surface px-6 py-5 shadow-sm">
           <StarRating value={rating} onChange={setRating} size={40} />
         </div>
 
@@ -132,7 +132,7 @@ export default function DriverRatePage() {
           placeholder="Add a note (optional)"
           rows={3}
           maxLength={1000}
-          className="mt-6 w-full resize-none rounded-lg border border-border bg-white p-3 text-sm text-ink outline-none placeholder:text-ink-soft focus:border-signal-blue"
+          className="mt-6 w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none placeholder:text-ink-soft focus:border-signal-blue"
         />
         {error && <p className="mt-2 text-xs text-alert-red">{error}</p>}
       </motion.div>

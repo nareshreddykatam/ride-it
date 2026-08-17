@@ -59,7 +59,7 @@ export default function TrustedContactsPage() {
           <Link href="/profile" aria-label="Back" className="-m-2.5 p-2.5 text-ink-soft">
             <ChevronLeft size={20} />
           </Link>
-          <h1 className="font-display text-2xl font-medium text-ink">Trusted Contacts</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">Trusted Contacts</h1>
         </div>
         <button onClick={() => setSheetOpen(true)} aria-label="Add trusted contact" className="-m-2.5 p-2.5 text-signal-blue">
           <UserPlus size={22} />
@@ -82,13 +82,18 @@ export default function TrustedContactsPage() {
 
         {!loading &&
           contacts.map((c) => (
-            <Card key={c.id} className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-ink">{c.name}</p>
-                <p className="text-xs text-ink-soft">
-                  +91 {c.phone}
-                  {c.relationship_label ? ` · ${c.relationship_label}` : ""}
-                </p>
+            <Card key={c.id} tone="elevated" className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tint-violet text-violet-text">
+                  <Users size={16} strokeWidth={1.8} />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-ink">{c.name}</p>
+                  <p className="text-xs text-ink-soft">
+                    +91 {c.phone}
+                    {c.relationship_label ? ` · ${c.relationship_label}` : ""}
+                  </p>
+                </div>
               </div>
               <button onClick={() => handleRemove(c.id)} aria-label={`Remove ${c.name}`} className="-m-2.5 p-2.5 text-alert-red">
                 <Trash2 size={16} />

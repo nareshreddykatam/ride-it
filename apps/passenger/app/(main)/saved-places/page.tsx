@@ -1,8 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { MapPin, Home, Briefcase, Users, GraduationCap, Trash2, Plus, Pencil } from "lucide-react";
-import { BottomSheet, Button, Card, EmptyState, SkeletonRow } from "@ride-it/ui";
+import { MapPin, GraduationCap, Trash2, Plus, Pencil } from "lucide-react";
+import { BottomSheet, Button, Card, EmptyState, SkeletonRow, HomeIcon, OfficeIcon, FriendsIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -14,10 +14,10 @@ import {
 } from "@ride-it/data";
 
 const ICONS: Record<string, typeof MapPin> = {
-  home: Home,
-  office: Briefcase,
-  work: Briefcase,
-  friends: Users,
+  home: HomeIcon,
+  office: OfficeIcon,
+  work: OfficeIcon,
+  friends: FriendsIcon,
   college: GraduationCap,
   other: MapPin,
 };
@@ -109,7 +109,7 @@ export default function SavedPlacesPage() {
   return (
     <main className="flex-1 px-6 py-8">
       <div className="flex items-center justify-between">
-        <h1 className="font-display text-2xl font-medium text-ink">Saved places</h1>
+        <h1 className="font-display text-2xl font-semibold text-ink">Saved places</h1>
         <Button size="sm" variant="outline" onClick={() => openAdd()}>
           <Plus size={15} /> Add
         </Button>
@@ -152,14 +152,14 @@ export default function SavedPlacesPage() {
           places.map((place) => {
             const Icon = ICONS[place.icon ?? "other"] ?? MapPin;
             return (
-              <Card key={place.id} className="flex items-center justify-between">
+              <Card key={place.id} tone="elevated" className="flex items-center justify-between">
                 <button className="flex flex-1 items-center gap-3 text-left" onClick={() => openEdit(place)}>
-                  <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-signal-blue/10 text-signal-blue">
-                    <Icon size={16} />
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-tint-blue text-signal-blue">
+                    <Icon size={18} strokeWidth={1.8} />
                   </span>
-                  <div>
-                    <p className="text-sm font-medium text-ink">{place.label}</p>
-                    <p className="text-xs text-ink-soft">{place.address}</p>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium text-ink">{place.label}</p>
+                    <p className="truncate text-xs text-ink-soft">{place.address}</p>
                   </div>
                 </button>
                 <div className="flex items-center">
@@ -188,7 +188,7 @@ export default function SavedPlacesPage() {
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder="Home, Office, Gym…"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
             />
           </div>
           <div>
@@ -197,7 +197,7 @@ export default function SavedPlacesPage() {
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Search or enter address"
-              className="h-12 w-full rounded-lg border border-border bg-white px-4 text-sm text-ink outline-none focus:border-signal-blue"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm text-ink outline-none focus:border-signal-blue"
             />
           </div>
           <div>

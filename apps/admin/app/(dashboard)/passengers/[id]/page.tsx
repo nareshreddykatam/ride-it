@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, Skeleton, StatusPill } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, EmptyState, PassengerIcon, RideIcon, Skeleton, StatCard, StatusPill } from "@ride-it/ui";
 import { Star } from "lucide-react";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -84,26 +84,17 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-3">
-        <Card>
-          <p className="text-xs text-ink-soft">Rating</p>
-          <p className="mt-1 flex items-center gap-1 font-meter text-lg text-ink">
-            {passenger.rating > 0 ? (
-              <>
-                <Star size={16} className="fill-marigold text-marigold" aria-hidden="true" />
-                {passenger.rating.toFixed(1)}
-              </>
-            ) : (
-              "—"
-            )}
-          </p>
-        </Card>
-        <Card>
-          <p className="text-xs text-ink-soft">Total rides</p>
-          <p className="mt-1 font-meter text-lg text-ink">{passenger.total_rides}</p>
-        </Card>
+        <StatCard label="Rating" value={passenger.rating > 0 ? passenger.rating.toFixed(1) : "—"} icon={Star} tone="marigold" />
+        <StatCard label="Total rides" value={String(passenger.total_rides)} icon={RideIcon} tone="blue" />
+        <StatCard
+          label={passenger.is_active ? "Account status" : "Account status"}
+          value={passenger.is_active ? "Active" : "Suspended"}
+          icon={PassengerIcon}
+          tone={passenger.is_active ? "green" : "red"}
+        />
       </div>
 
-      <Card className="mt-4">
+      <Card className="mt-4" accent="blue">
         <CardHeader>
           <CardTitle>Recent reviews</CardTitle>
         </CardHeader>
@@ -127,7 +118,7 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
         )}
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6" accent="violet">
         <CardHeader>
           <CardTitle>Ride history</CardTitle>
         </CardHeader>
@@ -155,7 +146,7 @@ export default function PassengerDetailPage({ params }: { params: { id: string }
         )}
       </Card>
 
-      <Card className="mt-4">
+      <Card className="mt-4" accent="red">
         <CardHeader>
           <CardTitle>Complaints</CardTitle>
         </CardHeader>

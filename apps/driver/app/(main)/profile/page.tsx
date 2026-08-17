@@ -3,15 +3,27 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Star } from "lucide-react";
-import { Button, Card, Input, Skeleton, StatusPill } from "@ride-it/ui";
+import { Star, Bell, ChevronRight } from "lucide-react";
+import {
+  Button,
+  Card,
+  Input,
+  Skeleton,
+  StatusPill,
+  VEHICLE_VISUALS,
+  DriverIcon,
+  RideIcon,
+  PaymentIcon,
+  WalletIcon,
+  SafetyIcon,
+} from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverProfile, setDriverUpiId, type DriverProfileRow } from "@ride-it/data";
 import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 
 const VERIFICATION_TONE = {
-  approved: "online",
+  approved: "verified",
   pending: "pending",
   in_review: "pending",
   rejected: "alert",
@@ -73,34 +85,52 @@ export default function DriverProfilePage() {
     <main className="flex-1 px-6 py-8">
       <h1 className="font-display text-2xl font-medium text-ink">Profile</h1>
 
-      <Card className="mt-4">
+      <Card tone="elevated" className="mt-4 rounded-2xl">
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-5 w-24" />
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-14 w-14 shrink-0 rounded-2xl" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-5 w-32" />
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-5 w-24" />
+            </div>
           </div>
         ) : (
-          <>
-            <p className="font-display text-lg font-medium text-ink">
-              {profile?.full_name ?? "Ride It Driver"}
-            </p>
-            <p className="text-sm text-ink-soft">
-              {profile?.phone ? `+91 ${profile.phone}` : ""}{" "}
-              · {profile ? VEHICLE_TYPE_LABELS_DB[profile.vehicle_type] : ""}
-            </p>
-            <div className="mt-2 flex items-center gap-2">
-              {profile && (
-                <StatusPill tone={VERIFICATION_TONE[profile.verification_status]}>
-                  {VERIFICATION_LABEL[profile.verification_status]}
-                </StatusPill>
+          <div className="flex items-center gap-3.5">
+            <span
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+              style={{
+                backgroundColor: profile ? VEHICLE_VISUALS[profile.vehicle_type].tintVar : "var(--tint-blue)",
+                color: profile ? VEHICLE_VISUALS[profile.vehicle_type].colorVar : "var(--signal-blue)",
+              }}
+            >
+              {profile ? (
+                React.createElement(VEHICLE_VISUALS[profile.vehicle_type].icon, { size: 28 })
+              ) : (
+                <DriverIcon size={26} aria-hidden="true" />
               )}
-              <span className="flex items-center gap-1 text-xs text-ink-soft">
-                <Star size={12} className="fill-marigold text-marigold" aria-hidden="true" />
-                {(profile?.rating ?? 5).toFixed(1)} rating
-              </span>
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-display text-lg font-medium text-ink">
+                {profile?.full_name ?? "Ride It Driver"}
+              </p>
+              <p className="text-sm text-ink-soft">
+                {profile?.phone ? `+91 ${profile.phone}` : ""}{" "}
+                · {profile ? VEHICLE_TYPE_LABELS_DB[profile.vehicle_type] : ""}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                {profile && (
+                  <StatusPill tone={VERIFICATION_TONE[profile.verification_status]}>
+                    {VERIFICATION_LABEL[profile.verification_status]}
+                  </StatusPill>
+                )}
+                <span className="flex items-center gap-1 text-xs text-ink-soft">
+                  <Star size={12} className="fill-marigold text-marigold" aria-hidden="true" />
+                  {(profile?.rating ?? 5).toFixed(1)} rating
+                </span>
+              </div>
             </div>
-          </>
+          </div>
         )}
       </Card>
 
@@ -145,54 +175,49 @@ export default function DriverProfilePage() {
       </Card>
 
       <div className="mt-6 flex flex-col gap-2">
-        <Link href="/profile/edit">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Personal details</span>
-            <span className="text-xs text-ink-soft">Edit</span>
-          </Card>
-        </Link>
-        <Link href="/profile/vehicle">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Vehicle information</span>
-            <span className="text-xs text-ink-soft">Manage</span>
-          </Card>
-        </Link>
-        <Link href="/documents">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Documents</span>
-            <span className="text-xs text-ink-soft">View</span>
-          </Card>
-        </Link>
-        <Link href="/history">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Ride history</span>
-            <span className="text-xs text-ink-soft">View</span>
-          </Card>
-        </Link>
-        <Link href="/payment-settings">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Payment methods</span>
-            <span className="text-xs text-ink-soft">Manage</span>
-          </Card>
-        </Link>
-        <Link href="/subscription">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Subscription plan</span>
-            <span className="text-xs text-ink-soft">Manage</span>
-          </Card>
-        </Link>
-        <Link href="/subscription-history">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Subscription history</span>
-            <span className="text-xs text-ink-soft">View</span>
-          </Card>
-        </Link>
-        <Link href="/notifications">
-          <Card className="flex items-center justify-between">
-            <span className="text-sm text-ink">Notifications</span>
-            <span className="text-xs text-ink-soft">Open</span>
-          </Card>
-        </Link>
+        {(
+          [
+            { href: "/profile/edit", label: "Personal details", action: "Edit", icon: DriverIcon, tone: "blue" },
+            {
+              href: "/profile/vehicle",
+              label: "Vehicle information",
+              action: "Manage",
+              icon: profile ? VEHICLE_VISUALS[profile.vehicle_type].icon : DriverIcon,
+              tone: "violet",
+            },
+            { href: "/documents", label: "Documents", action: "View", icon: SafetyIcon, tone: "green" },
+            { href: "/history", label: "Ride history", action: "View", icon: RideIcon, tone: "blue" },
+            { href: "/payment-settings", label: "Payment methods", action: "Manage", icon: PaymentIcon, tone: "marigold" },
+            { href: "/subscription", label: "Subscription plan", action: "Manage", icon: WalletIcon, tone: "marigold" },
+            { href: "/subscription-history", label: "Subscription history", action: "View", icon: WalletIcon, tone: "blue" },
+            { href: "/notifications", label: "Notifications", action: "Open", icon: Bell, tone: "red" },
+          ] satisfies { href: string; label: string; action: string; icon: React.ElementType; tone: "blue" | "violet" | "green" | "marigold" | "red" }[]
+        ).map((item) => (
+          <Link key={item.href} href={item.href}>
+            <Card interactive className="flex items-center justify-between gap-3">
+              <span className="flex items-center gap-3">
+                <span
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                    {
+                      blue: "bg-tint-blue text-signal-blue",
+                      violet: "bg-tint-violet text-violet-text",
+                      green: "bg-meter-green/10 text-meter-green-text",
+                      marigold: "bg-tint-marigold text-marigold-text",
+                      red: "bg-alert-red/10 text-alert-red-text",
+                    }[item.tone]
+                  }`}
+                >
+                  <item.icon size={17} aria-hidden="true" />
+                </span>
+                <span className="text-sm text-ink">{item.label}</span>
+              </span>
+              <span className="flex items-center gap-1 text-xs text-ink-soft">
+                {item.action}
+                <ChevronRight size={14} aria-hidden="true" />
+              </span>
+            </Card>
+          </Link>
+        ))}
       </div>
 
       <Button variant="outline" className="mt-8 w-full" disabled={signingOut} onClick={handleLogout}>

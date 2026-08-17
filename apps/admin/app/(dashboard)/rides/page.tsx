@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { StatusPill } from "@ride-it/ui";
+import { MeterValue, RideIcon, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listLiveRidesAdmin, subscribeToAllRideChanges, type AdminRideListRow } from "@ride-it/data";
@@ -33,8 +33,26 @@ const columns: Column<AdminRideListRow>[] = [
   },
   { key: "passenger", header: "Passenger", render: (row) => row.passenger_name ?? "—" },
   { key: "driver", header: "Driver", render: (row) => row.driver_name ?? "Unassigned" },
-  { key: "vehicle", header: "Vehicle", render: (row) => (row.vehicle_type === "auto" ? "Auto" : "Bike") },
-  { key: "fare", header: "Fare", render: (row) => <span className="font-meter">₹{row.total_fare}</span> },
+  {
+    key: "vehicle",
+    header: "Vehicle",
+    render: (row) => {
+      const visual = VEHICLE_VISUALS[row.vehicle_type];
+      const Icon = visual.icon;
+      return (
+        <span className="flex items-center gap-1.5">
+          <span
+            className="flex h-6 w-6 items-center justify-center rounded-md"
+            style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+          >
+            <Icon size={14} />
+          </span>
+          {visual.label}
+        </span>
+      );
+    },
+  },
+  { key: "fare", header: "Fare", render: (row) => <MeterValue value={`₹${row.total_fare}`} size="sm" /> },
   {
     key: "status",
     header: "Status",
@@ -70,10 +88,17 @@ export default function RidesPage() {
 
   return (
     <div>
-      <h1 className="font-display text-2xl font-medium text-ink">Live Rides</h1>
-      <p className="mt-1 text-sm text-ink-soft">
-        Monitor active rides, cancel or reassign, and investigate disputes.
-      </p>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-marigold text-marigold-text">
+          <RideIcon size={20} />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-medium text-ink">Live Rides</h1>
+          <p className="text-sm text-ink-soft">
+            Monitor active rides, cancel or reassign, and investigate disputes.
+          </p>
+        </div>
+      </div>
       {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}
       <div className="mt-6">
         <DataTable
