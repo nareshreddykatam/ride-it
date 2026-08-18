@@ -19,5 +19,7 @@ export * from "./components/driver-card";
 export * from "./components/ride-offer-card";
 export * from "./components/online-toggle";
 export * from "./components/searching-indicator";
+export * from "./components/matching-radar";
+export * from "./components/live-stat-band";
 export * from "./components/pulse-dot";
 export * from "./icons";

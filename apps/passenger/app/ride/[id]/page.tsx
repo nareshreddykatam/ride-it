@@ -263,8 +263,9 @@ export default function RideStatusPage() {
       : undefined;
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-8">
-      <div className="relative">
+    <main className="relative flex flex-1 flex-col overflow-hidden">
+      {/* Map fills the entire screen — the environment, not a strip. */}
+      <div className="absolute inset-0">
         <RideMap
           pickup={tracking?.pickup}
           drop={tracking?.drop}
@@ -272,174 +273,181 @@ export default function RideStatusPage() {
           driverLocationStale={driverStale}
           fallbackVariant="live"
           fallbackProgress={0.15 + stepIndex * 0.28}
-          className="h-56 rounded-2xl"
+          className="h-full w-full rounded-none border-0"
         />
-        <div className="absolute right-3 top-3 flex items-center gap-2">
-          <StatusPill tone="online" className="shadow-md">
-            {STEPS[stepIndex]?.label ?? "In progress"}
-          </StatusPill>
-        </div>
+      </div>
+
+      <div className="relative z-10 flex items-center justify-between p-4">
         <button
           onClick={openSafety}
-          className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-alert-red px-3 py-1.5 text-xs font-medium text-white shadow-md"
+          className="flex items-center gap-1.5 rounded-full bg-alert-red px-3 py-1.5 text-xs font-medium text-white shadow-md"
         >
           <ShieldAlert size={13} /> Safety
         </button>
+        <StatusPill tone="online" className="shadow-md">
+          {STEPS[stepIndex]?.label ?? "In progress"}
+        </StatusPill>
       </div>
 
       {tracking?.driverLocation && driverStale && (
-        <p className="mt-2 text-xs text-marigold-text">
+        <p className="relative z-10 mx-4 rounded-lg bg-surface/95 px-3 py-2 text-xs text-marigold-text shadow-md backdrop-blur-sm">
           Your driver&apos;s location hasn&apos;t updated recently — position shown may be outdated.
         </p>
       )}
 
-      <div className="mt-5">
-        <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
-          <motion.div
-            className="h-full rounded-full bg-signal-blue"
-            initial={{ width: 0 }}
-            animate={{ width: `${progressPct}%` }}
-            transition={{ duration: 0.6, ease: "easeOut" }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between">
-          {STEPS.map((step, i) => (
-            <span key={step.status} className={`text-[11px] ${i <= stepIndex ? "text-signal-blue" : "text-ink-soft"}`}>
-              {step.label}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="mt-5 flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-lg">
-          <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-28" />
-            <Skeleton className="h-3 w-36" />
+      {/* Bottom-sheet-style overlay — driver identity + actions read as
+          floating on top of the map environment, not stacked below it in
+          normal document flow. */}
+      <div className="relative z-10 mt-auto max-h-[70vh] overflow-y-auto rounded-t-2xl bg-surface shadow-lg">
+        <span className="sticky top-0 mx-auto mt-2.5 block h-1 w-10 rounded-full bg-ink/15" aria-hidden="true" />
+        <div className="px-6 pb-8 pt-3">
+          <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
+            <motion.div
+              className="h-full rounded-full bg-signal-blue"
+              initial={{ width: 0 }}
+              animate={{ width: `${progressPct}%` }}
+              transition={{ duration: 0.6, ease: "easeOut" }}
+            />
           </div>
-        </div>
-      ) : (
-        driver && (
-          <DriverCard
-            className="mt-5"
-            name={driver.full_name ?? "Your driver"}
-            rating={driver.rating}
-            vehicleLabel={VEHICLE_VISUALS[driver.vehicle_type].label}
-            plateNumber=""
-            etaLabel={driverEtaLabel}
-          />
-        )
-      )}
-
-      {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
-        <div className="mt-3 grid grid-cols-4 gap-2">
-          <a href={driver.phone ? `tel:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
-            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
-              <Phone size={18} className="text-signal-blue" />
-              <span className="text-[11px] text-ink-soft">Call</span>
-            </div>
-          </a>
-          <a href={driver.phone ? `sms:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
-            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
-              <MessageCircle size={18} className="text-signal-blue" />
-              <span className="text-[11px] text-ink-soft">Message</span>
-            </div>
-          </a>
-          <button type="button" onClick={openSafety} className="w-full">
-            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
-              <SafetyIcon size={18} className="text-alert-red" />
-              <span className="text-[11px] text-ink-soft">Safety</span>
-            </div>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setSafetyOpen(true);
-              openShare();
-            }}
-            className="w-full"
-          >
-            <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
-              <Share2 size={18} className="text-signal-blue" />
-              <span className="text-[11px] text-ink-soft">Share</span>
-            </div>
-          </button>
-        </div>
-      )}
-
-      {(status === "accepted" || status === "driver_arriving") && ridePin && (
-        <Card tone="tinted" className="mt-4 text-center">
-          <p className="text-sm font-medium text-ink">Your Ride PIN</p>
-          <div className="mt-2 flex justify-center">
-            <MeterValue value={ridePin} size="lg" />
+          <div className="mt-2 flex justify-between">
+            {STEPS.map((step, i) => (
+              <span key={step.status} className={`text-[11px] ${i <= stepIndex ? "text-signal-blue" : "text-ink-soft"}`}>
+                {step.label}
+              </span>
+            ))}
           </div>
-          <p className="mt-2 text-xs text-ink-soft">Share this PIN with your driver when they arrive.</p>
-        </Card>
-      )}
 
-      {(status === "accepted" || status === "driver_arriving") && ridePinChecked && !ridePin && (
-        <Card className="mt-4">
-          <p className="text-sm text-ink">Your Ride PIN isn&apos;t available to display yet.</p>
-          <p className="mt-1 text-xs text-ink-soft">
-            Set your Ride PIN again from Profile to enable this — you&apos;ll still tell your driver the same way once it&apos;s set.
-          </p>
-        </Card>
-      )}
-
-      {status === "ride_started" && (
-        <Card className="mt-4">
-          <p className="text-sm text-ink">Ride PIN verified — enjoy your ride.</p>
-        </Card>
-      )}
-
-      {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
-        <Card className="mt-4">
-          <p className="text-sm font-medium text-ink">
-            {ride?.payment_method ? "Payment method" : "Choose how you'll pay"}
-          </p>
-          <p className="mt-0.5 text-xs text-ink-soft">Only methods your driver accepts are shown.</p>
-          <div className="mt-3 flex gap-2">
-            {(
-              [
-                { value: "cash" as const, label: "Cash", icon: Banknote, offered: driver.accepts_cash },
-                { value: "driver_upi" as const, label: "Driver UPI", icon: Smartphone, offered: driver.accepts_driver_upi && driver.upi_verified },
-                { value: "online" as const, label: "Ride It Online", icon: CreditCard, offered: driver.accepts_online },
-              ] as const
+          {loading ? (
+            <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-sm">
+              <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-36" />
+              </div>
+            </div>
+          ) : (
+            driver && (
+              <DriverCard
+                className="mt-4"
+                name={driver.full_name ?? "Your driver"}
+                rating={driver.rating}
+                vehicleLabel={VEHICLE_VISUALS[driver.vehicle_type].label}
+                plateNumber=""
+                etaLabel={driverEtaLabel}
+              />
             )
-              .filter((m) => m.offered)
-              .map(({ value, label, icon: Icon }) => {
-                const active = ride?.payment_method === value;
-                return (
-                  <button key={value} disabled={selectingPayment} onClick={() => handleSelectPaymentMethod(value)} className="flex-1">
-                    <div
-                      className={cn(
-                        "flex flex-col items-center gap-1.5 rounded-lg border bg-surface py-4",
-                        active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
-                      )}
-                    >
-                      <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />
-                      <span className="text-xs text-ink">{label}</span>
-                    </div>
-                  </button>
-                );
-              })}
-          </div>
-          {paymentSelectError && <p className="mt-2 text-xs text-alert-red">{paymentSelectError}</p>}
-        </Card>
-      )}
+          )}
 
-      <div className="mt-auto flex flex-col gap-2 pt-6">
-        {canCancel && (
-          <button
-            onClick={handleCancel}
-            disabled={cancelling}
-            className="text-center text-sm font-medium text-alert-red disabled:opacity-50"
-          >
-            {cancelling ? "Cancelling…" : "Cancel ride"}
-          </button>
-        )}
-        <p className="text-center text-xs text-ink-soft">This screen updates automatically as your ride progresses.</p>
+          {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
+            <div className="mt-3 grid grid-cols-4 gap-2">
+              <a href={driver.phone ? `tel:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
+                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+                  <Phone size={18} className="text-signal-blue" />
+                  <span className="text-[11px] text-ink-soft">Call</span>
+                </div>
+              </a>
+              <a href={driver.phone ? `sms:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
+                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+                  <MessageCircle size={18} className="text-signal-blue" />
+                  <span className="text-[11px] text-ink-soft">Message</span>
+                </div>
+              </a>
+              <button type="button" onClick={openSafety} className="w-full">
+                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+                  <SafetyIcon size={18} className="text-alert-red" />
+                  <span className="text-[11px] text-ink-soft">Safety</span>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setSafetyOpen(true);
+                  openShare();
+                }}
+                className="w-full"
+              >
+                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+                  <Share2 size={18} className="text-signal-blue" />
+                  <span className="text-[11px] text-ink-soft">Share</span>
+                </div>
+              </button>
+            </div>
+          )}
+
+          {(status === "accepted" || status === "driver_arriving") && ridePin && (
+            <Card tone="tinted" className="mt-4 text-center">
+              <p className="text-sm font-medium text-ink">Your Ride PIN</p>
+              <div className="mt-2 flex justify-center">
+                <MeterValue value={ridePin} size="lg" />
+              </div>
+              <p className="mt-2 text-xs text-ink-soft">Share this PIN with your driver when they arrive.</p>
+            </Card>
+          )}
+
+          {(status === "accepted" || status === "driver_arriving") && ridePinChecked && !ridePin && (
+            <Card className="mt-4">
+              <p className="text-sm text-ink">Your Ride PIN isn&apos;t available to display yet.</p>
+              <p className="mt-1 text-xs text-ink-soft">
+                Set your Ride PIN again from Profile to enable this — you&apos;ll still tell your driver the same way once it&apos;s set.
+              </p>
+            </Card>
+          )}
+
+          {status === "ride_started" && (
+            <Card className="mt-4">
+              <p className="text-sm text-ink">Ride PIN verified — enjoy your ride.</p>
+            </Card>
+          )}
+
+          {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
+            <Card className="mt-4">
+              <p className="text-sm font-medium text-ink">
+                {ride?.payment_method ? "Payment method" : "Choose how you'll pay"}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-soft">Only methods your driver accepts are shown.</p>
+              <div className="mt-3 flex gap-2">
+                {(
+                  [
+                    { value: "cash" as const, label: "Cash", icon: Banknote, offered: driver.accepts_cash },
+                    { value: "driver_upi" as const, label: "Driver UPI", icon: Smartphone, offered: driver.accepts_driver_upi && driver.upi_verified },
+                    { value: "online" as const, label: "Ride It Online", icon: CreditCard, offered: driver.accepts_online },
+                  ] as const
+                )
+                  .filter((m) => m.offered)
+                  .map(({ value, label, icon: Icon }) => {
+                    const active = ride?.payment_method === value;
+                    return (
+                      <button key={value} disabled={selectingPayment} onClick={() => handleSelectPaymentMethod(value)} className="flex-1">
+                        <div
+                          className={cn(
+                            "flex flex-col items-center gap-1.5 rounded-lg border bg-surface py-4",
+                            active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
+                          )}
+                        >
+                          <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />
+                          <span className="text-xs text-ink">{label}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+              </div>
+              {paymentSelectError && <p className="mt-2 text-xs text-alert-red">{paymentSelectError}</p>}
+            </Card>
+          )}
+
+          <div className="mt-5 flex flex-col gap-2">
+            {canCancel && (
+              <button
+                onClick={handleCancel}
+                disabled={cancelling}
+                className="text-center text-sm font-medium text-alert-red disabled:opacity-50"
+              >
+                {cancelling ? "Cancelling…" : "Cancel ride"}
+              </button>
+            )}
+            <p className="text-center text-xs text-ink-soft">This screen updates automatically as your ride progresses.</p>
+          </div>
+        </div>
       </div>
 
       {safetyOpen && (

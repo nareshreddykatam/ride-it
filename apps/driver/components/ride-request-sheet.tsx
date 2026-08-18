@@ -57,21 +57,32 @@ export function RideRequestSheet({
   }, [open, secondsLeft, expiresAt, onExpire]);
 
   const vehicleKind = vehicleTypeToDb(fare.vehicleType);
-  const VehicleIcon = VEHICLE_VISUALS[vehicleKind].icon;
+  const visuals = VEHICLE_VISUALS[vehicleKind];
+  const urgent = secondsLeft <= 5;
 
   return (
     <BottomSheet open={open} dismissible={false} className="p-4 pb-8">
-      <div className="flex items-center justify-between px-1.5 pt-1">
-        <span className="flex items-center gap-1.5 text-sm font-medium text-ink">
-          <VehicleIcon size={18} style={{ color: VEHICLE_VISUALS[vehicleKind].colorVar }} />
-          {VEHICLE_TYPE_LABELS_DB[vehicleKind]}
-          <span className="text-ink-soft">· {fare.etaMinutes} min away</span>
+      <div className="flex items-center justify-end px-1">
+        <span
+          className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 ${
+            urgent ? "bg-alert-red/10" : "bg-ink/5"
+          }`}
+        >
+          <MeterValue
+            value={String(secondsLeft).padStart(2, "0")}
+            size="sm"
+            className={urgent ? "[&>div]:text-alert-red" : "[&>div]:text-ink-soft"}
+          />
+          <span className={`text-xs font-medium ${urgent ? "text-alert-red" : "text-ink-soft"}`}>sec left</span>
         </span>
-        <MeterValue value={String(secondsLeft).padStart(2, "0")} size="sm" />
       </div>
 
       <RideOfferCard
-        className="mt-3"
+        className="mt-2"
+        vehicleIcon={visuals.icon}
+        vehicleLabel={`${VEHICLE_TYPE_LABELS_DB[vehicleKind]} · ${fare.etaMinutes} min away`}
+        vehicleColorVar={visuals.colorVar}
+        vehicleTintVar={visuals.tintVar}
         pickupLabel={pickup.address ?? `${pickup.lat}, ${pickup.lng}`}
         pickupDistance={`${fare.distanceKm} km`}
         dropLabel={drop.address ?? `${drop.lat}, ${drop.lng}`}

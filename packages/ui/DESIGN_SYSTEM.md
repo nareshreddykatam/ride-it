@@ -123,6 +123,21 @@ purpose-built units so these patterns are never re-implemented per-screen:
   the selected vehicle's icon/color.
 - **PulseDot** — a small expanding-ring dot for any "this is live right
   now" status.
+- **MatchingRadar** — the full-bleed Matching-screen composition: map as
+  environment (passed in as `mapSlot` so `@ride-it/ui` never depends on
+  `@ride-it/maps`), radar rings in the selected vehicle's own color,
+  bottom scrim panel with driver count/elapsed time/cancel.
+- **LiveStatBand** — Admin overview's headline metric strip: one unified
+  panel with numbers side by side and thin dividers, not four identical
+  boxed `StatCard`s. Reserve `StatCard` for section-level metrics.
+
+`VehicleCard` now takes a `size="compact"|"hero"` prop (default
+`"compact"`, unchanged). `"hero"` is the large illustration-forward form
+— an 80px icon panel, not a 48px badge — used on Booking, where vehicle
+selection is meant to be the single most visually dominant part of the
+screen. `OnlineToggle` was rebuilt around a genuine circular status disc
+with pulsing rings (was a plain gradient rectangle) — same prop API, no
+caller changes required.
 
 ## Motion (Framer Motion)
 - Ride-status stepper: horizontal progress line that fills, not a bouncing

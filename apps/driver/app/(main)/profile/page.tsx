@@ -10,6 +10,7 @@ import {
   Input,
   Skeleton,
   StatusPill,
+  PulseDot,
   VEHICLE_VISUALS,
   DriverIcon,
   RideIcon,
@@ -81,64 +82,73 @@ export default function DriverProfilePage() {
     }
   }
 
+  const vehicleVisuals = profile ? VEHICLE_VISUALS[profile.vehicle_type] : null;
+
   return (
     <main className="flex-1 px-6 py-8">
-      <h1 className="font-display text-2xl font-medium text-ink">Profile</h1>
-
-      <Card tone="elevated" className="mt-4 rounded-2xl">
-        {loading ? (
-          <div className="flex items-center gap-3">
-            <Skeleton className="h-14 w-14 shrink-0 rounded-2xl" />
-            <div className="flex-1 space-y-2">
-              <Skeleton className="h-5 w-32" />
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-5 w-24" />
-            </div>
+      {/* HEADER — large identity block: avatar/vehicle icon, online state,
+          verification and rating all up front, not buried in a list row. */}
+      {loading ? (
+        <div className="flex items-center gap-4 rounded-3xl bg-ink/5 p-6">
+          <Skeleton className="h-20 w-20 shrink-0 rounded-2xl" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-5 w-24" />
           </div>
-        ) : (
-          <div className="flex items-center gap-3.5">
-            <span
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
-              style={{
-                backgroundColor: profile ? VEHICLE_VISUALS[profile.vehicle_type].tintVar : "var(--tint-blue)",
-                color: profile ? VEHICLE_VISUALS[profile.vehicle_type].colorVar : "var(--signal-blue)",
-              }}
-            >
-              {profile ? (
-                React.createElement(VEHICLE_VISUALS[profile.vehicle_type].icon, { size: 28 })
+        </div>
+      ) : (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-brand p-6 text-white shadow-lg">
+          <div className="flex items-center gap-4">
+            <span className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+              {vehicleVisuals ? (
+                React.createElement(vehicleVisuals.icon, { size: 40 })
               ) : (
-                <DriverIcon size={26} aria-hidden="true" />
+                <DriverIcon size={36} aria-hidden="true" />
+              )}
+              {profile?.is_online && (
+                <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-[3px] border-ink-blue bg-meter-green">
+                  <PulseDot tone="green" size={6} className="[&_span]:bg-white" />
+                </span>
               )}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-lg font-medium text-ink">
+              <p className="truncate font-display text-xl font-bold leading-tight">
                 {profile?.full_name ?? "Ride It Driver"}
               </p>
-              <p className="text-sm text-ink-soft">
-                {profile?.phone ? `+91 ${profile.phone}` : ""}{" "}
-                · {profile ? VEHICLE_TYPE_LABELS_DB[profile.vehicle_type] : ""}
+              <p className="mt-0.5 text-sm text-white/75">
+                {profile?.phone ? `+91 ${profile.phone}` : ""}
+                {profile ? ` · ${VEHICLE_TYPE_LABELS_DB[profile.vehicle_type]}` : ""}
               </p>
-              <div className="mt-2 flex items-center gap-2">
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 {profile && (
                   <StatusPill tone={VERIFICATION_TONE[profile.verification_status]}>
                     {VERIFICATION_LABEL[profile.verification_status]}
                   </StatusPill>
                 )}
-                <span className="flex items-center gap-1 text-xs text-ink-soft">
+                <span className="flex items-center gap-1 text-xs font-medium text-white/90">
                   <Star size={12} className="fill-marigold text-marigold" aria-hidden="true" />
-                  {(profile?.rating ?? 5).toFixed(1)} rating
+                  {(profile?.rating ?? 5).toFixed(1)}
                 </span>
+                {profile?.is_online && (
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-white">
+                    <PulseDot tone="green" size={6} className="[&_span]:bg-white" />
+                    Online now
+                  </span>
+                )}
               </div>
             </div>
           </div>
-        )}
-      </Card>
+        </div>
+      )}
 
-      <Card className="mt-4">
+      {/* UPI — a genuinely distinct functional block (has its own inline
+          edit form), kept as its own card rather than folded into a list. */}
+      <Card className="mt-5">
         <div className="flex items-center justify-between">
           <p className="text-sm font-medium text-ink">UPI ID (for Driver UPI rides)</p>
           {profile && (
-            <StatusPill tone={profile.upi_verified ? "online" : "pending"}>
+            <StatusPill tone={profile.upi_verified ? "verified" : "pending"}>
               {profile.upi_verified ? "Verified" : "Not verified"}
             </StatusPill>
           )}
@@ -174,51 +184,103 @@ export default function DriverProfilePage() {
         )}
       </Card>
 
-      <div className="mt-6 flex flex-col gap-2">
+      {/* ACCOUNT — a 2-up tile grid, deliberately shaped differently from
+          the list sections below it. */}
+      <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Account</p>
+      <div className="grid grid-cols-2 gap-3">
+        <Link href="/profile/edit">
+          <Card interactive className="flex h-28 flex-col justify-between rounded-2xl">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
+              <DriverIcon size={18} aria-hidden="true" />
+            </span>
+            <span className="text-sm font-medium text-ink">Personal details</span>
+          </Card>
+        </Link>
+        <Link href="/profile/vehicle">
+          <Card interactive className="flex h-28 flex-col justify-between rounded-2xl">
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-lg"
+              style={{
+                backgroundColor: vehicleVisuals?.tintVar ?? "var(--tint-violet)",
+                color: vehicleVisuals?.colorVar ?? "var(--violet)",
+              }}
+            >
+              {vehicleVisuals ? React.createElement(vehicleVisuals.icon, { size: 18 }) : <DriverIcon size={18} aria-hidden="true" />}
+            </span>
+            <span className="text-sm font-medium text-ink">Vehicle information</span>
+          </Card>
+        </Link>
+      </div>
+
+      {/* VERIFICATION — a single status-forward card, not a plain row. */}
+      <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Verification</p>
+      <Link href="/documents">
+        <Card
+          interactive
+          accent={profile?.verification_status === "approved" ? "green" : "marigold"}
+          className="flex items-center justify-between gap-3 rounded-2xl"
+        >
+          <span className="flex items-center gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-meter-green/10 text-meter-green-text">
+              <SafetyIcon size={20} aria-hidden="true" />
+            </span>
+            <span>
+              <span className="block text-sm font-medium text-ink">Documents</span>
+              <span className="block text-xs text-ink-soft">
+                {profile ? VERIFICATION_LABEL[profile.verification_status] : "—"} · Aadhaar, licence, RC, insurance
+              </span>
+            </span>
+          </span>
+          <ChevronRight size={16} className="shrink-0 text-ink-soft" aria-hidden="true" />
+        </Card>
+      </Link>
+
+      {/* EARNINGS & PAYMENTS — one grouped card with an internal divided
+          list, visually distinct from the tile grid and the status card
+          above it. */}
+      <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Earnings &amp; payments</p>
+      <Card className="rounded-2xl p-0">
         {(
           [
-            { href: "/profile/edit", label: "Personal details", action: "Edit", icon: DriverIcon, tone: "blue" },
-            {
-              href: "/profile/vehicle",
-              label: "Vehicle information",
-              action: "Manage",
-              icon: profile ? VEHICLE_VISUALS[profile.vehicle_type].icon : DriverIcon,
-              tone: "violet",
-            },
-            { href: "/documents", label: "Documents", action: "View", icon: SafetyIcon, tone: "green" },
-            { href: "/history", label: "Ride history", action: "View", icon: RideIcon, tone: "blue" },
-            { href: "/payment-settings", label: "Payment methods", action: "Manage", icon: PaymentIcon, tone: "marigold" },
-            { href: "/subscription", label: "Subscription plan", action: "Manage", icon: WalletIcon, tone: "marigold" },
-            { href: "/subscription-history", label: "Subscription history", action: "View", icon: WalletIcon, tone: "blue" },
-            { href: "/notifications", label: "Notifications", action: "Open", icon: Bell, tone: "red" },
-          ] satisfies { href: string; label: string; action: string; icon: React.ElementType; tone: "blue" | "violet" | "green" | "marigold" | "red" }[]
+            { href: "/payment-settings", label: "Payment methods", icon: PaymentIcon, tone: "marigold" },
+            { href: "/subscription", label: "Subscription plan", icon: WalletIcon, tone: "marigold" },
+            { href: "/subscription-history", label: "Subscription history", icon: WalletIcon, tone: "blue" },
+            { href: "/history", label: "Ride history", icon: RideIcon, tone: "blue" },
+          ] satisfies { href: string; label: string; icon: React.ElementType; tone: "blue" | "marigold" }[]
         ).map((item) => (
-          <Link key={item.href} href={item.href}>
-            <Card interactive className="flex items-center justify-between gap-3">
-              <span className="flex items-center gap-3">
-                <span
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
-                    {
-                      blue: "bg-tint-blue text-signal-blue",
-                      violet: "bg-tint-violet text-violet-text",
-                      green: "bg-meter-green/10 text-meter-green-text",
-                      marigold: "bg-tint-marigold text-marigold-text",
-                      red: "bg-alert-red/10 text-alert-red-text",
-                    }[item.tone]
-                  }`}
-                >
-                  <item.icon size={17} aria-hidden="true" />
-                </span>
-                <span className="text-sm text-ink">{item.label}</span>
+          <Link
+            key={item.href}
+            href={item.href}
+            className="flex items-center justify-between gap-3 border-b border-border px-4 py-3.5 last:border-b-0"
+          >
+            <span className="flex items-center gap-3">
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${
+                  item.tone === "marigold" ? "bg-tint-marigold text-marigold-text" : "bg-tint-blue text-signal-blue"
+                }`}
+              >
+                <item.icon size={16} aria-hidden="true" />
               </span>
-              <span className="flex items-center gap-1 text-xs text-ink-soft">
-                {item.action}
-                <ChevronRight size={14} aria-hidden="true" />
-              </span>
-            </Card>
+              <span className="text-sm text-ink">{item.label}</span>
+            </span>
+            <ChevronRight size={14} className="text-ink-soft" aria-hidden="true" />
           </Link>
         ))}
-      </div>
+      </Card>
+
+      {/* MORE — everything else, lowest visual priority. */}
+      <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">More</p>
+      <Link href="/notifications">
+        <Card interactive className="flex items-center justify-between gap-3 rounded-2xl">
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-alert-red/10 text-alert-red-text">
+              <Bell size={16} aria-hidden="true" />
+            </span>
+            <span className="text-sm text-ink">Notifications</span>
+          </span>
+          <ChevronRight size={14} className="text-ink-soft" aria-hidden="true" />
+        </Card>
+      </Link>
 
       <Button variant="outline" className="mt-8 w-full" disabled={signingOut} onClick={handleLogout}>
         {signingOut ? "Signing out…" : "Log out"}

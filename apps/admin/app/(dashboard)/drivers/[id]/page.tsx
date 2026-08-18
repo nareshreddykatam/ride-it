@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Star } from "lucide-react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, DriverIcon, MeterValue, Skeleton, StatCard, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, LiveStatBand, RideIcon, Skeleton, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -34,6 +34,14 @@ const GENDER_LABEL: Record<string, string> = {
   other: "Other",
   prefer_not_to_say: "Prefer not to say",
 };
+
+function initialsOf(name: string | null): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? parts[parts.length - 1]?.[0] ?? "" : "";
+  return (first + last).toUpperCase() || "?";
+}
 
 function calculateAge(dateOfBirth: string): number {
   const dob = new Date(dateOfBirth);
@@ -363,40 +371,50 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
 
   return (
     <div>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-medium text-ink">{profile.full_name ?? "Unnamed driver"}</h1>
-          <p className="mt-1 text-sm text-ink-soft">
-            Driver ID: {params.id} · {VEHICLE_TYPE_LABELS_DB[profile.vehicle_type]} ·{" "}
-            {profile.phone ? `+91 ${profile.phone}` : "—"} · Strikes: {profile.strike_count}
-          </p>
+      {/* Operations-profile header — identity, verification, and online
+          status are the three things an admin needs at a glance before
+          reading anything else, so they're grouped in one block instead of
+          a plain title + a single pill in the corner. */}
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <span
+            aria-hidden="true"
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-brand font-display text-lg font-medium text-white"
+          >
+            {initialsOf(profile.full_name)}
+          </span>
+          <div>
+            <h1 className="font-display text-xl font-medium text-ink sm:text-2xl">{profile.full_name ?? "Unnamed driver"}</h1>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              Driver ID {params.id.slice(0, 8)} · {VEHICLE_TYPE_LABELS_DB[profile.vehicle_type]} ·{" "}
+              {profile.phone ? `+91 ${profile.phone}` : "—"}
+            </p>
+          </div>
         </div>
-        <StatusPill tone={STATUS_TONE[profile.verification_status]}>{profile.verification_status.replace("_", " ")}</StatusPill>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusPill tone={STATUS_TONE[profile.verification_status]}>{profile.verification_status.replace("_", " ")}</StatusPill>
+          <StatusPill tone={profile.is_online ? "online" : "offline"}>{profile.is_online ? "Online now" : "Offline"}</StatusPill>
+          {profile.strike_count > 0 && (
+            <StatusPill tone="alert">
+              {profile.strike_count} strike{profile.strike_count === 1 ? "" : "s"}
+            </StatusPill>
+          )}
+        </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard
-          label="Rating"
-          value={profile.rating > 0 ? profile.rating.toFixed(1) : "—"}
-          icon={Star}
-          tone="marigold"
-        />
-        <StatCard
-          label={profile.is_online ? "Online now" : "Offline"}
-          value={profile.is_online ? "Online" : "Offline"}
-          icon={DriverIcon}
-          tone={profile.is_online ? "green" : "blue"}
-        />
-        <StatCard label="Subscription" value={subscription ? subscription.plan : "None"} icon={WalletIcon} tone="violet" />
-        <StatCard
-          label={`${earnings?.totalRides ?? 0} completed rides`}
-          value={`₹${earnings?.totalEarnings ?? 0}`}
-          icon={WalletIcon}
-          tone="green"
-        />
-      </div>
+      <LiveStatBand
+        className="mt-4"
+        eyebrow="Driver snapshot"
+        items={[
+          { label: "Rating", value: profile.rating > 0 ? profile.rating.toFixed(1) : "—", icon: Star, tone: "marigold" },
+          { label: "Subscription", value: subscription ? subscription.plan : "None", icon: WalletIcon, tone: "violet" },
+          { label: "Completed rides", value: String(earnings?.totalRides ?? 0), icon: RideIcon, tone: "blue" },
+          { label: "Total earnings", value: `₹${earnings?.totalEarnings ?? 0}`, icon: WalletIcon, tone: "green" },
+        ]}
+      />
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-ink-soft">Profile</p>
+      <div className="mt-2 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card accent="blue">
           <CardHeader>
             <CardTitle>Personal information</CardTitle>
@@ -458,13 +476,20 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         </Card>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <div className="mt-8 flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-wider text-ink-soft">Verification documents</p>
+        <p className="text-xs text-ink-soft">
+          {documents.filter((d) => d.status === "approved").length} of {Object.keys(DOCUMENT_LABELS).length} approved
+        </p>
+      </div>
+      <div className="mt-2 grid grid-cols-1 gap-4 lg:grid-cols-2">
         {(Object.keys(DOCUMENT_LABELS) as DocumentType[]).map((type) => (
           <DocumentCard key={type} type={type} doc={docByType.get(type)} onReviewed={refresh} />
         ))}
       </div>
 
-      <Card className="mt-6" accent="green">
+      <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-ink-soft">Payments &amp; earnings</p>
+      <Card className="mt-2" accent="green">
         <CardHeader>
           <CardTitle>Driver UPI</CardTitle>
           {profile && (
@@ -489,7 +514,8 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
 
       <DriverQrCard profile={profile} onReviewed={refresh} />
 
-      <Card className="mt-6">
+      <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-ink-soft">Reputation</p>
+      <Card className="mt-2" accent="marigold">
         <CardHeader>
           <CardTitle>Recent reviews</CardTitle>
           <span className="text-xs text-ink-soft">{profile?.total_rides ?? 0} total</span>
@@ -514,7 +540,8 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         )}
       </Card>
 
-      <Card className="mt-6" accent="violet">
+      <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-ink-soft">Decision</p>
+      <Card className="mt-2" accent="violet">
         <CardHeader>
           <CardTitle>Verification decision</CardTitle>
         </CardHeader>

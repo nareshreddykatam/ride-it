@@ -4,20 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Search, User, Clock, MapPin, Plus } from "lucide-react";
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  MeterValue,
-  StatusPill,
-  PinGlyph,
-  HomeIcon,
-  OfficeIcon,
-  FriendsIcon,
-  AutoIcon,
-  BikeIcon,
-} from "@ride-it/ui";
+import { ArrowRight, Search, User, Clock, ChevronRight } from "lucide-react";
+import { PinGlyph, HomeIcon, OfficeIcon, FriendsIcon, AutoIcon, BikeIcon, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -40,8 +28,8 @@ const PLACE_ICONS: Record<string, typeof HomeIcon> = {
 };
 
 const QUICK_VEHICLES = [
-  { label: "Bike", eta: "3 min away", icon: BikeIcon, color: "var(--violet)", tint: "var(--tint-violet)" },
-  { label: "Auto", eta: "5 min away", icon: AutoIcon, color: "var(--marigold)", tint: "var(--tint-marigold)" },
+  { label: "Bike", icon: BikeIcon, color: "var(--violet)", tint: "var(--tint-violet)" },
+  { label: "Auto", icon: AutoIcon, color: "var(--marigold)", tint: "var(--tint-marigold)" },
 ];
 
 export default function HomePage() {
@@ -78,162 +66,171 @@ export default function HomePage() {
     router.push(`/booking?${query.toString()}`);
   }
 
-  return (
-    <main className="flex flex-1 flex-col">
-      <div className="relative h-64 shrink-0 overflow-hidden rounded-b-2xl">
-        <MockMap variant="static" className="h-full rounded-none border-0" />
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-24"
-          style={{ background: "linear-gradient(180deg, rgba(11,17,32,0.35) 0%, rgba(11,17,32,0) 100%)" }}
-          aria-hidden="true"
-        />
+  const lastRideVisual = lastRide ? VEHICLE_VISUALS[lastRide.vehicle_type] : null;
 
-        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+  return (
+    <main className="flex flex-1 flex-col overflow-y-auto">
+      {/* Minimal top bar — no hero map here. The booking card below is the
+          screen's dominant element, not one of several equal-weight cards. */}
+      <div className="flex shrink-0 items-center justify-between px-6 pt-5">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-ink-soft">
+          <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
+          Vijayawada
+        </div>
+        <Link href="/profile">
           <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-1.5 rounded-full bg-surface px-3 py-1.5 text-xs font-medium text-ink shadow-lg"
+            whileTap={{ scale: 0.94 }}
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-tint-blue text-signal-blue"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
-            Vijayawada
+            <User size={16} />
           </motion.div>
-          <Link href="/profile">
-            <motion.div
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              whileTap={{ scale: 0.94 }}
-              className="flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink shadow-lg"
-            >
-              <User size={18} />
-            </motion.div>
+        </Link>
+      </div>
+
+      <div className="px-6 pt-3">
+        <h1 className="font-display text-[2rem] font-semibold leading-[1.1] tracking-tight text-ink">
+          {firstName ? (
+            <>
+              Where to,
+              <br />
+              {firstName}?
+            </>
+          ) : (
+            "Where to?"
+          )}
+        </h1>
+      </div>
+
+      {/* Hero booking card — clearly oversized vs. everything below it. */}
+      <div className="px-6 pt-5">
+        <Link href="/search">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileTap={{ scale: 0.99 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            className="overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
+          >
+            <div className="flex items-center gap-3.5 px-5 py-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+                <PinGlyph tone="pickup" size={20} />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Pickup</p>
+                <p className="truncate text-sm font-medium text-ink">Current location</p>
+              </div>
+            </div>
+            <div className="mx-5 h-px bg-border" />
+            <div className="flex items-center gap-3.5 px-5 py-5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tint-blue text-signal-blue">
+                <Search size={16} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Destination</p>
+                <p className="truncate font-display text-base font-semibold text-ink">Search destination</p>
+              </div>
+              <ArrowRight size={18} className="shrink-0 text-ink-soft" />
+            </div>
+          </motion.div>
+        </Link>
+
+        {/* Vehicle quick-shortcuts — small chips, not competing cards. */}
+        <div className="mt-3 flex gap-2">
+          {QUICK_VEHICLES.map((v) => {
+            const Icon = v.icon;
+            return (
+              <Link key={v.label} href="/search" className="flex-1">
+                <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: v.tint }}>
+                  <Icon size={16} strokeWidth={1.8} style={{ color: v.color }} />
+                  <span className="text-xs font-medium text-ink">{v.label}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Saved places — small icon chips, not full cards. */}
+      <div className="mt-6 px-6">
+        <div className="flex gap-4 overflow-x-auto pb-1">
+          {savedPlaces.slice(0, 4).map((place) => {
+            const Icon = PLACE_ICONS[place.icon ?? ""] ?? HomeIcon;
+            return (
+              <button
+                key={place.id}
+                onClick={() => goToBooking(place.address, place.lat, place.lng)}
+                className="flex shrink-0 flex-col items-center gap-1.5"
+              >
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink/[0.04] text-ink-soft">
+                  <Icon size={18} strokeWidth={1.8} />
+                </span>
+                <span className="max-w-[60px] truncate text-[11px] text-ink-soft">{place.label}</span>
+              </button>
+            );
+          })}
+          <Link href="/saved-places" className="flex shrink-0 flex-col items-center gap-1.5">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-border text-ink-soft">
+              <ChevronRight size={16} />
+            </span>
+            <span className="text-[11px] text-ink-soft">More</span>
           </Link>
         </div>
       </div>
 
-      <motion.div
-        initial={{ y: 24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: "spring", damping: 22, stiffness: 260 }}
-        className="relative z-10 -mt-8 flex-1 rounded-t-2xl bg-paper px-6 pb-6 pt-6 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.12)]"
-      >
-        <h1 className="font-display text-2xl font-semibold text-ink">
-          {firstName ? `Where to, ${firstName}?` : "Where to?"}
-        </h1>
-
-        <Link href="/search">
-          <div className="mt-4 overflow-hidden rounded-2xl border border-border bg-surface shadow-md transition-shadow hover:shadow-lg">
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <PinGlyph tone="pickup" size={18} />
-              <span className="text-sm text-ink-soft">Current location</span>
-            </div>
-            <div className="mx-4 h-px bg-border" />
-            <div className="flex items-center gap-3 px-4 py-3.5">
-              <Search size={16} className="text-signal-blue" />
-              <span className="text-sm font-medium text-ink">Search destination</span>
-            </div>
-          </div>
-        </Link>
-
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          {QUICK_VEHICLES.map((v, i) => {
-            const Icon = v.icon;
-            return (
-              <motion.div
-                key={v.label}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 + i * 0.05 }}
+      {/* Recent — lightweight rows, no card chrome. */}
+      {recentLocations.length > 0 && (
+        <div className="mt-5 px-6">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Recent</p>
+          <div className="mt-1 flex flex-col">
+            {recentLocations.slice(0, 3).map((loc, i) => (
+              <motion.button
+                key={loc.id}
+                onClick={() => goToBooking(loc.address, loc.lat, loc.lng)}
+                initial={{ opacity: 0, x: -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: i * 0.03 }}
+                className="flex items-center gap-3 py-2.5 text-left"
               >
-                <Link href="/search">
-                  <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 shadow-sm transition-shadow hover:shadow-md">
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                      style={{ backgroundColor: v.tint, color: v.color }}
-                    >
-                      <Icon size={22} strokeWidth={1.7} />
-                    </span>
-                    <div>
-                      <p className="font-display text-sm font-semibold text-ink">{v.label}</p>
-                      <p className="text-xs text-ink-soft">{v.eta}</p>
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        <div className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Saved places</p>
-          <div className="mt-2 flex gap-3 overflow-x-auto pb-1">
-            {savedPlaces.slice(0, 4).map((place) => {
-              const Icon = PLACE_ICONS[place.icon ?? ""] ?? HomeIcon;
-              return (
-                <button
-                  key={place.id}
-                  onClick={() => goToBooking(place.address, place.lat, place.lng)}
-                  className="flex shrink-0 flex-col items-center gap-1.5"
-                >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-tint-blue text-signal-blue">
-                    <Icon size={20} strokeWidth={1.8} />
-                  </span>
-                  <span className="max-w-[64px] truncate text-xs text-ink-soft">{place.label}</span>
-                </button>
-              );
-            })}
-            <Link href="/saved-places" className="flex shrink-0 flex-col items-center gap-1.5">
-              <span className="flex h-12 w-12 items-center justify-center rounded-full border border-dashed border-border text-ink-soft">
-                <Plus size={18} />
-              </span>
-              <span className="text-xs text-ink-soft">Add</span>
-            </Link>
+                <Clock size={14} className="shrink-0 text-ink-soft" />
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-ink">{loc.label ?? loc.address}</p>
+                </div>
+              </motion.button>
+            ))}
           </div>
         </div>
+      )}
 
-        {recentLocations.length > 0 && (
-          <div className="mt-6">
-            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Recent</p>
-            <div className="mt-2 flex flex-col">
-              {recentLocations.slice(0, 3).map((loc, i) => (
-                <motion.button
-                  key={loc.id}
-                  onClick={() => goToBooking(loc.address, loc.lat, loc.lng)}
-                  initial={{ opacity: 0, x: -6 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-3 border-b border-border py-3 text-left last:border-b-0"
-                >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink-soft">
-                    <Clock size={14} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm text-ink">{loc.label ?? loc.address}</p>
-                    {loc.label && <p className="truncate text-xs text-ink-soft">{loc.address}</p>}
-                  </div>
-                </motion.button>
-              ))}
-            </div>
+      {/* Map — demoted to a small, secondary-weight preview, not the hero. */}
+      <div className="mt-5 px-6">
+        <div className="h-24 overflow-hidden rounded-xl opacity-90">
+          <MockMap variant="static" className="h-full rounded-none border-0" />
+        </div>
+      </div>
+
+      {/* Last ride — a slim single-line summary, not a competing card. */}
+      {lastRide && lastRideVisual && (
+        <button
+          onClick={() => router.push("/history")}
+          className="mt-5 flex items-center gap-3 border-t border-border px-6 py-4 text-left"
+        >
+          <span
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            style={{ backgroundColor: lastRideVisual.tintVar, color: lastRideVisual.colorVar }}
+          >
+            <lastRideVisual.icon size={18} strokeWidth={1.7} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-ink">{lastRide.drop_address ?? "Last ride"}</p>
+            <p className="text-xs text-ink-soft">
+              {lastRide.status === "cancelled" ? "Cancelled" : "Completed"} · ₹{lastRide.total_fare.toFixed(2)}
+            </p>
           </div>
-        )}
+          <ChevronRight size={16} className="shrink-0 text-ink-soft" />
+        </button>
+      )}
 
-        {lastRide && (
-          <Card tone="tinted" accent="blue" className="mt-6">
-            <CardHeader>
-              <CardTitle>Last ride</CardTitle>
-              <StatusPill tone={lastRide.status === "cancelled" ? "alert" : "online"}>
-                {lastRide.status === "cancelled" ? "Cancelled" : "Completed"}
-              </StatusPill>
-            </CardHeader>
-            <div className="flex items-center gap-2 text-xs text-ink-soft">
-              <MapPin size={12} />
-              <span className="truncate">{lastRide.drop_address ?? "Destination"}</span>
-            </div>
-            <div className="mt-3">
-              <MeterValue value={`₹${lastRide.total_fare.toFixed(2)}`} label="Total fare" size="lg" />
-            </div>
-          </Card>
-        )}
-      </motion.div>
+      <div className="pb-8" />
     </main>
   );
 }

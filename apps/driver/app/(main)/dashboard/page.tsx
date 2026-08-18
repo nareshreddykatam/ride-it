@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { OnlineToggle, StatCard, Skeleton, StatusPill, Button, WalletIcon, RideIcon } from "@ride-it/ui";
+import { Star } from "lucide-react";
+import { OnlineToggle, MeterValue, Skeleton, StatusPill, Button, WalletIcon, RideIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
@@ -28,6 +29,17 @@ import { RideRequestSheet } from "../../../components/ride-request-sheet";
 
 function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
+}
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function firstName(fullName: string | null | undefined): string {
+  return fullName?.trim().split(/\s+/)[0] || "Driver";
 }
 
 export default function DashboardPage() {
@@ -179,12 +191,10 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <main className="flex-1 px-6 py-8">
-        <Skeleton className="h-11 w-full rounded-xl" />
-        <Skeleton className="mt-6 h-36 w-full rounded-2xl" />
-        <div className="mt-6 grid grid-cols-2 gap-4">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-        </div>
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="mt-4 h-14 w-48" />
+        <Skeleton className="mt-6 h-24 w-full rounded-2xl" />
+        <Skeleton className="mt-6 h-8 w-full rounded-lg" />
       </main>
     );
   }
@@ -199,18 +209,38 @@ export default function DashboardPage() {
           </button>
         </div>
       )}
-      <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
+
+      {/* Header: quiet greeting + subscription status, no card chrome. */}
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs text-ink-soft">Subscription</p>
-          <p className="font-display text-sm font-medium text-ink">
-            {subscription
-              ? `${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} — expires in ${daysUntil(subscription.expires_at)} days`
-              : "No active subscription"}
+          <p className="text-sm text-ink-soft">
+            {greeting()}, {firstName(profile?.full_name)}
           </p>
+          {subscription && (
+            <p className="mt-0.5 text-xs text-ink-soft">
+              {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} plan · expires in{" "}
+              {daysUntil(subscription.expires_at)} days
+            </p>
+          )}
         </div>
-        <StatusPill tone={subscription ? "verified" : "alert"}>{subscription ? "Active" : "Inactive"}</StatusPill>
+        <StatusPill tone={subscription ? "verified" : "alert"} className="shrink-0">
+          {subscription ? "Active" : "Inactive"}
+        </StatusPill>
       </div>
 
+      {/* HERO: today's earnings — the driver's #1 question, answered first
+          and biggest. Deliberately bare (no card border/shadow) so scale
+          and weight alone carry the hierarchy. */}
+      <div className="mt-5">
+        <p className="font-display text-xs font-bold uppercase tracking-wide text-marigold-text">Today&apos;s earnings</p>
+        <MeterValue
+          value={`₹${earningsToday.total}`}
+          size="lg"
+          className="mt-1 [&>div]:text-6xl [&>div]:font-semibold [&>div]:text-ink"
+        />
+      </div>
+
+      {/* Online control — the second focal point. */}
       <OnlineToggle
         online={!!profile?.is_online}
         disabled={togglingOnline || (!subscription && !profile?.is_online)}
@@ -236,20 +266,22 @@ export default function DashboardPage() {
         </Button>
       )}
 
-      <div className="mt-6 grid grid-cols-2 gap-4">
-        <StatCard
-          label="Earned today"
-          value={`₹${earningsToday.total}`}
-          icon={RideIcon}
-          tone="marigold"
-          trend={`${earningsToday.rides} rides`}
-        />
-        <StatCard
-          label="Wallet balance"
-          value={`₹${walletBalance}`}
-          icon={WalletIcon}
-          tone="blue"
-        />
+      {/* Compact single-line "today" strip — three quick facts, not three
+          more equal-weight cards. */}
+      <div className="mt-6 flex items-center justify-center gap-2.5 border-t border-border pt-4 text-sm text-ink-soft">
+        <span className="flex items-center gap-1.5 font-medium text-ink">
+          <RideIcon size={14} className="text-signal-blue" aria-hidden="true" />
+          {earningsToday.rides} rides
+        </span>
+        <span aria-hidden="true">·</span>
+        <span className="flex items-center gap-1.5 font-medium text-ink">
+          <WalletIcon size={14} className="text-marigold-text" aria-hidden="true" />₹{walletBalance}
+        </span>
+        <span aria-hidden="true">·</span>
+        <span className="flex items-center gap-1.5 font-medium text-ink">
+          <Star size={14} className="fill-marigold text-marigold" aria-hidden="true" />
+          {(profile?.rating ?? 5).toFixed(1)}
+        </span>
       </div>
 
       {pendingOffer && (

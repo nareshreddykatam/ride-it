@@ -9,12 +9,18 @@ import { VehicleType, vehicleTypeToDb } from "@ride-it/types";
 import { computeFareEstimate } from "@ride-it/utils";
 import { RideMap, getCurrentPositionOnce, fetchEta, decodePolyline, type LatLng } from "@ride-it/maps";
 
-const VEHICLE_META: Record<VehicleType, { label: string; etaMinutes: number }> = {
-  [VehicleType.BIKE]: { label: "Bike", etaMinutes: 3 },
-  [VehicleType.SCOOTY]: { label: "Scooty", etaMinutes: 4 },
-  [VehicleType.AUTO]: { label: "Auto", etaMinutes: 5 },
-  [VehicleType.CAR]: { label: "Car", etaMinutes: 7 },
+const VEHICLE_META: Record<VehicleType, { label: string; sublabel: string; etaMinutes: number }> = {
+  [VehicleType.BIKE]: { label: "Bike", sublabel: "Motorcycle", etaMinutes: 3 },
+  [VehicleType.SCOOTY]: { label: "Scooty", sublabel: "Scooter", etaMinutes: 4 },
+  [VehicleType.AUTO]: { label: "Auto", sublabel: "Auto Rickshaw", etaMinutes: 5 },
+  [VehicleType.CAR]: { label: "Car", sublabel: "Sedan", etaMinutes: 7 },
 };
+
+// The platform's flagship, most economical vehicle class — a fixed
+// editorial "recommended" designation independent of whatever the
+// passenger currently has selected, same as Uber/Ola surface one default
+// recommendation regardless of the tapped state.
+const RECOMMENDED_TYPE = VehicleType.AUTO;
 
 // Used only when real pickup/destination coordinates aren't both
 // resolvable (no geolocation permission, or the passenger picked a
@@ -112,36 +118,42 @@ function BookingPageContent() {
   }
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-8">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+    <main className="flex flex-1 flex-col">
+      {/* Small, secondary-weight map strip — the vehicle choice below is the point of this screen, not the route preview. */}
+      <div className="shrink-0 px-6 pt-6">
         <RideMap
           pickup={pickup ?? undefined}
           drop={drop ?? undefined}
           routePolyline={routePolyline}
           fallbackVariant="route"
-          className="h-40 rounded-2xl"
+          className="h-24 rounded-xl"
         />
+      </div>
 
-        <p className="mt-4 text-sm text-ink-soft">To</p>
-        <h1 className="font-display text-xl font-semibold text-ink">{destination}</h1>
+      <div className="flex-1 overflow-y-auto px-6 pb-6 pt-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">To</p>
+        <h1 className="mt-0.5 truncate font-display text-lg font-semibold text-ink">{destination}</h1>
 
-        <div className="mt-6 flex flex-col gap-3" role="radiogroup" aria-label="Vehicle type">
+        <div className="mt-5 flex flex-col gap-3" role="radiogroup" aria-label="Vehicle type">
           {estimates.map(({ type, estimate }, i) => {
             const meta = VEHICLE_META[type];
             const active = selected === type;
             return (
               <motion.div
                 key={type}
-                initial={{ opacity: 0, y: 8 }}
+                initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
+                transition={{ delay: i * 0.06, type: "spring", stiffness: 340, damping: 30 }}
               >
                 <VehicleCard
+                  size="hero"
                   type={vehicleTypeToDb(type)}
                   label={meta.label}
+                  sublabel={meta.sublabel}
                   fare={`₹${estimate.totalFare}`}
                   etaLabel={`${meta.etaMinutes} min away · ${distanceKm.toFixed(1)} km`}
                   selected={active}
+                  recommended={type === RECOMMENDED_TYPE}
                   onSelect={() => setSelected(type)}
                 />
               </motion.div>
@@ -153,9 +165,9 @@ function BookingPageContent() {
           Fare = base fare + distance. No surge pricing.
           {!usedRealRoute && " Distance shown is approximate until pickup and destination are both confirmed."}
         </p>
-      </motion.div>
+      </div>
 
-      <div className="mt-auto pt-8">
+      <div className="shrink-0 border-t border-border bg-paper px-6 py-4">
         <Button className="w-full" disabled={confirming} onClick={handleContinue}>
           {confirming ? "Loading…" : `Continue with ${VEHICLE_META[selected].label}`}
         </Button>

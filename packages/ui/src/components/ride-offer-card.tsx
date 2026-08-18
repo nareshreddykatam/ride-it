@@ -16,6 +16,11 @@ export interface RideOfferCardProps {
   onReject: () => void;
   acceptDisabled?: boolean;
   className?: string;
+  /** Optional vehicle identity — rendered as a large icon badge in the header so the driver sees at a glance which of their vehicles the request is for, not a small inline glyph. */
+  vehicleIcon?: React.ElementType;
+  vehicleLabel?: string;
+  vehicleColorVar?: string;
+  vehicleTintVar?: string;
 }
 
 /**
@@ -32,6 +37,10 @@ export function RideOfferCard({
   onReject,
   acceptDisabled,
   className,
+  vehicleIcon: VehicleIcon,
+  vehicleLabel,
+  vehicleColorVar,
+  vehicleTintVar,
 }: RideOfferCardProps) {
   return (
     <motion.div
@@ -45,9 +54,26 @@ export function RideOfferCard({
     >
       <div className="h-1.5 w-full bg-gradient-cta" />
       <div className="p-5">
-        <p className="text-center font-display text-xs font-bold uppercase tracking-wide text-marigold-text">
-          New ride request
-        </p>
+        {VehicleIcon ? (
+          <div className="flex items-center gap-3.5">
+            <span
+              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+              style={{ backgroundColor: vehicleTintVar, color: vehicleColorVar }}
+            >
+              <VehicleIcon size={30} />
+            </span>
+            <div className="min-w-0">
+              <p className="font-display text-xs font-bold uppercase tracking-wide text-marigold-text">
+                New ride request
+              </p>
+              {vehicleLabel && <p className="mt-0.5 truncate text-sm font-semibold text-ink">{vehicleLabel}</p>}
+            </div>
+          </div>
+        ) : (
+          <p className="text-center font-display text-xs font-bold uppercase tracking-wide text-marigold-text">
+            New ride request
+          </p>
+        )}
 
         <div className="mt-4 space-y-3">
           <div className="flex items-start gap-2.5">
@@ -68,13 +94,17 @@ export function RideOfferCard({
           <MeterValue value={fare} size="lg" />
         </div>
 
-        <div className="mt-5 flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onReject}>
+        <div className="mt-5 flex flex-col gap-2">
+          <Button variant="success" size="lg" className="w-full" onClick={onAccept} disabled={acceptDisabled}>
+            Accept ride
+          </Button>
+          <button
+            type="button"
+            onClick={onReject}
+            className="w-full rounded-lg py-3 text-center text-sm font-medium text-ink-soft transition-colors hover:text-alert-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-alert-red/40"
+          >
             Reject
-          </Button>
-          <Button variant="success" className="flex-1" onClick={onAccept} disabled={acceptDisabled}>
-            Accept
-          </Button>
+          </button>
         </div>
       </div>
     </motion.div>

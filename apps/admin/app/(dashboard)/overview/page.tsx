@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
-import { Card, CardHeader, CardTitle, DriverIcon, HomeIcon, MeterValue, RideIcon, Skeleton, StatCard, StatusPill, WalletIcon } from "@ride-it/ui";
+import { Card, CardHeader, CardTitle, DriverIcon, HomeIcon, LiveStatBand, MeterValue, RideIcon, Skeleton, StatusPill, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getAdminOverviewStats, type AdminOverviewStats } from "@ride-it/data";
@@ -23,17 +23,12 @@ export default function OverviewPage() {
       .finally(() => setLoading(false));
   }, [supabase, user]);
 
-  // Each metric owns a distinct icon + tone so the row reads as four
-  // separate operational facts, not four identical white boxes with
-  // different numbers (see DESIGN_SYSTEM.md — StatCard rationale).
-  const STAT_CARDS = stats
+  // One unified operations-center readout instead of four identical boxed
+  // StatCards — this is the "LIVE NOW / 128 ACTIVE RIDES / 342 ONLINE
+  // DRIVERS / ..." headline strip. Same real metrics as before, just
+  // recomposed as a single band (see LiveStatBand — packages/ui).
+  const LIVE_ITEMS = stats
     ? [
-        {
-          label: "Drivers online",
-          value: stats.driversOnline.toLocaleString("en-IN"),
-          icon: DriverIcon,
-          tone: "green" as const,
-        },
         {
           label: "Rides today",
           value: stats.ridesToday.toLocaleString("en-IN"),
@@ -41,16 +36,22 @@ export default function OverviewPage() {
           tone: "blue" as const,
         },
         {
-          label: "Active subscriptions",
-          value: stats.activeSubscriptions.toLocaleString("en-IN"),
-          icon: WalletIcon,
-          tone: "marigold" as const,
+          label: "Drivers online",
+          value: stats.driversOnline.toLocaleString("en-IN"),
+          icon: DriverIcon,
+          tone: "green" as const,
         },
         {
           label: "Open complaints",
           value: stats.openSupportTickets.toLocaleString("en-IN"),
           icon: ShieldAlert,
           tone: "red" as const,
+        },
+        {
+          label: "Active subscriptions",
+          value: stats.activeSubscriptions.toLocaleString("en-IN"),
+          icon: WalletIcon,
+          tone: "marigold" as const,
         },
       ]
     : [];
@@ -71,16 +72,21 @@ export default function OverviewPage() {
 
       {error && <p className="mt-4 text-sm text-alert-red">{error}</p>}
 
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {loading &&
-          Array.from({ length: 4 }).map((_, i) => (
-            <Card key={i}>
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="mt-2 h-7 w-16" />
-            </Card>
-          ))}
-        {!loading && STAT_CARDS.map((stat) => <StatCard key={stat.label} {...stat} />)}
-      </div>
+      {loading ? (
+        <div className="mt-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
+          <Skeleton className="h-3 w-20" />
+          <div className="mt-4 flex flex-wrap gap-8">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i}>
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="mt-2 h-3 w-24" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <LiveStatBand className="mt-6" items={LIVE_ITEMS} />
+      )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card tone="elevated" accent="marigold">

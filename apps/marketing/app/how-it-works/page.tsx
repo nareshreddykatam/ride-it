@@ -2,6 +2,7 @@ import type { ElementType } from "react";
 import { Star } from "lucide-react";
 import {
   AutoIcon,
+  BikeIcon,
   Card,
   DriverIcon,
   LocationIcon,
@@ -83,19 +84,43 @@ const DRIVER_STEPS: Step[] = [
   },
 ];
 
+/**
+ * Bento composition: the first step is a wide featured panel (bigger icon,
+ * more room to breathe), the remaining steps sit in a tighter, smaller-scale
+ * row underneath. Deliberately not five equal-weight cards in a uniform
+ * grid — the first step in each flow (search / register) is the one that
+ * actually blocks everything after it, so it gets the visual weight.
+ */
 function StepGrid({ steps }: { steps: Step[] }) {
+  const first = steps[0]!;
+  const rest = steps.slice(1);
   return (
-    <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-      {steps.map((step, i) => (
-        <Card key={step.title} tone="elevated" className="flex flex-col">
-          <span className={`flex h-11 w-11 items-center justify-center rounded-xl ${step.tint}`}>
-            <step.icon size={20} aria-hidden="true" />
-          </span>
-          <p className="mt-4 font-meter text-xs text-ink-soft">Step {String(i + 1).padStart(2, "0")}</p>
-          <h3 className="mt-1 font-display text-base font-medium text-ink">{step.title}</h3>
-          <p className="mt-1.5 text-sm text-ink-soft">{step.body}</p>
-        </Card>
-      ))}
+    <div className="mt-6">
+      <Card tone="tinted" className="flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-8">
+        <span className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl ${first.tint}`}>
+          <first.icon size={28} aria-hidden="true" />
+        </span>
+        <div>
+          <p className="font-meter text-xs text-ink-soft">Step 01</p>
+          <h3 className="mt-1 font-display text-xl font-medium text-ink sm:text-2xl">{first.title}</h3>
+          <p className="mt-1.5 text-sm text-ink-soft sm:max-w-md">{first.body}</p>
+        </div>
+      </Card>
+
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {rest.map((step, i) => (
+          <Card key={step.title} tone="elevated" className="flex flex-col">
+            <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${step.tint}`}>
+              <step.icon size={18} aria-hidden="true" />
+            </span>
+            <p className="mt-3 font-meter text-xs text-ink-soft">
+              Step {String(i + 2).padStart(2, "0")}
+            </p>
+            <h3 className="mt-1 font-display text-sm font-medium text-ink">{step.title}</h3>
+            <p className="mt-1.5 text-xs text-ink-soft">{step.body}</p>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
@@ -104,28 +129,41 @@ export default function HowItWorksPage() {
   return (
     <main>
       <section className="bg-gradient-hero">
-        <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <p className="font-meter text-xs font-medium uppercase tracking-wide text-white/80">
             The full picture
           </p>
-          <h1 className="mt-2 font-display text-4xl font-medium text-white sm:text-5xl">
+          <h1 className="mt-3 max-w-2xl font-display text-5xl font-medium leading-[1.02] text-white sm:text-6xl">
             How Ride It works
           </h1>
-          <p className="mt-3 max-w-xl text-white/80">
+          <p className="mt-4 max-w-xl text-lg text-white/80">
             One platform, two very different economics: passengers get
             simple, transparent fares; drivers keep everything they earn.
           </p>
         </div>
       </section>
 
-      <div className="mx-auto max-w-5xl px-6 py-16">
+      <div className="mx-auto max-w-6xl px-6 py-16 sm:py-20">
         <section>
-          <h2 className="font-display text-xl font-medium text-ink">For passengers</h2>
+          <h2 className="font-display text-2xl font-medium text-ink sm:text-3xl">For passengers</h2>
           <StepGrid steps={PASSENGER_STEPS} />
         </section>
 
-        <section className="mt-16">
-          <h2 className="font-display text-xl font-medium text-ink">For drivers</h2>
+        {/* Non-textual full-width rhythm break between the two flows —
+            no new copy, just a graphic divider. */}
+        <div className="my-16 flex items-center justify-center gap-4" aria-hidden="true">
+          <span className="h-px flex-1 bg-border" />
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-tint-marigold text-marigold-text">
+            <AutoIcon size={20} />
+          </span>
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-tint-violet text-violet-text">
+            <BikeIcon size={20} />
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <section>
+          <h2 className="font-display text-2xl font-medium text-ink sm:text-3xl">For drivers</h2>
           <StepGrid steps={DRIVER_STEPS} />
         </section>
       </div>

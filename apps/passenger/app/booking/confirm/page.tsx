@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Pencil } from "lucide-react";
+import { Pencil, Route, Clock3 } from "lucide-react";
 import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
@@ -20,6 +20,13 @@ import { RideMap, getCurrentPositionOnce, fetchGeocode, decodePolyline, type Lat
 // pattern used for driver location reporting since Phase 8.
 const FALLBACK_PICKUP: LatLng = { lat: 16.5062, lng: 80.648 };
 const FALLBACK_DROP: LatLng = { lat: 16.5449, lng: 80.6116 };
+
+const VEHICLE_SUBLABEL: Record<"bike" | "scooty" | "auto" | "car", string> = {
+  bike: "Motorcycle",
+  scooty: "Scooter",
+  auto: "Auto Rickshaw",
+  car: "Sedan",
+};
 
 function ConfirmBookingPageContent() {
   const router = useRouter();
@@ -114,84 +121,118 @@ function ConfirmBookingPageContent() {
     }
   }
 
+  const dbType = vehicleTypeToDb(vehicleType);
+
   return (
-    <main className="flex flex-1 flex-col px-6 py-8">
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        <h1 className="font-display text-xl font-semibold text-ink">Confirm your ride</h1>
+    <main className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex-1 overflow-y-auto px-6 pt-6">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+          <h1 className="font-display text-xl font-semibold text-ink">Confirm your ride</h1>
 
-        {resolvingLocations ? (
-          <Skeleton className="mt-4 h-44 w-full rounded-2xl" />
-        ) : (
-          <RideMap
-            pickup={pickup}
-            drop={drop}
-            routePolyline={routePolyline}
-            fallbackVariant="route"
-            className="mt-4 h-44 rounded-2xl"
-          />
-        )}
-        {usedFallback && !resolvingLocations && (
-          <p className="mt-1.5 text-xs text-ink-soft">
-            Using an approximate location — enable location access or check your connection for a precise pickup point.
-          </p>
-        )}
+          {resolvingLocations ? (
+            <Skeleton className="mt-3 h-32 w-full rounded-xl" />
+          ) : (
+            <RideMap
+              pickup={pickup}
+              drop={drop}
+              routePolyline={routePolyline}
+              fallbackVariant="route"
+              className="mt-3 h-32 rounded-xl"
+            />
+          )}
+          {usedFallback && !resolvingLocations && (
+            <p className="mt-1.5 text-xs text-ink-soft">
+              Using an approximate location — enable location access or check your connection for a precise pickup point.
+            </p>
+          )}
 
-        <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
-          <div className="flex items-start justify-between">
-            <div className="flex gap-3">
-              <PinGlyph tone="pickup" size={18} className="mt-0.5 shrink-0" />
-              <div>
-                <p className="text-xs text-ink-soft">Pickup</p>
-                <p className="text-sm text-ink">Current location</p>
+          {/* WHERE */}
+          <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <div className="flex items-start justify-between">
+              <div className="flex gap-3">
+                <PinGlyph tone="pickup" size={18} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-ink-soft">Pickup</p>
+                  <p className="text-sm text-ink">Current location</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={resolveLocations}
+                disabled={resolvingLocations}
+                className="flex items-center gap-1 text-xs text-signal-blue disabled:opacity-50"
+              >
+                <Pencil size={12} /> {resolvingLocations ? "Locating…" : "Refresh"}
+              </button>
+            </div>
+            <div className="my-3 ml-[9px] h-4 w-px border-l border-dashed border-border" />
+            <div className="flex items-start justify-between">
+              <div className="flex gap-3">
+                <PinGlyph tone="drop" size={18} className="mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-xs text-ink-soft">Drop</p>
+                  <p className="text-sm text-ink">{destination}</p>
+                </div>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={resolveLocations}
-              disabled={resolvingLocations}
-              className="flex items-center gap-1 text-xs text-signal-blue disabled:opacity-50"
-            >
-              <Pencil size={12} /> {resolvingLocations ? "Locating…" : "Refresh"}
-            </button>
           </div>
-          <div className="my-3 ml-[9px] h-4 w-px border-l border-dashed border-border" />
-          <div className="flex items-start justify-between">
-            <div className="flex gap-3">
-              <PinGlyph tone="drop" size={18} className="mt-0.5 shrink-0" />
+
+          {/* HOW FAR / HOW LONG */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3">
+              <Route size={16} className="shrink-0 text-ink-soft" />
               <div>
-                <p className="text-xs text-ink-soft">Drop</p>
-                <p className="text-sm text-ink">{destination}</p>
+                <p className="font-meter text-sm font-semibold tabular-nums text-ink">{distanceKm.toFixed(1)} km</p>
+                <p className="text-[11px] text-ink-soft">Distance</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3">
+              <Clock3 size={16} className="shrink-0 text-ink-soft" />
+              <div>
+                <p className="font-meter text-sm font-semibold tabular-nums text-ink">{etaMinutes} min</p>
+                <p className="text-[11px] text-ink-soft">Arrival</p>
               </div>
             </div>
           </div>
-        </div>
 
-        <div className="mt-4 flex items-center justify-between rounded-2xl border border-border bg-surface p-4 shadow-sm">
-          <div className="flex items-center gap-3">
+          {/* WHICH VEHICLE */}
+          <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 shadow-sm">
             <span
-              className="flex h-11 w-11 items-center justify-center rounded-lg"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
               style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
             >
               <VehicleIcon size={22} strokeWidth={1.7} />
             </span>
             <div>
-              <p className="font-display text-sm font-semibold text-ink">
-                {VEHICLE_TYPE_LABELS_DB[vehicleTypeToDb(vehicleType)]}
-              </p>
-              <p className="text-xs text-ink-soft">Arrives in {etaMinutes} min</p>
+              <p className="font-display text-sm font-semibold text-ink">{VEHICLE_TYPE_LABELS_DB[dbType]}</p>
+              <p className="text-xs text-ink-soft">{VEHICLE_SUBLABEL[dbType]}</p>
             </div>
           </div>
-          <MeterValue value={`₹${fare}`} size="lg" />
-        </div>
 
-        <p className="mt-4 text-xs text-ink-soft">
-          You can cancel free of charge before the driver arrives.
-        </p>
-        {error && <p className="mt-2 text-xs text-alert-red">{error}</p>}
-      </motion.div>
+          {/* HOW MUCH — the single largest number on the screen. --ink is
+              locally overridden to white so MeterValue's mono digits (which
+              read the --ink token) render correctly on the gradient fill
+              without forking the shared component. */}
+          <div
+            className="mt-3 flex flex-col items-center rounded-2xl bg-gradient-brand px-4 py-6 text-center shadow-brand"
+            style={{ "--ink": "#ffffff" } as React.CSSProperties}
+          >
+            <p className="text-xs font-medium uppercase tracking-wide text-white/75">Total fare</p>
+            <div className="mt-1">
+              <MeterValue value={`₹${fare}`} size="lg" />
+            </div>
+            <p className="mt-1 text-[11px] text-white/70">No surge pricing — flat base + distance fare.</p>
+          </div>
 
-      <div className="mt-auto pt-8">
-        <Button className="w-full" disabled={booking || resolvingLocations} onClick={handleConfirmBooking}>
+          <p className="mt-4 pb-4 text-center text-xs text-ink-soft">
+            You can cancel free of charge before the driver arrives.
+          </p>
+          {error && <p className="mb-2 text-center text-xs text-alert-red">{error}</p>}
+        </motion.div>
+      </div>
+
+      <div className="shrink-0 border-t border-border bg-paper px-6 py-4">
+        <Button className="w-full" size="lg" disabled={booking || resolvingLocations} onClick={handleConfirmBooking}>
           {booking ? "Booking your ride…" : "Confirm Booking"}
         </Button>
       </div>

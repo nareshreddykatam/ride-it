@@ -3,8 +3,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
-import { Button, SearchingIndicator, type VehicleKind } from "@ride-it/ui";
+import { Button, MatchingRadar, type VehicleKind } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { advanceMatching, cancelMatchingRide, subscribeToRide } from "@ride-it/data";
 import { MockMap } from "@ride-it/maps";
@@ -14,6 +13,12 @@ import { MockMap } from "@ride-it/maps";
 // @ride-it/data/matching.ts and the matching_engine migration for why
 // this is pull-based rather than a server-side scheduler.
 const HEARTBEAT_INTERVAL_MS = 3000;
+
+function formatElapsed(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
 
 function MatchingPageContent() {
   const router = useRouter();
@@ -26,7 +31,16 @@ function MatchingPageContent() {
 
   const [noDriversFound, setNoDriversFound] = React.useState(false);
   const [cancelling, setCancelling] = React.useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
   const settledRef = React.useRef(false);
+
+  // Real, honestly-derived elapsed time since this screen mounted — not a
+  // fabricated "drivers nearby" style figure. Purely a client-side ticker;
+  // doesn't touch matching state or drive any logic.
+  React.useEffect(() => {
+    const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   React.useEffect(() => {
     if (!rideId) return;
@@ -68,7 +82,7 @@ function MatchingPageContent() {
   }, [rideId, router, supabase]);
 
   async function handleCancel() {
-    if (!rideId) return;
+    if (!rideId || cancelling) return;
     setCancelling(true);
     try {
       await cancelMatchingRide(supabase, rideId, "Passenger cancelled while searching");
@@ -104,21 +118,13 @@ function MatchingPageContent() {
   }
 
   return (
-    <main className="flex flex-1 flex-col px-6 py-8">
-      <MockMap variant="searching" className="h-56 rounded-2xl" />
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="flex flex-1 flex-col items-center justify-center text-center"
-      >
-        <SearchingIndicator vehicle={vehicle} label="Looking for nearby drivers…" />
-        <p className="font-display text-lg font-semibold text-ink">Finding your ride</p>
-        <p className="mt-1 max-w-xs text-sm text-ink-soft">This can take up to a minute or so — we&apos;ll notify you the moment a driver accepts.</p>
-      </motion.div>
-      <Button variant="outline" className="w-full" disabled={cancelling} onClick={handleCancel}>
-        {cancelling ? "Cancelling…" : "Cancel"}
-      </Button>
+    <main className="relative flex flex-1 flex-col overflow-hidden">
+      <MatchingRadar
+        vehicle={vehicle}
+        mapSlot={<MockMap variant="searching" className="h-full w-full rounded-none border-0" />}
+        elapsedLabel={formatElapsed(elapsedSeconds)}
+        onCancel={handleCancel}
+      />
     </main>
   );
 }
