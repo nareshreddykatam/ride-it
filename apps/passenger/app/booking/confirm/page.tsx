@@ -209,16 +209,30 @@ function ConfirmBookingPageContent() {
             </div>
           </div>
 
-          {/* HOW MUCH — the single largest number on the screen. A plain
-              surface card with a thin brand-colored top border, not a
-              filled gradient block — fare emphasis comes from type size
-              (MeterValue "lg"), not decoration. */}
-          <div className="mt-3 rounded-lg border border-t-2 border-border border-t-signal-blue bg-surface px-4 py-5 text-center">
-            <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Total fare</p>
-            <div className="mt-1 flex justify-center">
-              <MeterValue value={`₹${fare}`} size="lg" />
+          {/* HOW MUCH — a tinted marigold surface (pricing is the
+              marigold-accent's job per the design system), not a flat
+              white box with just a border. Fare emphasis still comes from
+              type size (MeterValue "lg"), and the base/distance breakdown
+              is now surfaced instead of only the total — computeFareEstimate
+              already computes these as separate numbers, they just weren't
+              shown before. */}
+          <div className="mt-3 rounded-lg bg-tint-marigold px-4 py-5 shadow-sm">
+            <div className="flex items-center justify-between text-sm text-ink-soft">
+              <span>Base fare</span>
+              <span className="font-meter tabular-nums text-ink">₹{baseFare}</span>
             </div>
-            <p className="mt-1 text-[11px] text-ink-soft">No surge pricing — flat base + distance fare.</p>
+            <div className="mt-1.5 flex items-center justify-between text-sm text-ink-soft">
+              <span>Distance fare ({distanceKm.toFixed(1)} km)</span>
+              <span className="font-meter tabular-nums text-ink">₹{distanceFare}</span>
+            </div>
+            <div className="my-3 h-px bg-ink/10" />
+            <div className="text-center">
+              <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Total fare</p>
+              <div className="mt-1 flex justify-center">
+                <MeterValue value={`₹${fare}`} size="lg" />
+              </div>
+            </div>
+            <p className="mt-2 text-center text-[11px] text-ink-soft">No surge pricing — flat base + distance fare.</p>
           </div>
 
           <p className="mt-4 pb-4 text-center text-xs text-ink-soft">

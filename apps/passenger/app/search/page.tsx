@@ -238,7 +238,7 @@ export default function SearchPage() {
         {!showSuggestionsPanel && recentLocations.length > 0 && (
           <div className="mt-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Recent</p>
-            <div className="mt-1 flex flex-col">
+            <div className="mt-2 flex flex-col gap-1.5">
               {recentLocations.map((loc, i) => (
                 <motion.button
                   key={loc.id}
@@ -246,9 +246,9 @@ export default function SearchPage() {
                   initial={{ opacity: 0, x: -6 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03 }}
-                  className="flex items-center gap-3 border-b border-border py-3 text-left last:border-b-0"
+                  className="flex items-center gap-3 rounded-lg bg-tint-blue/60 px-3 py-2.5 text-left"
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink/5 text-ink-soft">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-ink-soft">
                     <Clock size={14} />
                   </span>
                   <p className="text-sm text-ink">{loc.label ?? loc.address}</p>

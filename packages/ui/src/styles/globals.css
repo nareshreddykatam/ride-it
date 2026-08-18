@@ -26,6 +26,16 @@
   --tint-marigold: #fff6e6;
   --tint-violet: #f2efff;
 
+  /* v3 — the missing middle layer. --paper (page bg) and --surface (white
+     card) read as two extremes when a screen has long stretches of list
+     content between them — text/icons floating directly on --paper with no
+     container at all. --surface-secondary groups that content (recent
+     locations, quick-shortcut rows, list sections) without promoting it to
+     a bordered/shadowed --surface card — a warm neutral one step darker
+     than --paper, not a brand-tinted color like --tint-blue (which should
+     stay reserved for "this relates to selection/interaction"). */
+  --surface-secondary: #f2f0ea;
+
   /* Text-on-tint variants — same hue family as the brand token above it,
      darkened until it clears 4.5:1 against --paper (WCAG AA for normal
      text). The brand tokens themselves stay untouched since they already
@@ -65,6 +75,7 @@
   --ink-soft: #9aa1ad;
   --border: #262b35;
   --surface: #171b24;
+  --surface-secondary: #191d26;
   --tint-blue: #16213d;
   --tint-marigold: #2a2013;
   --tint-violet: #201c3a;

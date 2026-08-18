@@ -7,7 +7,7 @@ import { OnlineToggle, MeterValue, Skeleton, StatusPill, Button, WalletIcon, Rid
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
-import { watchDriverLocation, LOCATION_CONFIG } from "@ride-it/maps";
+import { watchDriverLocation, LOCATION_CONFIG, RideMap, type LatLng } from "@ride-it/maps";
 import {
   getDriverProfile,
   getActiveSubscription,
@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [pendingOffer, setPendingOffer] = React.useState<RideOfferRow | null>(null);
   const [requestOpen, setRequestOpen] = React.useState(false);
   const [loadError, setLoadError] = React.useState(false);
+  const [selfLocation, setSelfLocation] = React.useState<LatLng | null>(null);
 
   const loadAll = React.useCallback(async () => {
     if (!user) return;
@@ -133,6 +134,7 @@ export default function DashboardPage() {
     const stopWatching = watchDriverLocation({
       minIntervalMs: LOCATION_CONFIG.ONLINE_PING_INTERVAL_MS,
       onUpdate: (pos) => {
+        setSelfLocation(pos);
         updateDriverLocation(supabase, user.id, pos).catch(() => {
           // A single failed write isn't fatal — the watcher's next
           // accepted update will retry naturally.
@@ -191,7 +193,8 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <main className="flex-1 px-6 py-8">
-        <Skeleton className="h-4 w-32" />
+        <Skeleton className="-mx-6 -mt-8 h-48 rounded-none" />
+        <Skeleton className="mt-6 h-4 w-32" />
         <Skeleton className="mt-4 h-14 w-48" />
         <Skeleton className="mt-6 h-16 w-full rounded-lg" />
         <Skeleton className="mt-6 h-8 w-full rounded-lg" />
@@ -201,8 +204,30 @@ export default function DashboardPage() {
 
   return (
     <main className="flex-1 px-6 py-8">
+      {/* Map — real spatial context for the dashboard (~30% of the mobile
+          viewport, bleeding edge-to-edge like Navigation's map), not a
+          token strip. Shows the driver's live position while online and
+          searching; a quiet static view otherwise. This is the screen's
+          map real estate — everything below it is flat content by design. */}
+      <div className="relative -mx-6 -mt-8 h-48 shrink-0">
+        <RideMap
+          driverLocation={selfLocation}
+          fallbackVariant={profile?.is_online ? "searching" : "static"}
+          className="h-full rounded-none border-0"
+        />
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+          <span className="flex items-center gap-1.5 rounded-full bg-surface/95 px-3 py-1.5 text-xs font-medium text-ink shadow-sm backdrop-blur-sm">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${profile?.is_online ? "bg-meter-green" : "bg-ink-soft"}`}
+              aria-hidden="true"
+            />
+            {profile?.is_online ? "Looking for rides nearby" : "You're offline"}
+          </span>
+        </div>
+      </div>
+
       {loadError && (
-        <div className="mb-4 flex items-center justify-between rounded-lg border border-alert-red/30 bg-alert-red/5 px-4 py-3 text-sm text-alert-red">
+        <div className="mb-4 mt-5 flex items-center justify-between rounded-lg border border-alert-red/30 bg-alert-red/5 px-4 py-3 text-sm text-alert-red">
           <span>Couldn't load your dashboard.</span>
           <button type="button" onClick={() => loadAll()} className="font-medium underline underline-offset-2">
             Retry
@@ -211,7 +236,7 @@ export default function DashboardPage() {
       )}
 
       {/* Header: quiet greeting + subscription status, no card chrome. */}
-      <div className="flex items-start justify-between gap-3">
+      <div className="mt-5 flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-ink-soft">
             {greeting()}, {firstName(profile?.full_name)}
@@ -267,8 +292,9 @@ export default function DashboardPage() {
       )}
 
       {/* Compact single-line "today" strip — three quick facts, not three
-          more equal-weight cards. */}
-      <div className="mt-6 flex items-center justify-center gap-2.5 border-t border-border pt-4 text-sm text-ink-soft">
+          more equal-weight cards. Grounded on a tinted surface so it reads
+          as a distinct info band rather than text floating on bare white. */}
+      <div className="mt-6 flex items-center justify-center gap-2.5 rounded-lg bg-tint-blue/50 px-4 py-3.5 text-sm text-ink-soft">
         <span className="flex items-center gap-1.5 font-medium text-ink">
           <RideIcon size={14} className="text-signal-blue" aria-hidden="true" />
           {earningsToday.rides} rides

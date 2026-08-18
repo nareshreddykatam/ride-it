@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button, Input, Skeleton, VEHICLE_VISUALS } from "@ride-it/ui";
+import { Button, Input, Skeleton, VEHICLE_VISUALS, DriverIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -160,6 +160,9 @@ export default function DriverOnboardingPage() {
             </div>
             <p className="shrink-0 text-xs font-medium text-ink-soft">1 of 2</p>
           </div>
+          <span className="mt-4 flex h-12 w-12 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
+            <DriverIcon size={24} aria-hidden="true" />
+          </span>
           <h1 className="mt-4 font-display text-2xl font-medium text-ink">Tell us about yourself</h1>
 
           <div className="mt-6 flex flex-col gap-4">
@@ -231,6 +234,12 @@ export default function DriverOnboardingPage() {
           </div>
           <p className="shrink-0 text-xs font-medium text-ink-soft">2 of 2</p>
         </div>
+        <span
+          className="mt-4 flex h-12 w-12 items-center justify-center rounded-lg"
+          style={{ backgroundColor: VEHICLE_VISUALS[vehicleType].tintVar, color: VEHICLE_VISUALS[vehicleType].colorVar }}
+        >
+          {React.createElement(VEHICLE_VISUALS[vehicleType].icon, { size: 24 })}
+        </span>
         <h1 className="mt-4 font-display text-2xl font-medium text-ink">Your vehicle</h1>
 
         <div className="mt-6 flex flex-col gap-4">

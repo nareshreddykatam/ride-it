@@ -118,14 +118,16 @@ function BookingPageContent() {
 
   return (
     <main className="flex flex-1 flex-col">
-      {/* Small, secondary-weight map strip — the vehicle choice below is the point of this screen, not the route preview. */}
+      {/* The route preview — secondary to the vehicle choice below, but
+          given real presence (not a token-sized strip) so it still reads
+          as an environment, not a decorative sliver. */}
       <div className="shrink-0 px-6 pt-6">
         <RideMap
           pickup={pickup ?? undefined}
           drop={drop ?? undefined}
           routePolyline={routePolyline}
           fallbackVariant="route"
-          className="h-24 rounded-lg"
+          className="h-48 rounded-lg"
         />
       </div>
 

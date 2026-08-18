@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Card, EmptyState, MeterValue, SkeletonRow, cn } from "@ride-it/ui";
+import { Card, EmptyState, MeterValue, SkeletonRow, cn, RideIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverEarningsSummary, type EarningsRange, type RideRow } from "@ride-it/data";
@@ -78,8 +78,11 @@ export default function EarningsPage() {
         {!loading && rides.length > 0 && (
           <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface px-4 shadow-sm">
             {rides.map((ride) => (
-              <div key={ride.id} className="flex items-center justify-between py-3">
-                <div className="min-w-0">
+              <div key={ride.id} className="flex items-center gap-3 py-3">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
+                  <RideIcon size={16} aria-hidden="true" />
+                </span>
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm text-ink">
                     {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
                   </p>

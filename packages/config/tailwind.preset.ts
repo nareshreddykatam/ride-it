@@ -1,6 +1,23 @@
 import type { Config } from "tailwindcss";
 
 /**
+ * Wraps a `var(--token)` CSS custom property so Tailwind's opacity modifier
+ * syntax (e.g. `bg-tint-blue/60`) actually works. Tailwind only auto-derives
+ * an alpha-channel utility when a theme color is a plain hex/rgb string or a
+ * function receiving `{ opacityValue }` — a bare `var(...)` string (what
+ * every token in this preset used) matches neither, so Tailwind's JIT
+ * silently emits NO rule at all for `/NN` variants of these colors (verified
+ * against the compiled CSS — `.bg-tint-blue\/60` never appears). This
+ * doesn't change any existing plain (non-opacity) usage: with no modifier,
+ * `opacityValue` is undefined and this returns the exact same `var(...)`
+ * string as before.
+ */
+function withOpacitySupport(cssVar: string) {
+  return ({ opacityValue }: { opacityValue?: string }) =>
+    opacityValue === undefined ? `var(${cssVar})` : `color-mix(in srgb, var(${cssVar}) calc(${opacityValue} * 100%), transparent)`;
+}
+
+/**
  * Shared Ride It Tailwind preset.
  * Apps import this and extend with app-specific `content` globs:
  *
@@ -47,11 +64,12 @@ const preset: Omit<Config, "content"> = {
         },
         paper: "var(--paper)",
         surface: "var(--surface)",
+        "surface-secondary": "var(--surface-secondary)",
         border: "var(--border)",
         tint: {
-          blue: "var(--tint-blue)",
-          marigold: "var(--tint-marigold)",
-          violet: "var(--tint-violet)",
+          blue: withOpacitySupport("--tint-blue"),
+          marigold: withOpacitySupport("--tint-marigold"),
+          violet: withOpacitySupport("--tint-violet"),
         },
       },
       fontFamily: {

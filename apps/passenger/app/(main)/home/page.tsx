@@ -69,40 +69,37 @@ export default function HomePage() {
 
   return (
     <main className="flex flex-1 flex-col overflow-y-auto">
-      {/* Minimal top bar — no hero map here. The booking card below is the
-          screen's dominant element, not one of several equal-weight cards. */}
-      <div className="flex shrink-0 items-center justify-between px-6 pt-5">
-        <div className="flex items-center gap-1.5 text-xs font-medium text-ink-soft">
-          <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
-          Vijayawada
+      {/* Map is a real environment, not a footnote — ~32% of the mobile
+          viewport, with the header and booking card floating on top of
+          it. This is the screen's visual richness; everything below is
+          flat list content. */}
+      <div className="relative h-64 shrink-0">
+        <MockMap variant="static" className="h-full rounded-none border-0" />
+
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between p-4">
+          <span className="flex items-center gap-1.5 rounded-full bg-surface/95 px-3 py-1.5 text-xs font-medium text-ink shadow-sm backdrop-blur-sm">
+            <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
+            Vijayawada
+          </span>
+          <Link
+            href="/profile"
+            className="flex h-9 w-9 items-center justify-center rounded-full bg-surface/95 text-ink shadow-sm backdrop-blur-sm"
+          >
+            <User size={16} />
+          </Link>
         </div>
-        <Link
-          href="/profile"
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-tint-blue text-signal-blue"
-        >
-          <User size={16} />
-        </Link>
       </div>
 
-      <div className="px-6 pt-3">
-        <h1 className="font-display text-[2rem] font-semibold leading-[1.1] tracking-tight text-ink">
-          {firstName ? (
-            <>
-              Where to,
-              <br />
-              {firstName}?
-            </>
-          ) : (
-            "Where to?"
-          )}
+      {/* Booking card overlaps the map's bottom edge — an elevated
+          surface (shadow, not just a border) floating above the map
+          environment, which is what actually reads as "designed" rather
+          than a flat list starting at the top of the page. */}
+      <div className="relative z-10 -mt-8 px-6">
+        <h1 className="mb-3 font-display text-2xl font-semibold leading-tight tracking-tight text-ink">
+          {firstName ? `Where to, ${firstName}?` : "Where to?"}
         </h1>
-      </div>
 
-      {/* Hero booking card — clearly the dominant element on the screen
-          via size and position, not via decoration (plain border, no
-          shadow/gradient/motion). */}
-      <div className="px-6 pt-5">
-        <Link href="/search" className="block overflow-hidden rounded-lg border border-border bg-surface">
+        <Link href="/search" className="block overflow-hidden rounded-lg border border-border bg-surface shadow-md">
           <div className="flex items-center gap-3.5 px-5 py-4">
             <span className="flex h-8 w-8 shrink-0 items-center justify-center">
               <PinGlyph tone="pickup" size={20} />
@@ -125,13 +122,14 @@ export default function HomePage() {
           </div>
         </Link>
 
-        {/* Vehicle quick-shortcuts — small chips, not competing cards. */}
+        {/* Vehicle quick-shortcuts — compact chips on a tinted secondary
+            surface, not a competing white-bordered card. */}
         <div className="mt-3 flex gap-2">
           {QUICK_VEHICLES.map((v) => {
             const Icon = v.icon;
             return (
               <Link key={v.label} href="/search" className="flex-1">
-                <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
+                <div className="flex items-center gap-2 rounded-lg bg-tint-blue px-3 py-2.5">
                   <Icon size={16} strokeWidth={1.8} style={{ color: v.color }} />
                   <span className="text-xs font-medium text-ink">{v.label}</span>
                 </div>
@@ -152,7 +150,7 @@ export default function HomePage() {
                 onClick={() => goToBooking(place.address, place.lat, place.lng)}
                 className="flex shrink-0 flex-col items-center gap-1.5"
               >
-                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-ink/[0.04] text-ink-soft">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-tint-blue text-signal-blue">
                   <Icon size={18} strokeWidth={1.8} />
                 </span>
                 <span className="max-w-[60px] truncate text-[11px] text-ink-soft">{place.label}</span>
@@ -168,20 +166,24 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Recent — lightweight rows, no card chrome. */}
+      {/* Recent — visually recognizable rows on a tinted secondary
+          surface (location icon, name, address), not bare text on white. */}
       {recentLocations.length > 0 && (
-        <div className="mt-5 px-6">
+        <div className="mt-6 px-6">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Recent</p>
-          <div className="mt-1 flex flex-col">
+          <div className="mt-2 flex flex-col gap-1.5">
             {recentLocations.slice(0, 3).map((loc) => (
               <button
                 key={loc.id}
                 onClick={() => goToBooking(loc.address, loc.lat, loc.lng)}
-                className="flex items-center gap-3 py-2.5 text-left"
+                className="flex items-center gap-3 rounded-lg bg-tint-blue/60 px-3 py-2.5 text-left"
               >
-                <Clock size={14} className="shrink-0 text-ink-soft" />
-                <div className="min-w-0">
-                  <p className="truncate text-sm text-ink">{loc.label ?? loc.address}</p>
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-ink-soft">
+                  <Clock size={14} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-ink">{loc.label ?? loc.address}</p>
+                  {loc.label && <p className="truncate text-xs text-ink-soft">{loc.address}</p>}
                 </div>
               </button>
             ))}
@@ -189,33 +191,29 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Map — demoted to a small, secondary-weight preview, not the hero. */}
-      <div className="mt-5 px-6">
-        <div className="h-24 overflow-hidden rounded-lg border border-border">
-          <MockMap variant="static" className="h-full rounded-none border-0" />
-        </div>
-      </div>
-
-      {/* Last ride — a slim single-line summary, not a competing card. */}
+      {/* Last ride — grounded on a tinted surface so it reads as content,
+          not invisible text floating on the page background. */}
       {lastRide && lastRideVisual && (
-        <button
-          onClick={() => router.push("/history")}
-          className="mt-5 flex items-center gap-3 border-t border-border px-6 py-4 text-left"
-        >
-          <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-            style={{ backgroundColor: lastRideVisual.tintVar, color: lastRideVisual.colorVar }}
+        <div className="mt-6 px-6">
+          <button
+            onClick={() => router.push("/history")}
+            className="flex w-full items-center gap-3 rounded-lg bg-tint-blue/60 px-4 py-3.5 text-left"
           >
-            <lastRideVisual.icon size={18} strokeWidth={1.7} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm text-ink">{lastRide.drop_address ?? "Last ride"}</p>
-            <p className="text-xs text-ink-soft">
-              {lastRide.status === "cancelled" ? "Cancelled" : "Completed"} · ₹{lastRide.total_fare.toFixed(2)}
-            </p>
-          </div>
-          <ChevronRight size={16} className="shrink-0 text-ink-soft" />
-        </button>
+            <span
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-surface"
+              style={{ color: lastRideVisual.colorVar }}
+            >
+              <lastRideVisual.icon size={18} strokeWidth={1.7} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-ink">{lastRide.drop_address ?? "Last ride"}</p>
+              <p className="text-xs text-ink-soft">
+                {lastRide.status === "cancelled" ? "Cancelled" : "Completed"} · ₹{lastRide.total_fare.toFixed(2)}
+              </p>
+            </div>
+            <ChevronRight size={16} className="shrink-0 text-ink-soft" />
+          </button>
+        </div>
       )}
 
       <div className="pb-8" />
