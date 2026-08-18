@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
-import { Card, CardHeader, CardTitle, DriverIcon, HomeIcon, LiveStatBand, MeterValue, RideIcon, Skeleton, StatusPill, WalletIcon } from "@ride-it/ui";
+import { Card, CardHeader, CardTitle, DriverIcon, HomeIcon, LiveStatBand, MeterValue, PaymentIcon, RideIcon, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getAdminOverviewStats, type AdminOverviewStats } from "@ride-it/data";
@@ -50,7 +50,7 @@ export default function OverviewPage() {
         {
           label: "Active subscriptions",
           value: stats.activeSubscriptions.toLocaleString("en-IN"),
-          icon: WalletIcon,
+          icon: PaymentIcon,
           tone: "marigold" as const,
         },
       ]
@@ -59,7 +59,7 @@ export default function OverviewPage() {
   return (
     <div>
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-sm">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
           <HomeIcon size={20} />
         </span>
         <div>

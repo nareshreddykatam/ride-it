@@ -170,10 +170,10 @@ export default function SearchPage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-        <RideMap fallbackVariant="static" className="h-28 rounded-2xl" />
+        <RideMap fallbackVariant="static" className="h-28 rounded-lg" />
         <h1 className="mt-4 font-display text-2xl font-semibold text-ink">Where to?</h1>
 
-        <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-surface shadow-md">
+        <div className="mt-5 overflow-hidden rounded-lg border border-border bg-surface">
           <div className="flex items-center gap-3 px-4 py-3.5">
             <PinGlyph tone="pickup" size={18} />
             <span className="text-sm text-ink-soft">Current location</span>

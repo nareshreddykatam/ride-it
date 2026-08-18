@@ -136,7 +136,7 @@ export default function PassengerProfilePage() {
         )}
       </Card>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+      <div className="mt-6 overflow-hidden rounded-lg border border-border bg-surface">
         {links.map((l, i) => (
           <Link key={l.href} href={l.href}>
             <div

@@ -14,65 +14,59 @@ export interface OnlineToggleProps {
 }
 
 /**
- * The driver app's signature control — the one visual element that answers
- * "am I online and earning?" at a glance. Built around a large circular
- * status disc (pulsing ring when online) rather than a generic switch or
- * rectangular button, so the on/off state reads instantly even at a
- * glance, not just on close inspection.
+ * The driver app's online/offline control — a plain bordered row with a
+ * status dot, not a giant animated hero button. The dot pulses subtly
+ * only when online; everything else about this control is deliberately
+ * quiet (surface background, normal border, no gradient fill) so the
+ * on/off state is the one thing that reads, not the chrome around it.
  */
 export function OnlineToggle({ online, disabled, loading, subtitle, onToggle, className }: OnlineToggleProps) {
   const reduceMotion = useReducedMotion();
 
   return (
-    <motion.button
+    <button
       type="button"
       onClick={onToggle}
       disabled={disabled || loading}
-      whileTap={disabled || loading ? undefined : { scale: 0.985 }}
       aria-pressed={online}
       className={cn(
-        "relative flex w-full items-center gap-5 overflow-hidden rounded-2xl p-5 text-left shadow-lg transition-colors disabled:opacity-60",
-        online ? "bg-gradient-online text-white" : "bg-ink text-white",
+        "flex w-full items-center gap-3.5 rounded-lg border p-4 text-left transition-colors disabled:opacity-60",
+        online ? "border-meter-green/40 bg-meter-green/5" : "border-border bg-surface",
         className
       )}
     >
-      {online && !reduceMotion && (
-        <motion.span
-          className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(circle at 15% 50%, rgba(255,255,255,0.16), transparent 55%)" }}
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        />
-      )}
-
-      <span className="relative flex h-16 w-16 shrink-0 items-center justify-center">
-        {online &&
-          !reduceMotion &&
-          [0, 0.9].map((delay) => (
-            <motion.span
-              key={delay}
-              className="absolute inset-0 rounded-full border-2 border-white/70"
-              initial={{ scale: 0.6, opacity: 0.7 }}
-              animate={{ scale: 1.7, opacity: 0 }}
-              transition={{ duration: 2.2, repeat: Infinity, delay, ease: "easeOut" }}
-            />
-          ))}
+      <span className="relative flex h-6 w-6 shrink-0 items-center justify-center">
+        {online && !reduceMotion && (
+          <motion.span
+            className="absolute inset-0 rounded-full border-2 border-meter-green"
+            initial={{ scale: 0.6, opacity: 0.6 }}
+            animate={{ scale: 1.8, opacity: 0 }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }}
+          />
+        )}
         <span
           className={cn(
-            "relative flex h-11 w-11 items-center justify-center rounded-full border-[3px] transition-colors",
-            online ? "border-white bg-white/15" : "border-white/40 bg-transparent"
+            "relative h-3 w-3 rounded-full border-2",
+            online ? "border-meter-green bg-meter-green" : "border-ink-soft bg-transparent"
           )}
-        >
-          <span className={cn("h-3.5 w-3.5 rounded-full transition-colors", online ? "bg-white" : "bg-white/40")} />
-        </span>
+        />
       </span>
 
-      <span className="relative min-w-0 flex-1">
-        <span className="block font-display text-xl font-bold leading-tight">
-          {online ? "You're online" : "Go online"}
+      <span className="min-w-0 flex-1">
+        <span className={cn("block font-display text-base font-semibold", online ? "text-meter-green-text" : "text-ink")}>
+          {online ? "Online" : "Offline"}
         </span>
-        <span className="mt-0.5 block text-sm opacity-85">{subtitle}</span>
+        <span className="mt-0.5 block text-xs text-ink-soft">{subtitle}</span>
       </span>
-    </motion.button>
+
+      <span
+        className={cn(
+          "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold",
+          online ? "border-meter-green/30 text-meter-green-text" : "border-border text-ink-soft"
+        )}
+      >
+        {loading ? "…" : online ? "Go offline" : "Go online"}
+      </span>
+    </button>
   );
 }

@@ -13,8 +13,10 @@ import {
   subscribeToRide,
   getMyRidePin,
   selectRidePaymentMethod,
+  getMatchedDriverContact,
   type RideRow,
   type PaymentMethodRow,
+  type MatchedDriverContact,
 } from "@ride-it/data";
 import { getDriverProfile, type DriverProfileRow } from "@ride-it/data";
 import { getRideTracking, subscribeToDriverLocationChanges, type RideTrackingInfo } from "@ride-it/data";
@@ -51,6 +53,8 @@ export default function RideStatusPage() {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [ride, setRide] = React.useState<RideRow | null>(null);
   const [driver, setDriver] = React.useState<DriverProfileRow | null>(null);
+  const [matchedContact, setMatchedContact] = React.useState<MatchedDriverContact | null>(null);
+  const [selfieUrl, setSelfieUrl] = React.useState<string | null>(null);
   const [tracking, setTracking] = React.useState<RideTrackingInfo | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [cancelling, setCancelling] = React.useState(false);
@@ -79,8 +83,29 @@ export default function RideStatusPage() {
       } catch {
         setDriver(null);
       }
+      // Name/phone/plate: getDriverProfile's users/vehicles embeds come
+      // back null for a passenger caller (no general passenger-readable
+      // RLS policy on those tables) — get_matched_driver_contact() is the
+      // one narrow, audited path that actually returns them, scoped to
+      // this passenger's own active ride. See packages/data/src/rides.ts.
+      try {
+        setMatchedContact(await getMatchedDriverContact(supabase, params.id));
+      } catch {
+        setMatchedContact(null);
+      }
+      // Selfie: same reasoning, but minting a signed URL for a private
+      // Storage object requires the Storage API (not SQL), so this goes
+      // through a Route Handler that re-derives the path server-side
+      // rather than trusting anything from the client.
+      try {
+        const res = await fetch(`/api/rides/${params.id}/driver-selfie`);
+        const body = (await res.json()) as { signedUrl: string | null };
+        setSelfieUrl(body.signedUrl);
+      } catch {
+        setSelfieUrl(null);
+      }
     },
-    [supabase]
+    [supabase, params.id]
   );
 
   const refreshTracking = React.useCallback(async () => {
@@ -298,7 +323,7 @@ export default function RideStatusPage() {
       {/* Bottom-sheet-style overlay — driver identity + actions read as
           floating on top of the map environment, not stacked below it in
           normal document flow. */}
-      <div className="relative z-10 mt-auto max-h-[70vh] overflow-y-auto rounded-t-2xl bg-surface shadow-lg">
+      <div className="relative z-10 mt-auto max-h-[70vh] overflow-y-auto rounded-sheet bg-surface shadow-lg">
         <span className="sticky top-0 mx-auto mt-2.5 block h-1 w-10 rounded-full bg-ink/15" aria-hidden="true" />
         <div className="px-6 pb-8 pt-3">
           <div className="h-1 w-full overflow-hidden rounded-full bg-ink/10">
@@ -318,7 +343,7 @@ export default function RideStatusPage() {
           </div>
 
           {loading ? (
-            <div className="mt-4 flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-sm">
+            <div className="mt-4 flex items-center gap-3 rounded-lg border border-border bg-surface p-4">
               <Skeleton className="h-12 w-12 shrink-0 rounded-full" />
               <div className="flex-1 space-y-2">
                 <Skeleton className="h-4 w-28" />
@@ -329,31 +354,41 @@ export default function RideStatusPage() {
             driver && (
               <DriverCard
                 className="mt-4"
-                name={driver.full_name ?? "Your driver"}
+                name={matchedContact?.fullName ?? "Your driver"}
                 rating={driver.rating}
                 vehicleLabel={VEHICLE_VISUALS[driver.vehicle_type].label}
-                plateNumber=""
+                plateNumber={matchedContact?.plateNumber ?? "—"}
+                verified={driver.verification_status === "approved"}
                 etaLabel={driverEtaLabel}
+                photoUrl={selfieUrl}
               />
             )
           )}
 
           {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
             <div className="mt-3 grid grid-cols-4 gap-2">
-              <a href={driver.phone ? `tel:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
-                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+              <a
+                href={matchedContact?.phone ? `tel:${matchedContact.phone}` : undefined}
+                aria-disabled={!matchedContact?.phone}
+                className={!matchedContact?.phone ? "pointer-events-none opacity-40" : undefined}
+              >
+                <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-surface py-3">
                   <Phone size={18} className="text-signal-blue" />
                   <span className="text-[11px] text-ink-soft">Call</span>
                 </div>
               </a>
-              <a href={driver.phone ? `sms:${driver.phone}` : undefined} aria-disabled={!driver.phone}>
-                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+              <a
+                href={matchedContact?.phone ? `sms:${matchedContact.phone}` : undefined}
+                aria-disabled={!matchedContact?.phone}
+                className={!matchedContact?.phone ? "pointer-events-none opacity-40" : undefined}
+              >
+                <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-surface py-3">
                   <MessageCircle size={18} className="text-signal-blue" />
                   <span className="text-[11px] text-ink-soft">Message</span>
                 </div>
               </a>
               <button type="button" onClick={openSafety} className="w-full">
-                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+                <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-surface py-3">
                   <SafetyIcon size={18} className="text-alert-red" />
                   <span className="text-[11px] text-ink-soft">Safety</span>
                 </div>
@@ -366,7 +401,7 @@ export default function RideStatusPage() {
                 }}
                 className="w-full"
               >
-                <div className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-surface py-3 shadow-sm">
+                <div className="flex flex-col items-center gap-1.5 rounded-lg border border-border bg-surface py-3">
                   <Share2 size={18} className="text-signal-blue" />
                   <span className="text-[11px] text-ink-soft">Share</span>
                 </div>
@@ -460,7 +495,7 @@ export default function RideStatusPage() {
           <motion.div
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className="w-full max-w-md rounded-2xl bg-surface p-6 shadow-lg"
+            className="w-full max-w-md rounded-lg bg-surface p-6 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

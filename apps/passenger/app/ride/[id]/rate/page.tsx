@@ -87,8 +87,8 @@ export default function RatePage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 20 }}
         >
-          <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-meter-green/10 text-meter-green">
-            <CheckCircle2 size={32} strokeWidth={1.8} />
+          <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-meter-green/10 text-meter-green">
+            <CheckCircle2 size={24} strokeWidth={1.8} />
           </span>
           <h1 className="mt-4 font-display text-xl font-semibold text-ink">Thanks for your feedback</h1>
           <div className="mt-4">
@@ -129,7 +129,7 @@ export default function RatePage() {
           {driverName ? `Rate your trip with ${driverName}` : "Rate your driver"}
         </p>
 
-        <div className="mt-8 rounded-2xl border border-border bg-surface px-6 py-8 shadow-sm">
+        <div className="mt-8 rounded-lg border border-border bg-surface px-6 py-8">
           <StarRating value={rating} onChange={setRating} size={40} />
         </div>
 

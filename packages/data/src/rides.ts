@@ -275,3 +275,44 @@ export async function selectRidePaymentMethod(
   if (error) throw error;
   return data as unknown as RideRow;
 }
+
+export interface MatchedDriverContact {
+  fullName: string | null;
+  phone: string | null;
+  plateNumber: string | null;
+}
+
+/**
+ * Calls get_matched_driver_contact() (migrations
+ * 20260827090000/20260827090100) — the sole path for a passenger to read
+ * their matched driver's name/phone/active-vehicle-plate. There is
+ * deliberately no general passenger-readable RLS policy on public.users or
+ * public.vehicles for another user's row; getDriverProfile()'s embed and a
+ * direct vehicles select both come back null/empty for a passenger caller
+ * for exactly that reason. Returns null fields (not an error) if the ride
+ * isn't the caller's own active ride — same "quiet null, not a thrown
+ * error" shape as getRideTracking().
+ */
+export async function getMatchedDriverContact(supabase: SupabaseClient, rideId: string): Promise<MatchedDriverContact> {
+  const { data, error } = await supabase.rpc("get_matched_driver_contact", { p_ride_id: rideId });
+  if (error) throw error;
+
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { full_name: string | null; phone: string | null; plate_number: string | null }
+    | undefined;
+  return { fullName: row?.full_name ?? null, phone: row?.phone ?? null, plateNumber: row?.plate_number ?? null };
+}
+
+/**
+ * Calls get_matched_driver_selfie_path() (migration
+ * 20260827090000_matched_driver_contact_access) — returns a Storage
+ * *path*, never a URL. The caller (a Route Handler; see
+ * apps/passenger/app/api/rides/[id]/driver-selfie/route.ts) is
+ * responsible for minting a short-lived signed URL server-side from this
+ * path. Never expose the raw path itself to a browser.
+ */
+export async function getMatchedDriverSelfiePath(supabase: SupabaseClient, rideId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_matched_driver_selfie_path", { p_ride_id: rideId });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}

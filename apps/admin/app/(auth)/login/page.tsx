@@ -40,10 +40,9 @@ function AdminLoginPageContent() {
 
   return (
     <main className="flex min-h-dvh flex-col lg:flex-row">
-      {/* Brand panel — desktop only. Establishes "professional ops tool"
-          identity before the form loads; the gradient is the sanctioned
-          brand gradient used sparingly elsewhere for hero/CTA surfaces. */}
-      <div className="relative hidden overflow-hidden bg-gradient-brand px-12 py-16 lg:flex lg:w-[45%] lg:flex-col lg:justify-between">
+      {/* Brand panel — desktop only. Flat ink-blue fill, not a gradient —
+          this is an internal ops tool, not a marketing hero surface. */}
+      <div className="hidden bg-ink-blue px-12 py-16 lg:flex lg:w-[45%] lg:flex-col lg:justify-between">
         <div>
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white">
             <ShieldCheck size={22} />
@@ -66,7 +65,7 @@ function AdminLoginPageContent() {
       <div className="flex flex-1 flex-col items-center justify-center bg-paper px-6 py-16">
         <div className="w-full max-w-sm">
           <div className="mb-8 flex items-center gap-2 lg:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-brand text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink-blue text-white">
               <ShieldCheck size={18} />
             </span>
             <div>
@@ -118,7 +117,7 @@ function AdminLoginPageContent() {
 
             {error && <p className="text-xs text-alert-red">{error}</p>}
 
-            <Button type="submit" variant="brand" className="mt-2 w-full" disabled={!isValid || submitting}>
+            <Button type="submit" variant="primary" className="mt-2 w-full" disabled={!isValid || submitting}>
               {submitting ? "Signing in…" : "Sign in"}
             </Button>
           </form>

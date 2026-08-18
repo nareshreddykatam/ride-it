@@ -109,7 +109,7 @@ function VerifyPageContent() {
           <p className="mt-2 text-sm text-ink-soft">
             Your Ride PIN is used to start your rides. Tell it only to your assigned driver when they arrive.
           </p>
-          <div className="mt-8 flex justify-center rounded-2xl border border-border bg-surface py-8 shadow-sm">
+          <div className="mt-8 flex justify-center rounded-lg border border-border bg-surface py-8">
             <MeterValue value={revealedPin} size="lg" />
           </div>
           <p className="mt-6 text-center text-xs text-ink-soft">

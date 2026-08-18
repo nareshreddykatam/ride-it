@@ -65,7 +65,7 @@ export function AdminSidebar() {
 
   return (
     <aside className="hidden h-dvh w-64 shrink-0 flex-col border-r border-border bg-ink-blue/[0.03] lg:flex">
-      <div className="relative overflow-hidden bg-gradient-brand px-5 py-5">
+      <div className="bg-ink-blue px-5 py-5">
         <p className="font-display text-lg font-medium text-white">Ride It</p>
         <p className="text-xs font-medium uppercase tracking-wide text-white/70">Admin Console</p>
       </div>
@@ -143,7 +143,7 @@ export function AdminMobileNav() {
   }
 
   return (
-    <header className="flex items-center justify-between bg-gradient-brand px-4 py-3 shadow-sm lg:hidden">
+    <header className="flex items-center justify-between border-b border-border bg-ink-blue px-4 py-3 lg:hidden">
       <div>
         <p className="font-display text-base font-medium text-white">Ride It</p>
         <p className="text-xs font-medium uppercase tracking-wide text-white/70">Admin Console</p>

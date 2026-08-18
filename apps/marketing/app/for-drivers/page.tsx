@@ -1,5 +1,5 @@
 import { CheckCircle2 } from "lucide-react";
-import { AutoIcon, Button, Card, MeterValue, StatusPill, WalletIcon } from "@ride-it/ui";
+import { Button, Card, MeterValue, StatusPill, WalletIcon } from "@ride-it/ui";
 
 const PLANS = [
   { plan: "Daily", amount: 49, blurb: "Try it out, pay day by day" },
@@ -11,17 +11,11 @@ const PLANS = [
 export default function ForDriversPage() {
   return (
     <main>
-      {/* Marigold/orange is a light-mid-tone background — dark ink text
-          keeps comfortable contrast here, unlike the dark gradient-hero
+      {/* Solid marigold — the pricing/earnings hue, flat fill. Dark ink
+          text keeps comfortable contrast here, unlike the dark hero band
           sections which use white text. */}
-      <section className="relative overflow-hidden bg-gradient-cta">
-        <AutoIcon
-          size={200}
-          strokeWidth={1}
-          className="pointer-events-none absolute -bottom-8 -right-8 text-ink/10"
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto max-w-5xl px-6 py-16 sm:py-20">
+      <section className="bg-marigold">
+        <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
           <span className="inline-flex items-center gap-2 rounded-full border border-ink/15 bg-ink/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink/80">
             <WalletIcon size={13} aria-hidden="true" />
             Flat subscription

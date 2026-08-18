@@ -52,7 +52,7 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand text-white shadow-brand">
+        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
           <DriverIcon size={24} aria-hidden="true" />
         </span>
         <p className="mt-4 font-display text-sm font-medium text-ink-blue">Ride It Driver</p>

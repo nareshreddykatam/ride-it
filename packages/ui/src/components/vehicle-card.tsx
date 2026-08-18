@@ -2,10 +2,9 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { cn } from "../lib/cn";
 import { MeterValue } from "./meter-value";
-import { StatusPill } from "./status-pill";
 import { VEHICLE_VISUALS, type VehicleKind } from "../icons/vehicle-icons";
 
 export interface VehicleCardProps {
@@ -24,9 +23,10 @@ export interface VehicleCardProps {
   className?: string;
   /**
    * "compact" — the dense row form (history lists, anywhere space is tight).
-   * "hero" — the large illustration-forward form Booking uses: a big
-   * vehicle-colored icon panel is the dominant visual element, not a small
-   * badge next to text. Default "compact" for backward compatibility.
+   * "hero" — Booking's row form: same list-row structure as "compact" but
+   * with a slightly larger icon and room for a sublabel/"Recommended" tag,
+   * matching a plain professional fare-comparison list — not a decorative
+   * illustration card. Default "compact" for backward compatibility.
    */
   size?: "compact" | "hero";
 }
@@ -63,61 +63,44 @@ export function VehicleCard({
         onClick={onSelect}
         className={cn("w-full text-left disabled:cursor-not-allowed disabled:opacity-50", className)}
       >
-        <motion.div
-          initial={false}
-          whileTap={disabled ? undefined : { scale: 0.985 }}
-          animate={{ y: selected ? -2 : 0 }}
-          transition={{ type: "spring", stiffness: 380, damping: 30 }}
-          style={{
-            borderColor: selected ? visual.colorVar : "var(--border)",
-            backgroundColor: selected ? visual.tintVar : "var(--surface)",
-          }}
+        <div
+          style={{ borderColor: selected ? visual.colorVar : "var(--border)" }}
           className={cn(
-            "relative overflow-hidden rounded-2xl border-2 p-4 transition-shadow",
-            selected ? "shadow-lg" : "shadow-sm"
+            "flex items-center gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors",
+            selected && "border-[1.5px]"
           )}
         >
           <span
-            className={cn(
-              "absolute right-3.5 top-3.5 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all",
-              selected ? "scale-100 opacity-100" : "scale-75 opacity-0"
-            )}
-            style={{ backgroundColor: visual.colorVar, borderColor: visual.colorVar }}
-            aria-hidden="true"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+            style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
           >
-            <Check size={13} strokeWidth={3} className="text-white" />
+            <Icon size={24} strokeWidth={1.8} />
           </span>
 
-          <div className="flex items-center gap-4">
-            <motion.span
-              animate={{ scale: selected ? 1.04 : 1 }}
-              transition={{ type: "spring", stiffness: 380, damping: 24 }}
-              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl"
-              style={{
-                backgroundColor: selected ? visual.colorVar : "color-mix(in srgb, var(--ink) 5%, transparent)",
-                color: selected ? "white" : visual.colorVar,
-              }}
-            >
-              <Icon size={52} strokeWidth={1.4} />
-            </motion.span>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="font-display text-lg font-semibold text-ink">{label ?? visual.label}</p>
-                <MeterValue value={fare} size="md" />
-              </div>
-              {sublabel && <p className="mt-0.5 text-xs text-ink-soft">{sublabel}</p>}
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-xs font-medium text-ink-soft">{etaLabel}</span>
-                {recommended && (
-                  <StatusPill tone="online" dot={false} className="text-[10px]">
-                    Recommended
-                  </StatusPill>
-                )}
-              </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <p className="font-display text-sm font-semibold text-ink">{label ?? visual.label}</p>
+              {recommended && <span className="text-[11px] font-medium text-meter-green-text">· Recommended</span>}
             </div>
+            {sublabel && <p className="text-xs text-ink-soft">{sublabel}</p>}
+            <p className="text-xs text-ink-soft">{etaLabel}</p>
           </div>
-        </motion.div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <MeterValue value={fare} size="sm" />
+            {selected ? (
+              <span
+                className="flex h-5 w-5 items-center justify-center rounded-full"
+                style={{ backgroundColor: visual.colorVar }}
+                aria-hidden="true"
+              >
+                <Check size={12} strokeWidth={3} className="text-white" />
+              </span>
+            ) : (
+              <ChevronRight size={16} className="text-ink-soft" aria-hidden="true" />
+            )}
+          </div>
+        </div>
       </button>
     );
   }

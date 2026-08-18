@@ -86,11 +86,11 @@ export default function DriverProfilePage() {
 
   return (
     <main className="flex-1 px-6 py-8">
-      {/* HEADER — large identity block: avatar/vehicle icon, online state,
-          verification and rating all up front, not buried in a list row. */}
+      {/* HEADER — plain bordered identity card: avatar/vehicle icon, name,
+          verification and rating. Normal surface, no filled gradient. */}
       {loading ? (
-        <div className="flex items-center gap-4 rounded-3xl bg-ink/5 p-6">
-          <Skeleton className="h-20 w-20 shrink-0 rounded-2xl" />
+        <div className="flex items-center gap-4 rounded-lg border border-border bg-surface p-5">
+          <Skeleton className="h-16 w-16 shrink-0 rounded-lg" />
           <div className="flex-1 space-y-2">
             <Skeleton className="h-5 w-32" />
             <Skeleton className="h-4 w-40" />
@@ -98,45 +98,49 @@ export default function DriverProfilePage() {
           </div>
         </div>
       ) : (
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-brand p-6 text-white shadow-lg">
-          <div className="flex items-center gap-4">
-            <span className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-              {vehicleVisuals ? (
-                React.createElement(vehicleVisuals.icon, { size: 40 })
-              ) : (
-                <DriverIcon size={36} aria-hidden="true" />
+        <div className="flex items-center gap-4 rounded-lg border border-border bg-surface p-5">
+          <span
+            className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-lg"
+            style={{
+              backgroundColor: vehicleVisuals?.tintVar ?? "var(--tint-blue)",
+              color: vehicleVisuals?.colorVar ?? "var(--signal-blue)",
+            }}
+          >
+            {vehicleVisuals ? (
+              React.createElement(vehicleVisuals.icon, { size: 28 })
+            ) : (
+              <DriverIcon size={26} aria-hidden="true" />
+            )}
+            {profile?.is_online && (
+              <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-surface bg-meter-green">
+                <PulseDot tone="green" size={5} className="[&_span]:bg-white" />
+              </span>
+            )}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-display text-lg font-semibold text-ink">
+              {profile?.full_name ?? "Ride It Driver"}
+            </p>
+            <p className="mt-0.5 text-sm text-ink-soft">
+              {profile?.phone ? `+91 ${profile.phone}` : ""}
+              {profile ? ` · ${VEHICLE_TYPE_LABELS_DB[profile.vehicle_type]}` : ""}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {profile && (
+                <StatusPill tone={VERIFICATION_TONE[profile.verification_status]}>
+                  {VERIFICATION_LABEL[profile.verification_status]}
+                </StatusPill>
               )}
+              <span className="flex items-center gap-1 text-xs text-ink-soft">
+                <Star size={12} className="fill-marigold text-marigold" aria-hidden="true" />
+                {(profile?.rating ?? 5).toFixed(1)}
+              </span>
               {profile?.is_online && (
-                <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full border-[3px] border-ink-blue bg-meter-green">
-                  <PulseDot tone="green" size={6} className="[&_span]:bg-white" />
+                <span className="flex items-center gap-1.5 text-xs font-medium text-meter-green-text">
+                  <PulseDot tone="green" size={5} />
+                  Online
                 </span>
               )}
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-display text-xl font-bold leading-tight">
-                {profile?.full_name ?? "Ride It Driver"}
-              </p>
-              <p className="mt-0.5 text-sm text-white/75">
-                {profile?.phone ? `+91 ${profile.phone}` : ""}
-                {profile ? ` · ${VEHICLE_TYPE_LABELS_DB[profile.vehicle_type]}` : ""}
-              </p>
-              <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                {profile && (
-                  <StatusPill tone={VERIFICATION_TONE[profile.verification_status]}>
-                    {VERIFICATION_LABEL[profile.verification_status]}
-                  </StatusPill>
-                )}
-                <span className="flex items-center gap-1 text-xs font-medium text-white/90">
-                  <Star size={12} className="fill-marigold text-marigold" aria-hidden="true" />
-                  {(profile?.rating ?? 5).toFixed(1)}
-                </span>
-                {profile?.is_online && (
-                  <span className="flex items-center gap-1.5 text-xs font-semibold text-white">
-                    <PulseDot tone="green" size={6} className="[&_span]:bg-white" />
-                    Online now
-                  </span>
-                )}
-              </div>
             </div>
           </div>
         </div>
@@ -189,7 +193,7 @@ export default function DriverProfilePage() {
       <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Account</p>
       <div className="grid grid-cols-2 gap-3">
         <Link href="/profile/edit">
-          <Card interactive className="flex h-28 flex-col justify-between rounded-2xl">
+          <Card interactive className="flex h-28 flex-col justify-between">
             <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
               <DriverIcon size={18} aria-hidden="true" />
             </span>
@@ -197,7 +201,7 @@ export default function DriverProfilePage() {
           </Card>
         </Link>
         <Link href="/profile/vehicle">
-          <Card interactive className="flex h-28 flex-col justify-between rounded-2xl">
+          <Card interactive className="flex h-28 flex-col justify-between">
             <span
               className="flex h-9 w-9 items-center justify-center rounded-lg"
               style={{
@@ -218,7 +222,7 @@ export default function DriverProfilePage() {
         <Card
           interactive
           accent={profile?.verification_status === "approved" ? "green" : "marigold"}
-          className="flex items-center justify-between gap-3 rounded-2xl"
+          className="flex items-center justify-between gap-3"
         >
           <span className="flex items-center gap-3">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-meter-green/10 text-meter-green-text">
@@ -239,7 +243,7 @@ export default function DriverProfilePage() {
           list, visually distinct from the tile grid and the status card
           above it. */}
       <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Earnings &amp; payments</p>
-      <Card className="rounded-2xl p-0">
+      <Card className="p-0">
         {(
           [
             { href: "/payment-settings", label: "Payment methods", icon: PaymentIcon, tone: "marigold" },
@@ -271,7 +275,7 @@ export default function DriverProfilePage() {
       {/* MORE — everything else, lowest visual priority. */}
       <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">More</p>
       <Link href="/notifications">
-        <Card interactive className="flex items-center justify-between gap-3 rounded-2xl">
+        <Card interactive className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-alert-red/10 text-alert-red-text">
               <Bell size={16} aria-hidden="true" />

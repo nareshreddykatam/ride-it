@@ -112,7 +112,7 @@ export default function SubscriptionPage() {
               <button key={p.plan} onClick={() => setSelected(p.plan)} aria-pressed={active} className="text-left">
                 <Card
                   tone={active ? "elevated" : "default"}
-                  className={active ? "rounded-2xl border-2 border-marigold" : "rounded-2xl border border-border"}
+                  className={active ? "rounded-lg border-2 border-marigold" : "rounded-lg border border-border"}
                 >
                   <div className="flex items-center justify-between">
                     <div>

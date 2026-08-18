@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { motion } from "framer-motion";
 import { Button, VehicleCard } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb } from "@ride-it/types";
 import { computeFareEstimate } from "@ride-it/utils";
@@ -126,7 +125,7 @@ function BookingPageContent() {
           drop={drop ?? undefined}
           routePolyline={routePolyline}
           fallbackVariant="route"
-          className="h-24 rounded-xl"
+          className="h-24 rounded-lg"
         />
       </div>
 
@@ -134,29 +133,23 @@ function BookingPageContent() {
         <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">To</p>
         <h1 className="mt-0.5 truncate font-display text-lg font-semibold text-ink">{destination}</h1>
 
-        <div className="mt-5 flex flex-col gap-3" role="radiogroup" aria-label="Vehicle type">
-          {estimates.map(({ type, estimate }, i) => {
+        <div className="mt-5 flex flex-col gap-2.5" role="radiogroup" aria-label="Vehicle type">
+          {estimates.map(({ type, estimate }) => {
             const meta = VEHICLE_META[type];
             const active = selected === type;
             return (
-              <motion.div
+              <VehicleCard
                 key={type}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.06, type: "spring", stiffness: 340, damping: 30 }}
-              >
-                <VehicleCard
-                  size="hero"
-                  type={vehicleTypeToDb(type)}
-                  label={meta.label}
-                  sublabel={meta.sublabel}
-                  fare={`₹${estimate.totalFare}`}
-                  etaLabel={`${meta.etaMinutes} min away · ${distanceKm.toFixed(1)} km`}
-                  selected={active}
-                  recommended={type === RECOMMENDED_TYPE}
-                  onSelect={() => setSelected(type)}
-                />
-              </motion.div>
+                size="hero"
+                type={vehicleTypeToDb(type)}
+                label={meta.label}
+                sublabel={meta.sublabel}
+                fare={`₹${estimate.totalFare}`}
+                etaLabel={`${meta.etaMinutes} min away · ${distanceKm.toFixed(1)} km`}
+                selected={active}
+                recommended={type === RECOMMENDED_TYPE}
+                onSelect={() => setSelected(type)}
+              />
             );
           })}
         </div>

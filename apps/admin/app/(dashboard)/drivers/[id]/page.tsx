@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Star } from "lucide-react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, LiveStatBand, RideIcon, Skeleton, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, LiveStatBand, PaymentIcon, RideIcon, Skeleton, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -375,11 +375,11 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
           status are the three things an admin needs at a glance before
           reading anything else, so they're grouped in one block instead of
           a plain title + a single pill in the corner. */}
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-lg border border-border bg-surface p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
           <span
             aria-hidden="true"
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-brand font-display text-lg font-medium text-white"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-ink-blue font-display text-base font-medium text-white"
           >
             {initialsOf(profile.full_name)}
           </span>
@@ -407,7 +407,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         eyebrow="Driver snapshot"
         items={[
           { label: "Rating", value: profile.rating > 0 ? profile.rating.toFixed(1) : "—", icon: Star, tone: "marigold" },
-          { label: "Subscription", value: subscription ? subscription.plan : "None", icon: WalletIcon, tone: "violet" },
+          { label: "Subscription", value: subscription ? subscription.plan : "None", icon: PaymentIcon, tone: "violet" },
           { label: "Completed rides", value: String(earnings?.totalRides ?? 0), icon: RideIcon, tone: "blue" },
           { label: "Total earnings", value: `₹${earnings?.totalEarnings ?? 0}`, icon: WalletIcon, tone: "green" },
         ]}

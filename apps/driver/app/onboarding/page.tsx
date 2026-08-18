@@ -156,7 +156,7 @@ export default function DriverOnboardingPage() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
           <div className="flex items-center gap-2">
             <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
-              <div className="h-full w-1/2 rounded-full bg-gradient-brand" />
+              <div className="h-full w-1/2 rounded-full bg-signal-blue" />
             </div>
             <p className="shrink-0 text-xs font-medium text-ink-soft">1 of 2</p>
           </div>
@@ -227,7 +227,7 @@ export default function DriverOnboardingPage() {
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
         <div className="flex items-center gap-2">
           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink/10">
-            <div className="h-full w-full rounded-full bg-gradient-brand" />
+            <div className="h-full w-full rounded-full bg-signal-blue" />
           </div>
           <p className="shrink-0 text-xs font-medium text-ink-soft">2 of 2</p>
         </div>

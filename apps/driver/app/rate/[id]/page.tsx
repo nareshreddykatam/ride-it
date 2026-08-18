@@ -122,7 +122,7 @@ export default function DriverRatePage() {
           {passengerName ? `Rate your trip with ${passengerName}` : "Rate your passenger"}
         </p>
 
-        <div className="mt-6 rounded-2xl border border-border bg-surface px-6 py-5 shadow-sm">
+        <div className="mt-6 rounded-lg border border-border bg-surface px-6 py-5 shadow-sm">
           <StarRating value={rating} onChange={setRating} size={40} />
         </div>
 

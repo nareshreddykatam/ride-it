@@ -1,5 +1,5 @@
 import * as React from "react";
-import { UserRound } from "lucide-react";
+import { UserRound, BadgeCheck } from "lucide-react";
 import { cn } from "../lib/cn";
 import { StarRating } from "./star-rating";
 
@@ -8,42 +8,49 @@ export interface DriverCardProps {
   rating: number;
   vehicleLabel: string;
   plateNumber: string;
+  verified?: boolean;
   etaLabel?: string;
   photoUrl?: string | null;
   className?: string;
 }
 
 /**
- * The driver-identity overlay on Active Ride — the one place a passenger
- * confirms "this is my driver" mid-trip. Deliberately dense: everything
- * that answers "is this the right car, and when do they arrive" in one
- * glance, no scrolling.
+ * The driver-identity card on Active Ride — the one place a passenger
+ * confirms "this is my driver" mid-trip. A real, recognizable portrait
+ * (the driver's own verified selfie, when one exists) is the point of
+ * this component; everything else is plain text around it, not
+ * decoration competing with it.
  */
-export function DriverCard({ name, rating, vehicleLabel, plateNumber, etaLabel, photoUrl, className }: DriverCardProps) {
+export function DriverCard({ name, rating, vehicleLabel, plateNumber, verified, etaLabel, photoUrl, className }: DriverCardProps) {
   return (
-    <div className={cn("flex items-center gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-lg", className)}>
-      <span className="flex h-12 w-12 shrink-0 overflow-hidden rounded-full bg-tint-blue text-signal-blue">
+    <div className={cn("flex items-center gap-3.5 rounded-lg border border-border bg-surface p-4", className)}>
+      <span className="flex h-16 w-16 shrink-0 overflow-hidden rounded-full border border-border bg-ink/5 text-ink-soft">
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+          <img src={photoUrl} alt={`${name}'s photo`} className="h-full w-full object-cover" />
         ) : (
-          <UserRound size={26} className="m-auto" strokeWidth={1.7} />
+          <UserRound size={30} className="m-auto" strokeWidth={1.6} />
         )}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-display text-sm font-semibold text-ink">{name}</p>
-        <div className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-soft">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate font-display text-base font-semibold text-ink">{name}</p>
           <StarRating value={rating} readOnly size={12} />
-          <span>{rating.toFixed(1)}</span>
-          <span aria-hidden="true">·</span>
-          <span className="truncate">
-            {vehicleLabel} · {plateNumber}
-          </span>
+          <span className="text-xs text-ink-soft">{rating.toFixed(1)}</span>
         </div>
+        {verified && (
+          <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-meter-green-text">
+            <BadgeCheck size={13} strokeWidth={2} /> Verified driver
+          </p>
+        )}
+        <p className="mt-0.5 truncate text-xs text-ink-soft">
+          {vehicleLabel} · {plateNumber}
+        </p>
       </div>
       {etaLabel && (
-        <div className="shrink-0 rounded-lg bg-meter-green/10 px-2.5 py-1.5 text-center">
-          <p className="font-meter text-sm font-semibold tabular-nums text-meter-green-text">{etaLabel}</p>
+        <div className="shrink-0 text-right">
+          <p className="font-meter text-sm font-semibold tabular-nums text-ink">{etaLabel}</p>
+          <p className="text-[11px] text-ink-soft">away</p>
         </div>
       )}
     </div>

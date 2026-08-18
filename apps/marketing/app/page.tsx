@@ -44,29 +44,13 @@ const STEPS = [
 export default function MarketingHomePage() {
   return (
     <main>
-      {/* Hero — large-type brand moment. Headline is the dominant visual
-          object on the page (not competing with a same-weight sidebar);
-          a huge linework Auto glyph bleeds off the edge as texture, not
-          a small icon accent. The fare-comparison proof card is pulled
-          up over the section boundary so the page doesn't read as
-          flatly stacked blocks. */}
-      <section className="relative overflow-hidden bg-gradient-hero">
-        <div
-          className="pointer-events-none absolute -right-24 -top-24 h-96 w-96 rounded-full bg-violet/20 blur-3xl"
-          aria-hidden="true"
-        />
-        <div
-          className="pointer-events-none absolute -bottom-32 left-1/3 h-80 w-80 rounded-full bg-signal-blue/20 blur-3xl"
-          aria-hidden="true"
-        />
-        <AutoIcon
-          size={620}
-          strokeWidth={0.6}
-          className="pointer-events-none absolute -right-32 top-1/2 hidden -translate-y-1/2 text-white/[0.07] sm:block lg:-right-16 lg:top-1/2"
-          aria-hidden="true"
-        />
-
-        <div className="relative mx-auto max-w-6xl px-6 pb-28 pt-16 sm:pb-36 sm:pt-24 lg:pt-28">
+      {/* Hero — large-type brand moment, no decorative graphics. A real
+          production ride-hailing site leans on typography and a solid
+          brand-blue field, not a floating icon or a gradient/blur wash.
+          The fare-comparison proof card is pulled up over the section
+          boundary so the page doesn't read as flatly stacked blocks. */}
+      <section className="bg-ink-blue">
+        <div className="mx-auto max-w-6xl px-6 pb-28 pt-16 sm:pb-36 sm:pt-24 lg:pt-28">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/90">
             <span className="h-1.5 w-1.5 rounded-full bg-marigold" aria-hidden="true" />
             Bike &amp; Auto rides
@@ -104,12 +88,6 @@ export default function MarketingHomePage() {
               </Button>
             </Link>
           </div>
-
-          <div className="pointer-events-none absolute bottom-10 right-6 hidden items-center gap-3 sm:right-10 sm:flex lg:right-16">
-            <span className="flex h-24 w-24 animate-float-y items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white backdrop-blur-sm lg:h-28 lg:w-28">
-              <BikeIcon size={52} strokeWidth={1.2} aria-hidden="true" />
-            </span>
-          </div>
         </div>
       </section>
 
@@ -131,14 +109,6 @@ export default function MarketingHomePage() {
               <h2 className="mt-3 max-w-xs font-display text-4xl font-medium leading-[1.05] text-ink sm:text-5xl">
                 From search to ride in four steps
               </h2>
-              <div className="mt-8 hidden gap-3 sm:flex">
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-marigold text-marigold-text">
-                  <AutoIcon size={26} aria-hidden="true" />
-                </span>
-                <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-tint-violet text-violet-text">
-                  <BikeIcon size={26} aria-hidden="true" />
-                </span>
-              </div>
             </div>
 
             <ol className="flex flex-col">
@@ -178,18 +148,12 @@ export default function MarketingHomePage() {
         </div>
       </section>
 
-      {/* Driver CTA — strong marigold banner, the pricing/earnings hue.
-          Text is dark ink, not white: marigold/orange is a light-mid-tone
-          background, so white text fails contrast here (unlike the dark
-          gradient-hero sections) — see DESIGN_SYSTEM contrast note. */}
-      <section className="relative overflow-hidden bg-gradient-cta">
-        <AutoIcon
-          size={280}
-          strokeWidth={0.8}
-          className="pointer-events-none absolute -bottom-14 -right-14 text-ink/10"
-          aria-hidden="true"
-        />
-        <div className="relative mx-auto flex max-w-6xl flex-col items-start gap-8 px-6 py-20 sm:flex-row sm:items-center sm:justify-between sm:py-28">
+      {/* Driver CTA — solid marigold banner, the pricing/earnings hue.
+          Flat fill, not a gradient or decorative icon: text is dark ink,
+          not white, since marigold is a light-mid-tone background and
+          white text fails contrast here (unlike the dark hero band). */}
+      <section className="bg-marigold">
+        <div className="mx-auto flex max-w-6xl flex-col items-start gap-8 px-6 py-20 sm:flex-row sm:items-center sm:justify-between sm:py-28">
           <div className="max-w-xl">
             <p className="font-meter text-xs font-medium uppercase tracking-wide text-ink/70">
               For drivers

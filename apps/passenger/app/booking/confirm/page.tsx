@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Pencil, Route, Clock3 } from "lucide-react";
+import { RefreshCw, Route, Clock3 } from "lucide-react";
 import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
@@ -130,14 +130,14 @@ function ConfirmBookingPageContent() {
           <h1 className="font-display text-xl font-semibold text-ink">Confirm your ride</h1>
 
           {resolvingLocations ? (
-            <Skeleton className="mt-3 h-32 w-full rounded-xl" />
+            <Skeleton className="mt-3 h-32 w-full rounded-lg" />
           ) : (
             <RideMap
               pickup={pickup}
               drop={drop}
               routePolyline={routePolyline}
               fallbackVariant="route"
-              className="mt-3 h-32 rounded-xl"
+              className="mt-3 h-32 rounded-lg"
             />
           )}
           {usedFallback && !resolvingLocations && (
@@ -147,7 +147,7 @@ function ConfirmBookingPageContent() {
           )}
 
           {/* WHERE */}
-          <div className="mt-4 rounded-2xl border border-border bg-surface p-4 shadow-sm">
+          <div className="mt-4 rounded-lg border border-border bg-surface p-4">
             <div className="flex items-start justify-between">
               <div className="flex gap-3">
                 <PinGlyph tone="pickup" size={18} className="mt-0.5 shrink-0" />
@@ -162,7 +162,7 @@ function ConfirmBookingPageContent() {
                 disabled={resolvingLocations}
                 className="flex items-center gap-1 text-xs text-signal-blue disabled:opacity-50"
               >
-                <Pencil size={12} /> {resolvingLocations ? "Locating…" : "Refresh"}
+                <RefreshCw size={12} /> {resolvingLocations ? "Locating…" : "Refresh"}
               </button>
             </div>
             <div className="my-3 ml-[9px] h-4 w-px border-l border-dashed border-border" />
@@ -179,14 +179,14 @@ function ConfirmBookingPageContent() {
 
           {/* HOW FAR / HOW LONG */}
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface px-4 py-3">
               <Route size={16} className="shrink-0 text-ink-soft" />
               <div>
                 <p className="font-meter text-sm font-semibold tabular-nums text-ink">{distanceKm.toFixed(1)} km</p>
                 <p className="text-[11px] text-ink-soft">Distance</p>
               </div>
             </div>
-            <div className="flex items-center gap-2.5 rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="flex items-center gap-2.5 rounded-lg border border-border bg-surface px-4 py-3">
               <Clock3 size={16} className="shrink-0 text-ink-soft" />
               <div>
                 <p className="font-meter text-sm font-semibold tabular-nums text-ink">{etaMinutes} min</p>
@@ -196,12 +196,12 @@ function ConfirmBookingPageContent() {
           </div>
 
           {/* WHICH VEHICLE */}
-          <div className="mt-3 flex items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 shadow-sm">
+          <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-3.5">
             <span
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
               style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
             >
-              <VehicleIcon size={22} strokeWidth={1.7} />
+              <VehicleIcon size={18} strokeWidth={1.8} />
             </span>
             <div>
               <p className="font-display text-sm font-semibold text-ink">{VEHICLE_TYPE_LABELS_DB[dbType]}</p>
@@ -209,19 +209,16 @@ function ConfirmBookingPageContent() {
             </div>
           </div>
 
-          {/* HOW MUCH — the single largest number on the screen. --ink is
-              locally overridden to white so MeterValue's mono digits (which
-              read the --ink token) render correctly on the gradient fill
-              without forking the shared component. */}
-          <div
-            className="mt-3 flex flex-col items-center rounded-2xl bg-gradient-brand px-4 py-6 text-center shadow-brand"
-            style={{ "--ink": "#ffffff" } as React.CSSProperties}
-          >
-            <p className="text-xs font-medium uppercase tracking-wide text-white/75">Total fare</p>
-            <div className="mt-1">
+          {/* HOW MUCH — the single largest number on the screen. A plain
+              surface card with a thin brand-colored top border, not a
+              filled gradient block — fare emphasis comes from type size
+              (MeterValue "lg"), not decoration. */}
+          <div className="mt-3 rounded-lg border border-t-2 border-border border-t-signal-blue bg-surface px-4 py-5 text-center">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">Total fare</p>
+            <div className="mt-1 flex justify-center">
               <MeterValue value={`₹${fare}`} size="lg" />
             </div>
-            <p className="mt-1 text-[11px] text-white/70">No surge pricing — flat base + distance fare.</p>
+            <p className="mt-1 text-[11px] text-ink-soft">No surge pricing — flat base + distance fare.</p>
           </div>
 
           <p className="mt-4 pb-4 text-center text-xs text-ink-soft">

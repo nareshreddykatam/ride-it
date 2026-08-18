@@ -107,10 +107,10 @@ export default function DriverVehiclePage() {
       <p className="mt-1 text-xs text-ink-soft">Changing your vehicle type may affect the rides you're matched to.</p>
 
       <div
-        className="mt-4 flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 shadow-sm"
+        className="mt-4 flex items-center gap-3.5 rounded-lg border border-border bg-surface p-4 shadow-sm"
       >
         <span
-          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl"
+          className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg"
           style={{ backgroundColor: visuals.tintVar, color: visuals.colorVar }}
         >
           <VehicleIcon size={32} />

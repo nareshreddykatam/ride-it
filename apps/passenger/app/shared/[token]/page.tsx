@@ -77,7 +77,7 @@ export default function SharedRidePage() {
         <p className="text-xs font-medium text-signal-blue">Shared by a Ride It passenger</p>
         <h1 className="mt-1 font-display text-xl font-semibold text-ink">Live ride status</h1>
 
-        <RideMap driverLocation={info.driverLocation} fallbackVariant="live" className="mt-4 h-48 rounded-2xl" />
+        <RideMap driverLocation={info.driverLocation} fallbackVariant="live" className="mt-4 h-48 rounded-lg" />
 
         <Card tone="elevated" className="mt-4">
           <div className="flex items-center justify-between">

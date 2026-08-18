@@ -183,7 +183,7 @@ function NavigationPageContent() {
       </div>
       {locationError && <p className="mt-1.5 text-xs text-alert-red">{LOCATION_ERROR_MESSAGE[locationError]}</p>}
 
-      <Card tone="elevated" className="relative z-10 -mt-6 rounded-2xl">
+      <Card tone="elevated" className="relative z-10 -mt-6">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="font-display text-base font-medium text-ink">Your passenger</p>

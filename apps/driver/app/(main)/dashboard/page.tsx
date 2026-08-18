@@ -193,7 +193,7 @@ export default function DashboardPage() {
       <main className="flex-1 px-6 py-8">
         <Skeleton className="h-4 w-32" />
         <Skeleton className="mt-4 h-14 w-48" />
-        <Skeleton className="mt-6 h-24 w-full rounded-2xl" />
+        <Skeleton className="mt-6 h-16 w-full rounded-lg" />
         <Skeleton className="mt-6 h-8 w-full rounded-lg" />
       </main>
     );

@@ -95,8 +95,8 @@ function MatchingPageContent() {
   if (noDriversFound) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-alert-red/10 text-alert-red">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-alert-red/10 text-alert-red">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="12" r="9" />
             <path d="M9 9l6 6M15 9l-6 6" />
           </svg>

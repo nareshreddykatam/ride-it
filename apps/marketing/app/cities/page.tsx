@@ -13,7 +13,7 @@ const UPCOMING_CITIES = [
 export default function CitiesPage() {
   return (
     <main>
-      <section className="bg-gradient-hero">
+      <section className="bg-ink-blue">
         <div className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <p className="font-meter text-xs font-medium uppercase tracking-wide text-white/80">
             Rolling out city by city

@@ -164,15 +164,15 @@ export default function RideCompletePage() {
         <motion.span
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className="flex h-14 w-14 items-center justify-center rounded-2xl bg-meter-green/10 text-meter-green"
+          transition={{ type: "spring", stiffness: 300, damping: 22 }}
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-meter-green/10 text-meter-green"
         >
-          <CheckCircle2 size={28} strokeWidth={1.8} />
+          <CheckCircle2 size={22} strokeWidth={1.8} />
         </motion.span>
-        <h1 className="mt-4 font-display text-2xl font-semibold text-ink">Ride completed</h1>
+        <h1 className="mt-3 font-display text-2xl font-semibold text-ink">Ride completed</h1>
         <p className="mt-1 text-sm text-ink-soft">Here&apos;s your fare breakdown.</p>
 
-        <Card tone="elevated" className="mt-6">
+        <Card className="mt-6">
           {loading || !ride ? (
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -221,7 +221,7 @@ export default function RideCompletePage() {
               >
                 <div
                   className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-xl border bg-surface py-4",
+                    "flex flex-col items-center gap-1.5 rounded-lg border bg-surface py-4",
                     active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
                   )}
                 >

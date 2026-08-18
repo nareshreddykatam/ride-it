@@ -52,10 +52,8 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <span className="inline-flex items-center rounded-full bg-gradient-brand px-3 py-1 font-display text-xs font-semibold text-white shadow-brand">
-          Ride It
-        </span>
-        <h1 className="mt-4 font-display text-4xl font-semibold leading-[1.05] tracking-tight text-ink">
+        <p className="font-display text-sm font-semibold text-signal-blue">Ride It</p>
+        <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink">
           Your ride.
           <br />
           Your way.

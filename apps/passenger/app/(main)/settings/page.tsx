@@ -45,7 +45,7 @@ export default function SettingsPage() {
 
       <div className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Notifications</p>
-        <div className="mt-2 divide-y divide-border rounded-2xl border border-border bg-surface px-4 shadow-sm">
+        <div className="mt-2 divide-y divide-border rounded-lg border border-border bg-surface px-4">
           <ToggleRow label="Ride status" description="Driver arrival, ride start, completion" checked={rideUpdates} onChange={setRideUpdates} />
           <ToggleRow label="Offers & promotions" checked={offers} onChange={setOffers} />
           <ToggleRow label="Payment confirmations" checked={paymentConfirm} onChange={setPaymentConfirm} />
@@ -62,7 +62,7 @@ export default function SettingsPage() {
               role="radio"
               aria-checked={defaultPayment === m}
               onClick={() => setDefaultPayment(m)}
-              className={`flex-1 rounded-xl border px-3 py-2.5 text-sm shadow-sm transition-colors ${
+              className={`flex-1 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
                 defaultPayment === m ? "border-2 border-signal-blue bg-tint-blue font-medium text-signal-blue" : "border-border bg-surface text-ink-soft"
               }`}
             >
@@ -74,7 +74,7 @@ export default function SettingsPage() {
 
       <div className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Language</p>
-        <div className="mt-2 rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-ink shadow-sm">
+        <div className="mt-2 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-ink">
           English
           <span className="ml-2 text-xs text-ink-soft">
             (only supported language — full list pending confirmation)

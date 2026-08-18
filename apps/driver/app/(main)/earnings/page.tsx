@@ -59,7 +59,7 @@ export default function EarningsPage() {
         ))}
       </div>
 
-      <Card tone="elevated" accent="marigold" className="mt-4 rounded-2xl">
+      <Card tone="elevated" accent="marigold" className="mt-4">
         <MeterValue value={`₹${total}`} label={`Total earned — ${rangeLabel.toLowerCase()}`} size="lg" />
         <p className="mt-2 text-xs text-ink-soft">{rides.length} rides completed</p>
       </Card>

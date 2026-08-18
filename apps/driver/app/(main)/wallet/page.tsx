@@ -42,17 +42,17 @@ export default function WalletPage() {
     <main className="flex-1 px-6 py-8">
       <h1 className="font-display text-2xl font-medium text-ink">Wallet</h1>
 
-      <Card tone="outline" className="mt-4 rounded-2xl border-0 bg-gradient-online text-white shadow-md">
-        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
+      <Card className="mt-4">
+        <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
           <WalletIcon size={20} aria-hidden="true" />
         </span>
         <div className="mt-3">
-          <MeterValue value={`₹${balance}`} label="Available balance" size="lg" className="[&_.text-ink]:text-white [&_.text-ink-soft]:text-white/70" />
+          <MeterValue value={`₹${balance}`} label="Available balance" size="lg" />
         </div>
         {/* Withdrawal requires a trusted server-side flow (wallet writes
             are service-role only, by design — see @ride-it/data/wallet.ts)
             not built this phase. Disabled rather than faking a working flow. */}
-        <Button variant="outline" className="mt-4 w-full border-white/40 bg-white/10 text-white hover:bg-white/20" disabled title="Bank withdrawal isn't available yet">
+        <Button variant="outline" className="mt-4 w-full" disabled title="Bank withdrawal isn't available yet">
           Withdraw to bank
         </Button>
       </Card>
@@ -69,7 +69,7 @@ export default function WalletPage() {
         )}
 
         {!loading && transactions.length > 0 && (
-          <div className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface px-4 shadow-sm">
+          <div className="flex flex-col divide-y divide-border rounded-lg border border-border bg-surface px-4 shadow-sm">
             {transactions.map((tx) => (
               <div key={tx.id} className="flex items-center gap-3 py-3">
                 <span

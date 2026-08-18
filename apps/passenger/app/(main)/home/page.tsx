@@ -3,7 +3,6 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 import { ArrowRight, Search, User, Clock, ChevronRight } from "lucide-react";
 import { PinGlyph, HomeIcon, OfficeIcon, FriendsIcon, AutoIcon, BikeIcon, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
@@ -28,8 +27,8 @@ const PLACE_ICONS: Record<string, typeof HomeIcon> = {
 };
 
 const QUICK_VEHICLES = [
-  { label: "Bike", icon: BikeIcon, color: "var(--violet)", tint: "var(--tint-violet)" },
-  { label: "Auto", icon: AutoIcon, color: "var(--marigold)", tint: "var(--tint-marigold)" },
+  { label: "Bike", icon: BikeIcon, color: "var(--violet)" },
+  { label: "Auto", icon: AutoIcon, color: "var(--marigold)" },
 ];
 
 export default function HomePage() {
@@ -77,13 +76,11 @@ export default function HomePage() {
           <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
           Vijayawada
         </div>
-        <Link href="/profile">
-          <motion.div
-            whileTap={{ scale: 0.94 }}
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-tint-blue text-signal-blue"
-          >
-            <User size={16} />
-          </motion.div>
+        <Link
+          href="/profile"
+          className="flex h-9 w-9 items-center justify-center rounded-full bg-tint-blue text-signal-blue"
+        >
+          <User size={16} />
         </Link>
       </div>
 
@@ -101,37 +98,31 @@ export default function HomePage() {
         </h1>
       </div>
 
-      {/* Hero booking card — clearly oversized vs. everything below it. */}
+      {/* Hero booking card — clearly the dominant element on the screen
+          via size and position, not via decoration (plain border, no
+          shadow/gradient/motion). */}
       <div className="px-6 pt-5">
-        <Link href="/search">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            whileTap={{ scale: 0.99 }}
-            transition={{ type: "spring", stiffness: 340, damping: 28 }}
-            className="overflow-hidden rounded-2xl border border-border bg-surface shadow-lg"
-          >
-            <div className="flex items-center gap-3.5 px-5 py-4">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center">
-                <PinGlyph tone="pickup" size={20} />
-              </span>
-              <div className="min-w-0">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Pickup</p>
-                <p className="truncate text-sm font-medium text-ink">Current location</p>
-              </div>
+        <Link href="/search" className="block overflow-hidden rounded-lg border border-border bg-surface">
+          <div className="flex items-center gap-3.5 px-5 py-4">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+              <PinGlyph tone="pickup" size={20} />
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Pickup</p>
+              <p className="truncate text-sm font-medium text-ink">Current location</p>
             </div>
-            <div className="mx-5 h-px bg-border" />
-            <div className="flex items-center gap-3.5 px-5 py-5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tint-blue text-signal-blue">
-                <Search size={16} />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Destination</p>
-                <p className="truncate font-display text-base font-semibold text-ink">Search destination</p>
-              </div>
-              <ArrowRight size={18} className="shrink-0 text-ink-soft" />
+          </div>
+          <div className="mx-5 h-px bg-border" />
+          <div className="flex items-center gap-3.5 px-5 py-5">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-tint-blue text-signal-blue">
+              <Search size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-ink-soft">Destination</p>
+              <p className="truncate font-display text-base font-semibold text-ink">Search destination</p>
             </div>
-          </motion.div>
+            <ArrowRight size={18} className="shrink-0 text-ink-soft" />
+          </div>
         </Link>
 
         {/* Vehicle quick-shortcuts — small chips, not competing cards. */}
@@ -140,7 +131,7 @@ export default function HomePage() {
             const Icon = v.icon;
             return (
               <Link key={v.label} href="/search" className="flex-1">
-                <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ backgroundColor: v.tint }}>
+                <div className="flex items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2">
                   <Icon size={16} strokeWidth={1.8} style={{ color: v.color }} />
                   <span className="text-xs font-medium text-ink">{v.label}</span>
                 </div>
@@ -182,20 +173,17 @@ export default function HomePage() {
         <div className="mt-5 px-6">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Recent</p>
           <div className="mt-1 flex flex-col">
-            {recentLocations.slice(0, 3).map((loc, i) => (
-              <motion.button
+            {recentLocations.slice(0, 3).map((loc) => (
+              <button
                 key={loc.id}
                 onClick={() => goToBooking(loc.address, loc.lat, loc.lng)}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.03 }}
                 className="flex items-center gap-3 py-2.5 text-left"
               >
                 <Clock size={14} className="shrink-0 text-ink-soft" />
                 <div className="min-w-0">
                   <p className="truncate text-sm text-ink">{loc.label ?? loc.address}</p>
                 </div>
-              </motion.button>
+              </button>
             ))}
           </div>
         </div>
@@ -203,7 +191,7 @@ export default function HomePage() {
 
       {/* Map — demoted to a small, secondary-weight preview, not the hero. */}
       <div className="mt-5 px-6">
-        <div className="h-24 overflow-hidden rounded-xl opacity-90">
+        <div className="h-24 overflow-hidden rounded-lg border border-border">
           <MockMap variant="static" className="h-full rounded-none border-0" />
         </div>
       </div>

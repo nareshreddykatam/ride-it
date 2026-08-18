@@ -82,7 +82,7 @@ function VerifyPageContent() {
   return (
     <main className="flex flex-1 flex-col justify-between px-6 py-10">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-tint-blue text-signal-blue">
+        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
           <SafetyIcon size={22} aria-hidden="true" />
         </span>
         <h1 className="mt-4 font-display text-2xl font-medium text-ink">Enter the code</h1>

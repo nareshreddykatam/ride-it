@@ -1,8 +1,7 @@
 import type { ElementType } from "react";
-import { Star } from "lucide-react";
+import { Radio, Star } from "lucide-react";
 import {
   AutoIcon,
-  BikeIcon,
   Card,
   DriverIcon,
   LocationIcon,
@@ -67,7 +66,7 @@ const DRIVER_STEPS: Step[] = [
   {
     title: "Go online",
     body: "Toggle online whenever you want to drive. Ride requests come to you.",
-    icon: DriverIcon,
+    icon: Radio,
     tint: "bg-tint-violet text-violet-text",
   },
   {
@@ -128,7 +127,7 @@ function StepGrid({ steps }: { steps: Step[] }) {
 export default function HowItWorksPage() {
   return (
     <main>
-      <section className="bg-gradient-hero">
+      <section className="bg-ink-blue">
         <div className="mx-auto max-w-6xl px-6 py-20 sm:py-28">
           <p className="font-meter text-xs font-medium uppercase tracking-wide text-white/80">
             The full picture
@@ -149,18 +148,9 @@ export default function HowItWorksPage() {
           <StepGrid steps={PASSENGER_STEPS} />
         </section>
 
-        {/* Non-textual full-width rhythm break between the two flows —
-            no new copy, just a graphic divider. */}
-        <div className="my-16 flex items-center justify-center gap-4" aria-hidden="true">
-          <span className="h-px flex-1 bg-border" />
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-tint-marigold text-marigold-text">
-            <AutoIcon size={20} />
-          </span>
-          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-tint-violet text-violet-text">
-            <BikeIcon size={20} />
-          </span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
+        {/* Plain rule as the rhythm break between the two flows — a
+            structural gap, not a decorative graphic. */}
+        <hr className="my-16 border-border" />
 
         <section>
           <h2 className="font-display text-2xl font-medium text-ink sm:text-3xl">For drivers</h2>
