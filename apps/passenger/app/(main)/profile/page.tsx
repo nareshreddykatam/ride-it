@@ -70,6 +70,7 @@ export default function PassengerProfilePage() {
     { href: "/profile/edit", label: "Personal details", hint: "Edit" },
     { href: "/saved-places", label: "Saved addresses", hint: "Manage" },
     { href: "/trusted-contacts", label: "Trusted contacts", hint: "Manage" },
+    { href: "/safety-center", label: "Safety Center", hint: "Open" },
     { href: "/notifications", label: "Notifications", hint: "Open" },
     { href: "/settings", label: "Settings", hint: "Open" },
   ];

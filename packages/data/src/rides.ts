@@ -316,3 +316,24 @@ export async function getMatchedDriverSelfiePath(supabase: SupabaseClient, rideI
   if (error) throw error;
   return (data as string | null) ?? null;
 }
+
+export interface MatchedPassengerContact {
+  fullName: string | null;
+  phone: string | null;
+}
+
+/**
+ * Calls get_matched_passenger_contact() (migration
+ * 20260829090100) — the driver-side mirror of getMatchedDriverContact().
+ * There is deliberately no general driver-readable RLS policy on
+ * public.users for another user's row; this narrow SECURITY DEFINER
+ * function is the sole path, scoped to the caller's own currently-assigned,
+ * non-terminal ride. Returns null fields (not an error) otherwise.
+ */
+export async function getMatchedPassengerContact(supabase: SupabaseClient, rideId: string): Promise<MatchedPassengerContact> {
+  const { data, error } = await supabase.rpc("get_matched_passenger_contact", { p_ride_id: rideId });
+  if (error) throw error;
+
+  const row = (Array.isArray(data) ? data[0] : data) as { full_name: string | null; phone: string | null } | undefined;
+  return { fullName: row?.full_name ?? null, phone: row?.phone ?? null };
+}

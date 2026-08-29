@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { TrustedContactRow } from "./types";
 
-const COLUMNS = "id, passenger_id, name, phone, relationship_label, is_active, created_at";
+const COLUMNS = "id, user_id, name, phone, relationship_label, is_active, created_at";
 
-/** Owner-only — trusted_contacts_all_own RLS (Phase 13). Excludes soft-deleted rows. */
-export async function listTrustedContacts(supabase: SupabaseClient, passengerId: string): Promise<TrustedContactRow[]> {
+/** Owner-only (passenger or driver) — trusted_contacts_all_own RLS. Excludes soft-deleted rows. */
+export async function listTrustedContacts(supabase: SupabaseClient, userId: string): Promise<TrustedContactRow[]> {
   const { data, error } = await supabase
     .from("trusted_contacts")
     .select(COLUMNS)
-    .eq("passenger_id", passengerId)
+    .eq("user_id", userId)
     .is("deleted_at", null)
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -21,15 +21,22 @@ export interface AddTrustedContactInput {
   relationshipLabel?: string;
 }
 
+/**
+ * Insert-time limit (max 5 active) and duplicate-phone check are enforced
+ * DB-side by trusted_contacts_enforce_limits() (BEFORE INSERT trigger) —
+ * this function surfaces whatever error that trigger raises rather than
+ * re-implementing the check client-side, so the invariant holds no matter
+ * which client calls it.
+ */
 export async function addTrustedContact(
   supabase: SupabaseClient,
-  passengerId: string,
+  userId: string,
   input: AddTrustedContactInput
 ): Promise<TrustedContactRow> {
   const { data, error } = await supabase
     .from("trusted_contacts")
     .insert({
-      passenger_id: passengerId,
+      user_id: userId,
       name: input.name,
       phone: input.phone,
       relationship_label: input.relationshipLabel ?? null,

@@ -2,31 +2,247 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Button, Card, CardHeader, CardTitle, EmptyState, SafetyIcon, Skeleton, StatusPill } from "@ride-it/ui";
+import {
+  Button,
+  Card,
+  CardHeader,
+  CardTitle,
+  ConfirmDialog,
+  EmptyState,
+  SafetyIcon,
+  Skeleton,
+  StatusPill,
+} from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   listSafetyEventsAdmin,
   setSafetyEventStatusAdmin,
+  listSafetyEventNotes,
+  addSafetyEventNote,
   listSupportTicketsAdmin,
   updateSupportTicketStatus,
   type AdminSafetyEventRow,
+  type AdminSafetyEventStatus,
+  type AdminSafetyEventSeverity,
+  type SafetyEventNoteRow,
   type SupportTicketRow,
 } from "@ride-it/data";
-import { LifeBuoy, ShieldAlert } from "lucide-react";
+import { LifeBuoy, ChevronDown, ChevronUp, ShieldAlert } from "lucide-react";
 
-const SAFETY_EVENT_TONE: Record<string, "pending" | "info" | "online" | "alert"> = {
+const SAFETY_EVENT_TONE: Record<AdminSafetyEventStatus, "pending" | "info" | "online" | "alert" | "offline"> = {
   open: "alert",
   acknowledged: "pending",
   investigating: "pending",
+  escalated: "alert",
   resolved: "online",
-  closed: "online",
+  closed: "offline",
+};
+
+const SEVERITY_TONE: Record<AdminSafetyEventSeverity, "offline" | "info" | "pending" | "alert"> = {
+  low: "offline",
+  medium: "info",
+  high: "pending",
+  critical: "alert",
 };
 
 const SAFETY_CATEGORIES = ["safety", "driver_issue", "passenger_issue", "inappropriate_review"];
 
 function formatDateTime(iso: string): string {
   return new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
+
+function shortId(id: string): string {
+  return id.slice(0, 8);
+}
+
+interface SafetyEventCardProps {
+  event: AdminSafetyEventRow;
+  onChanged: () => void;
+}
+
+function SafetyEventCard({ event, onChanged }: SafetyEventCardProps) {
+  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
+  const [busy, setBusy] = React.useState(false);
+  const [historyOpen, setHistoryOpen] = React.useState(false);
+  const [notes, setNotes] = React.useState<SafetyEventNoteRow[] | null>(null);
+  const [noteText, setNoteText] = React.useState("");
+  const [confirmAction, setConfirmAction] = React.useState<"resolved" | "closed" | null>(null);
+
+  async function loadHistory() {
+    setNotes(await listSafetyEventNotes(supabase, event.id));
+  }
+
+  async function toggleHistory() {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next && notes === null) await loadHistory();
+  }
+
+  async function transition(status: AdminSafetyEventStatus) {
+    setBusy(true);
+    try {
+      await setSafetyEventStatusAdmin(supabase, event.id, status);
+      if (historyOpen) await loadHistory();
+      onChanged();
+    } finally {
+      setBusy(false);
+      setConfirmAction(null);
+    }
+  }
+
+  async function submitNote() {
+    if (!noteText.trim()) return;
+    setBusy(true);
+    try {
+      await addSafetyEventNote(supabase, event.id, noteText.trim());
+      setNoteText("");
+      await loadHistory();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const isTerminal = event.status === "closed";
+
+  return (
+    <div className="py-3">
+      <div className="flex gap-3">
+        <span
+          className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
+            event.status === "open" || event.status === "escalated" ? "bg-alert-red/10 text-alert-red-text" : "bg-tint-blue text-signal-blue"
+          }`}
+          aria-hidden="true"
+        >
+          <ShieldAlert size={16} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-ink">
+                {event.user_name ?? "Unknown user"} <span className="text-ink-soft">({event.triggered_by_role})</span>
+              </p>
+              <p className="text-xs text-ink-soft">
+                #{shortId(event.id)} · {formatDateTime(event.created_at)} · {event.event_type}
+                {event.ride_id && (
+                  <>
+                    {" · "}
+                    <Link href={`/rides/${event.ride_id}`} className="text-signal-blue">
+                      View ride
+                    </Link>
+                    {event.ride_status && ` (${event.ride_status})`}
+                  </>
+                )}
+              </p>
+              <p className="mt-0.5 text-xs text-ink-soft">
+                {event.latitude != null && event.longitude != null
+                  ? `${event.latitude.toFixed(4)}, ${event.longitude.toFixed(4)}`
+                  : "Location unavailable"}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <StatusPill tone={SEVERITY_TONE[event.severity]}>{event.severity}</StatusPill>
+              <StatusPill tone={SAFETY_EVENT_TONE[event.status]}>{event.status}</StatusPill>
+            </div>
+          </div>
+
+          {!isTerminal && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {event.status === "open" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => transition("acknowledged")}>
+                  Acknowledge
+                </Button>
+              )}
+              {(event.status === "open" || event.status === "acknowledged") && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => transition("investigating")}>
+                  Investigating
+                </Button>
+              )}
+              {event.status !== "escalated" && (
+                <Button size="sm" variant="outline" disabled={busy} onClick={() => transition("escalated")}>
+                  Escalate
+                </Button>
+              )}
+              {event.status !== "resolved" && (
+                <Button size="sm" disabled={busy} onClick={() => setConfirmAction("resolved")}>
+                  Resolve
+                </Button>
+              )}
+            </div>
+          )}
+          {event.status === "resolved" && (
+            <div className="mt-2">
+              <Button size="sm" variant="outline" disabled={busy} onClick={() => setConfirmAction("closed")}>
+                Close
+              </Button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={toggleHistory}
+            className="mt-2 flex items-center gap-1 text-xs font-medium text-signal-blue"
+          >
+            {historyOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />} Notes &amp; history
+          </button>
+
+          {historyOpen && (
+            <div className="mt-2 rounded-lg border border-border bg-paper p-3">
+              {notes === null ? (
+                <Skeleton className="h-10 w-full" />
+              ) : notes.length === 0 ? (
+                <p className="text-xs text-ink-soft">No admin activity yet.</p>
+              ) : (
+                <ul className="flex flex-col gap-2">
+                  {notes.map((n) => (
+                    <li key={n.id} className="text-xs">
+                      <span className="font-medium text-ink">{n.admin_name ?? (n.admin_id ? "Admin" : "System")}</span>{" "}
+                      <span className="text-ink-soft">{formatDateTime(n.created_at)}</span>
+                      {n.status_transition_to && (
+                        <span className="ml-1.5 text-ink-soft">→ {n.status_transition_to}</span>
+                      )}
+                      {n.note && <p className="mt-0.5 text-ink">{n.note}</p>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!isTerminal && (
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                    placeholder="Add a note…"
+                    aria-label="Add a note"
+                    className="h-8 flex-1 rounded-lg border border-border bg-surface px-2.5 text-xs text-ink outline-none focus:border-signal-blue"
+                  />
+                  <Button size="sm" variant="outline" disabled={busy || !noteText.trim()} onClick={submitNote}>
+                    Add
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmAction !== null}
+        onOpenChange={(open) => !open && setConfirmAction(null)}
+        title={confirmAction === "closed" ? "Close this safety event?" : "Resolve this safety event?"}
+        description={
+          confirmAction === "closed"
+            ? "Closing is final — a closed event can no longer be modified."
+            : "This marks the event handled. You can still close it out afterward."
+        }
+        confirmLabel={confirmAction === "closed" ? "Close event" : "Resolve"}
+        tone={confirmAction === "closed" ? "destructive" : "default"}
+        loading={busy}
+        onConfirm={async () => {
+          if (confirmAction) await transition(confirmAction);
+        }}
+      />
+    </div>
+  );
 }
 
 export default function SafetyDashboardPage() {
@@ -51,16 +267,6 @@ export default function SafetyDashboardPage() {
     if (!user) return;
     refresh().finally(() => setLoading(false));
   }, [user, refresh]);
-
-  async function handleEventStatus(eventId: string, status: "acknowledged" | "investigating" | "resolved" | "closed") {
-    setBusy(eventId);
-    try {
-      await setSafetyEventStatusAdmin(supabase, eventId, status);
-      await refresh();
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function handleTicketResolve(ticketId: string) {
     setBusy(ticketId);
@@ -88,7 +294,7 @@ export default function SafetyDashboardPage() {
       </div>
 
       <div className="mt-4 flex flex-wrap gap-1.5" role="tablist" aria-label="Filter by event status">
-        {["open", "acknowledged", "investigating", "resolved", "all"].map((s) => (
+        {["open", "acknowledged", "investigating", "escalated", "resolved", "all"].map((s) => (
           <button
             key={s}
             type="button"
@@ -115,53 +321,7 @@ export default function SafetyDashboardPage() {
         ) : (
           <div className="flex flex-col divide-y divide-border">
             {events.map((e) => (
-              <div key={e.id} className="flex gap-3 py-3">
-                <span
-                  className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${
-                    e.status === "open" ? "bg-alert-red/10 text-alert-red-text" : "bg-tint-blue text-signal-blue"
-                  }`}
-                  aria-hidden="true"
-                >
-                  <ShieldAlert size={16} />
-                </span>
-                <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-ink">
-                      {e.user_name ?? "Unknown user"} <span className="text-ink-soft">({e.triggered_by_role})</span>
-                    </p>
-                    <p className="text-xs text-ink-soft">
-                      {formatDateTime(e.created_at)}
-                      {e.ride_id && (
-                        <>
-                          {" · "}
-                          <Link href={`/rides/${e.ride_id}`} className="text-signal-blue">
-                            View ride
-                          </Link>
-                        </>
-                      )}
-                      {e.latitude != null && e.longitude != null && ` · ${e.latitude.toFixed(4)}, ${e.longitude.toFixed(4)}`}
-                    </p>
-                  </div>
-                  <StatusPill tone={SAFETY_EVENT_TONE[e.status] ?? "info"}>{e.status}</StatusPill>
-                </div>
-                {e.status !== "resolved" && e.status !== "closed" && (
-                  <div className="mt-2 flex gap-2">
-                    {e.status === "open" && (
-                      <Button size="sm" variant="outline" disabled={busy === e.id} onClick={() => handleEventStatus(e.id, "acknowledged")}>
-                        Acknowledge
-                      </Button>
-                    )}
-                    <Button size="sm" variant="outline" disabled={busy === e.id} onClick={() => handleEventStatus(e.id, "investigating")}>
-                      Investigating
-                    </Button>
-                    <Button size="sm" disabled={busy === e.id} onClick={() => handleEventStatus(e.id, "resolved")}>
-                      Resolve
-                    </Button>
-                  </div>
-                )}
-                </div>
-              </div>
+              <SafetyEventCard key={e.id} event={e} onChanged={refresh} />
             ))}
           </div>
         )}

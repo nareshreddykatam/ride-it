@@ -275,6 +275,17 @@ export default function DriverProfilePage() {
 
       {/* MORE — everything else, lowest visual priority. */}
       <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">More</p>
+      <Link href="/safety-center">
+        <Card interactive className="mb-2.5 flex items-center justify-between gap-3">
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-alert-red/10 text-alert-red-text">
+              <SafetyIcon size={16} aria-hidden="true" />
+            </span>
+            <span className="text-sm text-ink">Safety Center</span>
+          </span>
+          <ChevronRight size={14} className="text-ink-soft" aria-hidden="true" />
+        </Card>
+      </Link>
       <Link href="/notifications">
         <Card interactive className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-3">

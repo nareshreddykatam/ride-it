@@ -574,13 +574,19 @@ export async function listSupportTicketsAdmin(
   return (data ?? []) as unknown as SupportTicketRow[];
 }
 
+export type AdminSafetyEventStatus = "open" | "acknowledged" | "investigating" | "escalated" | "resolved" | "closed";
+export type AdminSafetyEventSeverity = "low" | "medium" | "high" | "critical";
+
 export interface AdminSafetyEventRow {
   id: string;
   user_id: string;
   user_name: string | null;
   triggered_by_role: string;
   ride_id: string | null;
-  status: string;
+  ride_status: string | null;
+  status: AdminSafetyEventStatus;
+  severity: AdminSafetyEventSeverity;
+  event_type: string;
   latitude: number | null;
   longitude: number | null;
   note: string | null;
@@ -597,7 +603,7 @@ export async function listSafetyEventsAdmin(
   let query = supabase
     .from("safety_events")
     .select(
-      "id, user_id, triggered_by_role, ride_id, status, latitude, longitude, note, created_at, acknowledged_at, resolved_at, users:user_id(full_name)"
+      "id, user_id, triggered_by_role, ride_id, status, severity, event_type, latitude, longitude, note, created_at, acknowledged_at, resolved_at, users:user_id(full_name), rides:ride_id(status)"
     )
     .order("created_at", { ascending: false });
   if (filters.status) query = query.eq("status", filters.status);
@@ -606,27 +612,31 @@ export async function listSafetyEventsAdmin(
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as Array<
-    Omit<AdminSafetyEventRow, "user_name"> & {
+    Omit<AdminSafetyEventRow, "user_name" | "ride_status"> & {
       users: { full_name: string | null } | Array<{ full_name: string | null }>;
+      rides: { status: string } | Array<{ status: string }> | null;
     }
   >;
   return rows.map((r) => {
     const u = Array.isArray(r.users) ? r.users[0] : r.users;
-    return { ...r, user_name: u?.full_name ?? null };
+    const ride = Array.isArray(r.rides) ? r.rides[0] : r.rides;
+    return { ...r, user_name: u?.full_name ?? null, ride_status: ride?.status ?? null };
   });
 }
 
-/** Admin-only status transition — calls set_safety_event_status(), which independently re-checks is_admin() itself. */
+/** Admin-only status/severity transition — calls set_safety_event_status(), which independently re-checks is_admin() itself and appends a safety_event_notes audit-trail row on every call. */
 export async function setSafetyEventStatusAdmin(
   supabase: SupabaseClient,
   eventId: string,
-  status: "open" | "acknowledged" | "investigating" | "resolved" | "closed",
-  note?: string
+  status: AdminSafetyEventStatus,
+  note?: string,
+  severity?: AdminSafetyEventSeverity
 ): Promise<void> {
   const { error } = await supabase.rpc("set_safety_event_status", {
     p_event_id: eventId,
     p_status: status,
     p_note: note ?? null,
+    p_severity: severity ?? null,
   });
   if (error) throw error;
 }

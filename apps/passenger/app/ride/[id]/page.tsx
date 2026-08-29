@@ -4,8 +4,22 @@ import * as React from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, Banknote, CheckCircle2, CreditCard, Phone, MessageCircle, Share2, ShieldAlert, Smartphone, Users, Flag, X } from "lucide-react";
-import { Button, Card, DriverCard, MeterValue, Skeleton, StatusPill, cn, VEHICLE_VISUALS, SafetyIcon } from "@ride-it/ui";
+import {
+  AlertTriangle,
+  Banknote,
+  CheckCircle2,
+  CreditCard,
+  MapPinOff,
+  Phone,
+  MessageCircle,
+  Share2,
+  ShieldAlert,
+  Smartphone,
+  Users,
+  Flag,
+  X,
+} from "lucide-react";
+import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, cn, VEHICLE_VISUALS, SafetyIcon } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getRide,
@@ -20,7 +34,7 @@ import {
 } from "@ride-it/data";
 import { getDriverProfile, type DriverProfileRow } from "@ride-it/data";
 import { getRideTracking, subscribeToDriverLocationChanges, type RideTrackingInfo } from "@ride-it/data";
-import { triggerSos, getAppSettingValue, createReport } from "@ride-it/data";
+import { triggerSos, getAppSettingValue, createReport, PASSENGER_REPORT_REASONS } from "@ride-it/data";
 import { createRideShare, listTrustedContacts, type TrustedContactRow } from "@ride-it/data";
 import { useAuth } from "@ride-it/auth";
 import { RideMap, LOCATION_CONFIG, getCurrentPositionOnce } from "@ride-it/maps";
@@ -73,8 +87,11 @@ export default function RideStatusPage() {
   const [sharingWith, setSharingWith] = React.useState<string | null>(null);
   const [shareLink, setShareLink] = React.useState<string | null>(null);
   const [sharing, setSharing] = React.useState(false);
+  const [sosLocationAvailable, setSosLocationAvailable] = React.useState<boolean | null>(null);
+  const [reportReason, setReportReason] = React.useState(PASSENGER_REPORT_REASONS[0].value);
   const [reportDescription, setReportDescription] = React.useState("");
   const [submittingReport, setSubmittingReport] = React.useState(false);
+  const sosPositionRef = React.useRef<{ lat: number; lng: number } | null>(null);
 
   const loadDriver = React.useCallback(
     async (driverId: string) => {
@@ -217,12 +234,26 @@ export default function RideStatusPage() {
   function openSafety() {
     setSafetyView("menu");
     setSafetyOpen(true);
+    setSosLocationAvailable(null);
+    setReportReason(PASSENGER_REPORT_REASONS[0].value);
+    setReportDescription("");
+  }
+
+  async function openSosConfirm() {
+    setSafetyView("sos_confirm");
+    setSosLocationAvailable(null);
+    // Resolved once here (not re-requested at confirm time) so the
+    // confirmation screen can honestly show whether a location will be
+    // attached before the passenger commits — never fabricated if it fails.
+    const pos = await getCurrentPositionOnce();
+    sosPositionRef.current = pos;
+    setSosLocationAvailable(pos !== null);
   }
 
   async function handleConfirmSos() {
     setTriggeringSos(true);
     try {
-      const pos = await getCurrentPositionOnce();
+      const pos = sosPositionRef.current;
       await triggerSos(supabase, {
         rideId: params.id,
         lat: pos?.lat,
@@ -261,11 +292,12 @@ export default function RideStatusPage() {
     if (!user || !ride || !reportDescription.trim()) return;
     setSubmittingReport(true);
     try {
+      const reason = PASSENGER_REPORT_REASONS.find((r) => r.value === reportReason) ?? PASSENGER_REPORT_REASONS[0];
       await createReport(supabase, {
         userId: user.id,
         rideId: params.id,
-        category: "driver_issue",
-        subject: "Driver reported by passenger",
+        category: reason.category,
+        subject: `Driver reported: ${reason.label}`,
         description: reportDescription.trim(),
         reportedUserId: ride.driver_id ?? undefined,
       });
@@ -485,35 +517,24 @@ export default function RideStatusPage() {
         </div>
       </div>
 
-      {safetyOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 px-6 pb-8"
-          onClick={() => setSafetyOpen(false)}
-        >
-          <motion.div
-            initial={{ y: 40, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="w-full max-w-md rounded-lg bg-surface p-6 shadow-lg"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <p className="font-display text-lg font-medium text-ink">
-                {safetyView === "menu" && "Safety"}
-                {safetyView === "sos_confirm" && "Confirm SOS"}
-                {safetyView === "sos_done" && "SOS recorded"}
-                {safetyView === "share" && "Share this ride"}
-                {safetyView === "report" && "Report an issue"}
-              </p>
-              <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="-m-2.5 p-2.5 text-ink-soft">
-                <X size={18} />
-              </button>
-            </div>
+      <BottomSheet open={safetyOpen} onOpenChange={setSafetyOpen}>
+        <>
+          <div className="flex items-center justify-between">
+            <p className="font-display text-lg font-medium text-ink">
+              {safetyView === "menu" && "Safety"}
+              {safetyView === "sos_confirm" && "Confirm SOS"}
+              {safetyView === "sos_done" && "SOS recorded"}
+              {safetyView === "share" && "Share this ride"}
+              {safetyView === "report" && "Report an issue"}
+            </p>
+            <button onClick={() => setSafetyOpen(false)} aria-label="Close" className="-m-2.5 p-2.5 text-ink-soft">
+              <X size={18} />
+            </button>
+          </div>
 
             {safetyView === "menu" && (
               <div className="mt-4 flex flex-col gap-2">
-                <Button variant="destructive" className="w-full justify-start" onClick={() => setSafetyView("sos_confirm")}>
+                <Button variant="destructive" className="w-full justify-start" onClick={openSosConfirm}>
                   <AlertTriangle size={16} className="mr-2" /> SOS / Emergency
                 </Button>
                 <Button variant="outline" className="w-full justify-start" onClick={openShare}>
@@ -539,11 +560,26 @@ export default function RideStatusPage() {
 
             {safetyView === "sos_confirm" && (
               <div className="mt-2 text-center">
-                <AlertTriangle size={28} className="mx-auto text-alert-red" />
+                <AlertTriangle size={28} className="mx-auto text-alert-red" aria-hidden="true" />
                 <p className="mt-3 text-sm text-ink">
                   This will record a safety event with our team and your approximate location. Only confirm if you
                   need help.
                 </p>
+                <div
+                  className="mt-3 flex items-center justify-center gap-1.5 text-xs font-medium"
+                  role="status"
+                  aria-live="polite"
+                >
+                  {sosLocationAvailable === null && <span className="text-ink-soft">Checking your location…</span>}
+                  {sosLocationAvailable === true && (
+                    <span className="text-meter-green-text">Your current location will be attached.</span>
+                  )}
+                  {sosLocationAvailable === false && (
+                    <span className="flex items-center gap-1.5 text-marigold-text">
+                      <MapPinOff size={14} aria-hidden="true" /> Location unavailable — the event will still be recorded.
+                    </span>
+                  )}
+                </div>
                 <div className="mt-4 flex gap-2">
                   <Button variant="outline" className="flex-1" onClick={() => setSafetyView("menu")}>
                     Cancel
@@ -627,22 +663,29 @@ export default function RideStatusPage() {
             )}
 
             {safetyView === "report" && (
-              <div className="mt-3">
+              <div className="mt-3 flex flex-col gap-3">
+                <Select label="What's the issue?" size="sm" value={reportReason} onChange={(e) => setReportReason(e.target.value)}>
+                  {PASSENGER_REPORT_REASONS.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
+                </Select>
                 <textarea
                   value={reportDescription}
                   onChange={(e) => setReportDescription(e.target.value)}
                   placeholder="What happened?"
                   rows={3}
+                  aria-label="Description"
                   className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
                 />
-                <Button className="mt-3 w-full" disabled={!reportDescription.trim() || submittingReport} onClick={handleSubmitReport}>
+                <Button disabled={!reportDescription.trim() || submittingReport} onClick={handleSubmitReport}>
                   {submittingReport ? "Submitting…" : "Submit report"}
                 </Button>
               </div>
             )}
-          </motion.div>
-        </motion.div>
-      )}
+        </>
+      </BottomSheet>
     </main>
   );
 }

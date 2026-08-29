@@ -168,7 +168,7 @@ export type NotificationTypeRow =
 
 export interface TrustedContactRow {
   id: string;
-  passenger_id: string;
+  user_id: string;
   name: string;
   phone: string;
   relationship_label: string | null;
@@ -176,7 +176,8 @@ export interface TrustedContactRow {
   created_at: string;
 }
 
-export type SafetyEventStatusRow = "open" | "acknowledged" | "investigating" | "resolved" | "closed";
+export type SafetyEventStatusRow = "open" | "acknowledged" | "investigating" | "escalated" | "resolved" | "closed";
+export type SafetyEventSeverityRow = "low" | "medium" | "high" | "critical";
 
 export interface SafetyEventRow {
   id: string;
@@ -184,11 +185,23 @@ export interface SafetyEventRow {
   triggered_by_role: "passenger" | "driver" | "admin";
   ride_id: string | null;
   status: SafetyEventStatusRow;
+  severity: SafetyEventSeverityRow;
+  event_type: string;
   latitude: number | null;
   longitude: number | null;
   note: string | null;
   acknowledged_at: string | null;
   resolved_at: string | null;
+  created_at: string;
+}
+
+export interface SafetyEventNoteRow {
+  id: string;
+  safety_event_id: string;
+  admin_id: string | null;
+  admin_name: string | null;
+  note: string | null;
+  status_transition_to: SafetyEventStatusRow | null;
   created_at: string;
 }
 

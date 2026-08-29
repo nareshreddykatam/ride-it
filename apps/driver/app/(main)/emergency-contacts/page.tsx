@@ -2,26 +2,18 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronLeft, Pencil, Trash2, UserPlus, Users } from "lucide-react";
+import { ChevronLeft, Trash2, UserPlus, Users } from "lucide-react";
 import { BottomSheet, Button, Card, EmptyState, Input, SkeletonRow } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import {
-  listTrustedContacts,
-  addTrustedContact,
-  updateTrustedContact,
-  removeTrustedContact,
-  errorMessage,
-  type TrustedContactRow,
-} from "@ride-it/data";
+import { listTrustedContacts, addTrustedContact, removeTrustedContact, errorMessage, type TrustedContactRow } from "@ride-it/data";
 
-export default function TrustedContactsPage() {
+export default function EmergencyContactsPage() {
   const { user } = useAuth();
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [contacts, setContacts] = React.useState<TrustedContactRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [sheetOpen, setSheetOpen] = React.useState(false);
-  const [editingId, setEditingId] = React.useState<string | null>(null);
   const [name, setName] = React.useState("");
   const [phone, setPhone] = React.useState("");
   const [relationship, setRelationship] = React.useState("");
@@ -37,42 +29,19 @@ export default function TrustedContactsPage() {
     refresh().finally(() => setLoading(false));
   }, [refresh]);
 
-  function openAdd() {
-    setEditingId(null);
-    setName("");
-    setPhone("");
-    setRelationship("");
-    setError(null);
-    setSheetOpen(true);
-  }
-
-  function openEdit(c: TrustedContactRow) {
-    setEditingId(c.id);
-    setName(c.name);
-    setPhone(c.phone);
-    setRelationship(c.relationship_label ?? "");
-    setError(null);
-    setSheetOpen(true);
-  }
-
-  async function handleSave() {
+  async function handleAdd() {
     if (!user || !name.trim() || !phone.trim()) return;
     setSaving(true);
     setError(null);
     try {
-      if (editingId) {
-        await updateTrustedContact(supabase, editingId, {
-          name: name.trim(),
-          phone: phone.trim(),
-          relationshipLabel: relationship.trim() || undefined,
-        });
-      } else {
-        await addTrustedContact(supabase, user.id, {
-          name: name.trim(),
-          phone: phone.trim(),
-          relationshipLabel: relationship.trim() || undefined,
-        });
-      }
+      await addTrustedContact(supabase, user.id, {
+        name: name.trim(),
+        phone: phone.trim(),
+        relationshipLabel: relationship.trim() || undefined,
+      });
+      setName("");
+      setPhone("");
+      setRelationship("");
       setSheetOpen(false);
       await refresh();
     } catch (e) {
@@ -81,7 +50,7 @@ export default function TrustedContactsPage() {
       // rather than a generic failure. Not `e instanceof Error`: a
       // rejected Postgrest/RPC call throws a plain
       // {code, details, hint, message} object, not an Error instance.
-      setError(errorMessage(e) ?? "Couldn't save contact. Try again.");
+      setError(errorMessage(e) ?? "Couldn't add contact. Try again.");
     } finally {
       setSaving(false);
     }
@@ -99,14 +68,21 @@ export default function TrustedContactsPage() {
           <Link href="/profile" aria-label="Back" className="-m-2.5 p-2.5 text-ink-soft">
             <ChevronLeft size={20} />
           </Link>
-          <h1 className="font-display text-2xl font-semibold text-ink">Trusted Contacts</h1>
+          <h1 className="font-display text-2xl font-semibold text-ink">Emergency Contacts</h1>
         </div>
-        <button onClick={openAdd} aria-label="Add trusted contact" className="-m-2.5 p-2.5 text-signal-blue">
+        <button
+          onClick={() => {
+            setError(null);
+            setSheetOpen(true);
+          }}
+          aria-label="Add emergency contact"
+          className="-m-2.5 p-2.5 text-signal-blue"
+        >
           <UserPlus size={22} />
         </button>
       </div>
       <p className="mt-1 text-sm text-ink-soft">
-        People you can share an active ride with, and who Ride It may notify context about during an SOS. Up to 5 contacts.
+        People Ride It may share context with during an SOS. Up to 5 contacts.
       </p>
 
       <div className="mt-4 flex flex-col gap-3">
@@ -115,8 +91,8 @@ export default function TrustedContactsPage() {
         {!loading && contacts.length === 0 && (
           <EmptyState
             icon={<Users size={20} />}
-            title="No trusted contacts yet"
-            description="Add someone you'd want to share a ride with or reach in an emergency."
+            title="No emergency contacts yet"
+            description="Add someone you'd want Ride It to reach in an emergency."
           />
         )}
 
@@ -135,20 +111,15 @@ export default function TrustedContactsPage() {
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => openEdit(c)} aria-label={`Edit ${c.name}`} className="-m-2.5 p-2.5 text-ink-soft">
-                  <Pencil size={15} />
-                </button>
-                <button onClick={() => handleRemove(c.id)} aria-label={`Remove ${c.name}`} className="-m-2.5 p-2.5 text-alert-red">
-                  <Trash2 size={16} />
-                </button>
-              </div>
+              <button onClick={() => handleRemove(c.id)} aria-label={`Remove ${c.name}`} className="-m-2.5 p-2.5 text-alert-red">
+                <Trash2 size={16} />
+              </button>
             </Card>
           ))}
       </div>
 
       <BottomSheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <p className="text-sm font-medium text-ink">{editingId ? "Edit trusted contact" : "Add trusted contact"}</p>
+        <p className="text-sm font-medium text-ink">Add emergency contact</p>
         <div className="mt-3 flex flex-col gap-3">
           <Input size="sm" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
           <Input
@@ -165,8 +136,8 @@ export default function TrustedContactsPage() {
             placeholder="Relationship (optional) — e.g. Parent, Spouse"
           />
           {error && <p className="text-xs font-medium text-alert-red">{error}</p>}
-          <Button disabled={!name.trim() || phone.trim().length < 10 || saving} onClick={handleSave}>
-            {saving ? "Saving…" : editingId ? "Save changes" : "Add contact"}
+          <Button disabled={!name.trim() || phone.trim().length < 10 || saving} onClick={handleAdd}>
+            {saving ? "Saving…" : "Add contact"}
           </Button>
         </div>
       </BottomSheet>
