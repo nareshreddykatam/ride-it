@@ -7,6 +7,8 @@ import { BottomSheet, cn } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import {
   LayoutDashboard,
+  Activity,
+  GraduationCap,
   Users,
   Car,
   CreditCard,
@@ -23,6 +25,8 @@ import {
 
 const NAV_ITEMS = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
+  { href: "/command-center", label: "Command Center", icon: Activity },
+  { href: "/klu-pilot", label: "KLU Pilot", icon: GraduationCap },
   { href: "/drivers", label: "Drivers", icon: Car },
   { href: "/passengers", label: "Passengers", icon: Users },
   { href: "/rides", label: "Live Rides", icon: ShieldAlert },
@@ -34,16 +38,16 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-// Nav items grouped into two labeled sections so the 10-item list scans
-// faster — operational monitoring vs. platform configuration.
+// Nav items grouped into two labeled sections so the list scans faster —
+// operational monitoring vs. platform configuration.
 const NAV_SECTIONS: { label: string; items: typeof NAV_ITEMS }[] = [
   {
     label: "Operations",
-    items: NAV_ITEMS.slice(0, 6),
+    items: NAV_ITEMS.slice(0, 8),
   },
   {
     label: "Platform",
-    items: NAV_ITEMS.slice(6),
+    items: NAV_ITEMS.slice(8),
   },
 ];
 

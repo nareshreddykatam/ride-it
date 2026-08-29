@@ -22,13 +22,16 @@ import {
   addSafetyEventNote,
   listSupportTicketsAdmin,
   updateSupportTicketStatus,
+  getSafetyAnalytics,
   type AdminSafetyEventRow,
   type AdminSafetyEventStatus,
   type AdminSafetyEventSeverity,
   type SafetyEventNoteRow,
   type SupportTicketRow,
+  type SafetyAnalytics,
 } from "@ride-it/data";
 import { LifeBuoy, ChevronDown, ChevronUp, ShieldAlert } from "lucide-react";
+import { AdminDateRangeFilter, rangeForPreset, type DateRangeValue } from "../../../components/admin-date-range";
 
 const SAFETY_EVENT_TONE: Record<AdminSafetyEventStatus, "pending" | "info" | "online" | "alert" | "offline"> = {
   open: "alert",
@@ -250,6 +253,11 @@ export default function SafetyDashboardPage() {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [events, setEvents] = React.useState<AdminSafetyEventRow[]>([]);
   const [tickets, setTickets] = React.useState<SupportTicketRow[]>([]);
+  const [analytics, setAnalytics] = React.useState<SafetyAnalytics | null>(null);
+  const [analyticsRange, setAnalyticsRange] = React.useState<DateRangeValue>(() => {
+    const { start, end } = rangeForPreset("30d");
+    return { preset: "30d", start, end };
+  });
   const [loading, setLoading] = React.useState(true);
   const [busy, setBusy] = React.useState<string | null>(null);
   const [statusFilter, setStatusFilter] = React.useState<string>("open");
@@ -267,6 +275,13 @@ export default function SafetyDashboardPage() {
     if (!user) return;
     refresh().finally(() => setLoading(false));
   }, [user, refresh]);
+
+  React.useEffect(() => {
+    if (!user) return;
+    getSafetyAnalytics(supabase, analyticsRange.start, analyticsRange.end)
+      .then(setAnalytics)
+      .catch(() => setAnalytics(null));
+  }, [supabase, user, analyticsRange]);
 
   async function handleTicketResolve(ticketId: string) {
     setBusy(ticketId);
@@ -309,6 +324,61 @@ export default function SafetyDashboardPage() {
           </button>
         ))}
       </div>
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="font-display text-base font-medium text-ink">Analytics</h2>
+        <AdminDateRangeFilter value={analyticsRange} onChange={setAnalyticsRange} />
+      </div>
+      <Card className="mt-2">
+        {analytics === null ? (
+          <Skeleton className="h-16 w-full" />
+        ) : (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">By status</p>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.keys(analytics.by_status).length === 0 ? (
+                  <span className="text-xs text-ink-soft">No events in range.</span>
+                ) : (
+                  Object.entries(analytics.by_status).map(([status, count]) => (
+                    <StatusPill key={status} tone={SAFETY_EVENT_TONE[status as AdminSafetyEventStatus] ?? "info"}>
+                      {status} · {count}
+                    </StatusPill>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">By severity</p>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.keys(analytics.by_severity).length === 0 ? (
+                  <span className="text-xs text-ink-soft">No events in range.</span>
+                ) : (
+                  Object.entries(analytics.by_severity).map(([severity, count]) => (
+                    <StatusPill key={severity} tone={SEVERITY_TONE[severity as AdminSafetyEventSeverity] ?? "info"}>
+                      {severity} · {count}
+                    </StatusPill>
+                  ))
+                )}
+              </div>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-ink-soft">By vehicle</p>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.keys(analytics.by_vehicle_type).length === 0 ? (
+                  <span className="text-xs text-ink-soft">No events in range.</span>
+                ) : (
+                  Object.entries(analytics.by_vehicle_type).map(([vehicle, count]) => (
+                    <StatusPill key={vehicle} tone="info">
+                      {vehicle} · {count}
+                    </StatusPill>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </Card>
 
       <Card className="mt-4" accent="red">
         <CardHeader>
