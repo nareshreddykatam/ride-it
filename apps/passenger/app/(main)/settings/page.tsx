@@ -5,6 +5,8 @@ import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { Switch } from "@ride-it/ui";
 import { PaymentMethod } from "@ride-it/types";
+import { useAuth } from "@ride-it/auth";
+import { PushNotificationSettings } from "../../../components/push-notification-settings";
 
 function ToggleRow({
   label,
@@ -29,6 +31,7 @@ function ToggleRow({
 }
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [rideUpdates, setRideUpdates] = React.useState(true);
   const [offers, setOffers] = React.useState(true);
   const [paymentConfirm, setPaymentConfirm] = React.useState(true);
@@ -51,6 +54,8 @@ export default function SettingsPage() {
           <ToggleRow label="Payment confirmations" checked={paymentConfirm} onChange={setPaymentConfirm} />
         </div>
       </div>
+
+      {user && <PushNotificationSettings userId={user.id} />}
 
       <div className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Default payment method</p>

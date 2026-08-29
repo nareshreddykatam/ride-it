@@ -14,6 +14,7 @@ export * from "./admin";
 export * from "./matching";
 export * from "./pin";
 export * from "./devices";
+export * from "./push-client";
 export * from "./payments";
 export * from "./safety";
 export * from "./trusted-contacts";

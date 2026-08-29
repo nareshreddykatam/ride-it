@@ -22,6 +22,7 @@ import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverProfile, setDriverUpiId, type DriverProfileRow } from "@ride-it/data";
 import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
+import { PushNotificationSettings } from "../../../components/push-notification-settings";
 
 const VERIFICATION_TONE = {
   approved: "verified",
@@ -285,6 +286,7 @@ export default function DriverProfilePage() {
           <ChevronRight size={14} className="text-ink-soft" aria-hidden="true" />
         </Card>
       </Link>
+      {user && <PushNotificationSettings userId={user.id} />}
 
       <Button variant="outline" className="mt-8 w-full" disabled={signingOut} onClick={handleLogout}>
         {signingOut ? "Signing out…" : "Log out"}

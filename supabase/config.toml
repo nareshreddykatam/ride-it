@@ -51,12 +51,28 @@ additional_redirect_urls = ["http://localhost:3001", "http://localhost:3002", "h
 jwt_expiry = 3600
 enable_signup = true
 
-# Phone/OTP auth will be the primary sign-in method per the Passenger/Driver
-# PRDs — left at CLI defaults here since Phase 3 is schema-only and no auth
-# flow is being wired up yet. Revisit in the auth-implementation phase.
+# Phone/OTP auth is the primary sign-in method (see packages/auth/src/
+# phone-otp.ts). SMS delivery itself is routed through MSG91 via the Send
+# SMS Hook below, not Supabase's own built-in provider list (Twilio/
+# Vonage/MessageBird all require the same India TRAI/DLT registration
+# regardless of which is picked; MSG91 is India-DLT-native).
 [auth.sms]
 enable_signup = true
 enable_confirmations = false
+
+# Routes OTP SMS delivery to supabase/functions/send-sms-hook, which
+# relays the OTP Supabase already generated to MSG91. Supabase Auth still
+# owns OTP generation/verification entirely — this only changes delivery.
+# `uri` here is the local-dev Docker address (matches the CLI's own
+# documented pattern); for the hosted project this must additionally be
+# registered against the deployed function's https://<project-ref>.
+# supabase.co/functions/v1/send-sms-hook URL via the Supabase Dashboard
+# (Authentication → Hooks → Send SMS hook) — a deliberate manual step,
+# see the implementation report for why this isn't automated.
+[auth.hook.send_sms]
+enabled = false
+uri = "http://host.docker.internal:54321/functions/v1/send-sms-hook"
+secrets = "env(SEND_SMS_HOOK_SECRET)"
 
 [storage]
 enabled = true
