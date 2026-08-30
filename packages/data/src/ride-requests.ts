@@ -38,11 +38,19 @@ export async function getActiveOfferForDriver(supabase: SupabaseClient, driverId
  * `rides` that also validates the caller has a live pending offer, all in
  * one WHERE clause. Returns null (not an error) if the race was lost or
  * the offer expired.
+ *
+ * Same fix as verifyRidePinAndStart() in rides.ts, and for the identical
+ * reason: the RPC's SQL `return null;` on a lost race serializes over
+ * PostgREST as a JSON object with every field null (Postgres's
+ * composite-NULL JSON representation), not the bare `null` literal —
+ * truthy in JS, so a caller checking `if (accepted)` would otherwise be
+ * told they won a race they actually lost.
  */
 export async function acceptRideRequest(supabase: SupabaseClient, rideId: string): Promise<RideRow | null> {
   const { data, error } = await supabase.rpc("accept_ride_offer", { p_ride_id: rideId });
   if (error) throw error;
-  return data as unknown as RideRow | null;
+  const ride = data as unknown as RideRow | null;
+  return ride?.id ? ride : null;
 }
 
 /** Explicit decline — marks the driver's own offer rejected via reject_ride_offer(). */

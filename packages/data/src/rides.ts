@@ -160,11 +160,28 @@ export async function markDriverArriving(supabase: SupabaseClient, rideId: strin
  * doesn't start the ride, and the driver can immediately try again.
  *
  * SECURITY: this RPC is now the ONLY way a ride can reach ride_started —
- * a new database trigger (protect_ride_start_transition, migration
+ * a database trigger (protect_ride_start_transition, migration
  * 20260815090100) rejects any direct client attempt to set
  * status='ride_started', closing a real pre-existing gap where the
  * broad rides_update_driver RLS policy would otherwise have allowed a
  * driver to bypass verification entirely.
+ *
+ * REAL BUG FOUND AND FIXED HERE (live-reproduced through the actual driver
+ * UI, not just theorized): the RPC's SQL `return null;` for a wrong PIN
+ * does NOT arrive over PostgREST as a JSON `null` — Postgres serializes a
+ * NULL value of a composite/row type (`rides`) as a JSON *object* with
+ * every field set to `null` (e.g. `{"id":null,"status":null,...}`), not
+ * as the bare `null` literal. That object is truthy in JavaScript, so the
+ * driver app's own `if (started) { ...start the ride UI... }` check was
+ * being fooled into treating a WRONG PIN as a successful one — the
+ * database itself was never actually compromised (verify_ride_pin_and_start's
+ * own UPDATE...WHERE status='driver_arriving' correctly never ran), but
+ * the driver's screen would advance straight to "Ride in progress" /
+ * "Complete ride" regardless. This is the actual client-visible mechanism
+ * behind the reported "wrong PIN starts the ride" bug. Fixed by treating
+ * a response with no real `id` as the `null` it's supposed to represent —
+ * every genuine ride row has a non-null id, so this can't misclassify a
+ * real success.
  */
 export async function verifyRidePinAndStart(
   supabase: SupabaseClient,
@@ -176,7 +193,8 @@ export async function verifyRidePinAndStart(
     p_entered_pin: enteredPin,
   });
   if (error) throw error;
-  return data as unknown as RideRow | null;
+  const ride = data as unknown as RideRow | null;
+  return ride?.id ? ride : null;
 }
 
 /** Now an RPC (complete_ride, Phase 10) — notifies both passenger and driver as part of the same atomic transition. */
