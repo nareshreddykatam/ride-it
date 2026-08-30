@@ -132,6 +132,27 @@ export function OsmMap({
       zoom: 13,
       attributionControl: { compact: true },
     });
+
+    // _setupPainter() (see hasPainter()'s doc comment) runs synchronously
+    // inside the constructor above and fires its own GPUInitializationError
+    // "error" event immediately, on this same `map` — before this effect
+    // has had any chance to call map.on("error", ...) below. maplibre-gl's
+    // Evented class doesn't queue/replay events fired with zero listeners,
+    // so that specific event is simply lost: not a crash (hasPainter()
+    // already keeps every later operation safe on such an instance), but
+    // onUnavailable() would never fire either, leaving RideMap stuck
+    // rendering this OsmMap's own "Loading map…" state forever instead of
+    // falling back to MockMap. hasPainter() is already true-or-false by
+    // the time the constructor above returns (painter setup doesn't
+    // straddle this line), so checking it here catches exactly that one
+    // synchronous failure — the map.on("error", ...) listener below is
+    // untouched and still the correct way to catch every later, genuinely
+    // asynchronous failure (style/tile fetch, etc.).
+    if (!hasPainter(map)) {
+      onUnavailable();
+      return;
+    }
+
     map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
     map.on("load", () => {
