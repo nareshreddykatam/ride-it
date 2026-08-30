@@ -37,6 +37,59 @@ const OFM_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 // Vijayawada, Andhra Pradesh — mirrors RideMap.tsx's own DEFAULT_CITY_CENTER.
 const DEFAULT_CITY_CENTER: LatLng = { lat: 16.5062, lng: 80.648 };
 
+/**
+ * True once a maplibre-gl Map instance has actually finished constructing
+ * a WebGL2 painter — false for an instance that never will. Root cause
+ * (verified by reading maplibre-gl 6.6.0's own source,
+ * node_modules/maplibre-gl/dist/maplibre-gl-dev.mjs): the Map constructor
+ * calls `_setupPainter()` synchronously, which does
+ * `canvas.getContext("webgl2")` and, if that fails — WebGL2 unavailable,
+ * blocked, or (empirically reproduced while testing this fix, by
+ * navigating away/back enough times in a row) the browser's own WebGL
+ * context-count limit kicking in and refusing new contexts — fires a
+ * GPUInitializationError "error" event and returns WITHOUT ever assigning
+ * `this.painter`. The outer constructor then ALSO returns early right
+ * after, leaving the instance permanently, not just momentarily,
+ * partially constructed: `painter` never becomes defined later, no
+ * amount of waiting/retrying fixes it.
+ *
+ * Two real, unrelated call paths in this component dereference `painter`
+ * on whatever `mapRef.current` currently holds, and both throw exactly
+ * "Cannot read properties of undefined" on such an instance:
+ *   - `Map.prototype.remove()` starts with `this.painter.destroy()`.
+ *   - `Map.prototype.resize()` (called by this component's own
+ *     ResizeObserver any time the container's size changes, for as long
+ *     as the component stays mounted — not only during cleanup) calls
+ *     `this.painter.resize(...)` via `_resizeInternal()`.
+ * Both are guarded by this same check rather than duplicating it, since
+ * both are the same underlying condition.
+ *
+ * `painter` isn't part of maplibre-gl's public TypeScript surface (hence
+ * the cast), but it's the literal property both methods dereference —
+ * this checks the exact real precondition, not a general internals probe.
+ */
+function hasPainter(map: MaplibreMap): boolean {
+  return !!(map as unknown as { painter?: unknown }).painter;
+}
+
+/**
+ * Removes a maplibre-gl Map instance only if it's actually safe to — never
+ * a bare `map.remove()`. Skips instances that never got a painter (see
+ * hasPainter() above) — such an instance never allocated a WebGL context,
+ * tiles, or workers either, so there is nothing expensive left to
+ * release; dropping the caller's only reference is enough for normal GC.
+ * Also skips an instance already removed (`_removed`, set by
+ * maplibre-gl's own `remove()` on success) so a second call — e.g. if
+ * this cleanup function were ever somehow invoked more than once — is a
+ * safe no-op instead of operating on an already-torn-down instance.
+ */
+function safelyRemoveMap(map: MaplibreMap): void {
+  const internals = map as unknown as { _removed?: boolean };
+  if (hasPainter(map) && !internals._removed) {
+    map.remove();
+  }
+}
+
 export interface OsmMapProps {
   className?: string;
   pickup?: LatLng;
@@ -100,15 +153,32 @@ export function OsmMap({
     // actually has real dimensions is the standard fix for this exact
     // failure mode, and also correctly handles later real resizes
     // (orientation change, layout changes) that a one-shot fix wouldn't.
-    const resizeObserver = new ResizeObserver(() => map.resize());
+    // Guarded by hasPainter() for the same reason cleanup is (see its doc
+    // comment above) — this callback can keep firing for as long as the
+    // component stays mounted, on a `map` that may have failed to get a
+    // WebGL2 context at construction time.
+    const resizeObserver = new ResizeObserver(() => {
+      if (hasPainter(map)) map.resize();
+    });
     resizeObserver.observe(containerRef.current);
 
     mapRef.current = map;
     return () => {
       cancelled = true;
+      // A plain Web API, always safe regardless of the map's own state.
       resizeObserver.disconnect();
-      map.remove();
-      mapRef.current = null;
+
+      // Only clear the ref if it's still pointing at THIS effect's own
+      // map instance — under React Strict Mode's dev-only double
+      // mount/unmount/remount, this cleanup always runs before the next
+      // effect's setup (React guarantees that ordering), so in practice
+      // mapRef.current is always still `map` here; the check is cheap
+      // extra safety against ever nulling out a newer instance's ref.
+      if (mapRef.current === map) {
+        mapRef.current = null;
+      }
+
+      safelyRemoveMap(map);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -190,7 +260,10 @@ export function OsmMap({
 
   async function handleLocate() {
     const map = mapRef.current;
-    if (!map || typeof navigator === "undefined" || !navigator.geolocation) return;
+    // Same hasPainter() guard as the effect above — this button is always
+    // rendered regardless of `ready`, so it's reachable even on a map that
+    // failed to get a WebGL2 context.
+    if (!map || !hasPainter(map) || typeof navigator === "undefined" || !navigator.geolocation) return;
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
