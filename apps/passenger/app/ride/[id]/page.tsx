@@ -28,6 +28,8 @@ import {
   getMyRidePin,
   selectRidePaymentMethod,
   getMatchedDriverContact,
+  PASSENGER_CANCELLATION_REASONS,
+  formatCancellationReason,
   type RideRow,
   type PaymentMethodRow,
   type MatchedDriverContact,
@@ -72,6 +74,9 @@ export default function RideStatusPage() {
   const [tracking, setTracking] = React.useState<RideTrackingInfo | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [cancelling, setCancelling] = React.useState(false);
+  const [cancelSheetOpen, setCancelSheetOpen] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState(PASSENGER_CANCELLATION_REASONS[0].value);
+  const [cancelNote, setCancelNote] = React.useState("");
   const [ridePin, setRidePin] = React.useState<string | null>(null);
   const [ridePinChecked, setRidePinChecked] = React.useState(false);
   const [selectingPayment, setSelectingPayment] = React.useState(false);
@@ -206,10 +211,17 @@ export default function RideStatusPage() {
     };
   }, [supabase, ride?.status, ridePinChecked]);
 
+  function openCancelSheet() {
+    setCancelReason(PASSENGER_CANCELLATION_REASONS[0].value);
+    setCancelNote("");
+    setCancelSheetOpen(true);
+  }
+
   async function handleCancel() {
     setCancelling(true);
     try {
-      await cancelActiveRide(supabase, params.id, "Passenger cancelled");
+      const reason = formatCancellationReason(PASSENGER_CANCELLATION_REASONS, cancelReason, cancelNote);
+      await cancelActiveRide(supabase, params.id, reason);
       router.push("/home");
     } catch {
       setCancelling(false);
@@ -505,7 +517,7 @@ export default function RideStatusPage() {
           <div className="mt-5 flex flex-col gap-2">
             {canCancel && (
               <button
-                onClick={handleCancel}
+                onClick={openCancelSheet}
                 disabled={cancelling}
                 className="text-center text-sm font-medium text-alert-red disabled:opacity-50"
               >
@@ -685,6 +697,35 @@ export default function RideStatusPage() {
               </div>
             )}
         </>
+      </BottomSheet>
+
+      <BottomSheet open={cancelSheetOpen} onOpenChange={setCancelSheetOpen}>
+        <div className="flex items-center justify-between">
+          <p className="font-display text-lg font-medium text-ink">Cancel ride</p>
+          <button onClick={() => setCancelSheetOpen(false)} aria-label="Close" className="-m-2.5 p-2.5 text-ink-soft">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="mt-3 flex flex-col gap-3">
+          <Select label="Why are you cancelling?" size="sm" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>
+            {PASSENGER_CANCELLATION_REASONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </Select>
+          <textarea
+            value={cancelNote}
+            onChange={(e) => setCancelNote(e.target.value)}
+            placeholder="Add a note (optional)"
+            rows={2}
+            aria-label="Additional note"
+            className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
+          />
+          <Button variant="destructive" disabled={cancelling} onClick={handleCancel}>
+            {cancelling ? "Cancelling…" : "Confirm cancellation"}
+          </Button>
+        </div>
       </BottomSheet>
     </main>
   );

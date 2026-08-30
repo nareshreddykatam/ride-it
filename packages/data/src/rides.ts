@@ -200,6 +200,45 @@ export async function cancelActiveRide(supabase: SupabaseClient, rideId: string,
   if (error) throw error;
 }
 
+export interface CancellationReasonOption {
+  value: string;
+  label: string;
+}
+
+// Non-empty tuple, not plain CancellationReasonOption[] — same reasoning
+// as ReportReasonList in safety.ts: PASSENGER_CANCELLATION_REASONS[0] is
+// used as a form's default selection and must resolve to
+// CancellationReasonOption, not `CancellationReasonOption | undefined`,
+// under this project's noUncheckedIndexedAccess.
+type CancellationReasonList = readonly [CancellationReasonOption, ...CancellationReasonOption[]];
+
+/** Passenger-facing cancellation reasons — rides.cancellation_reason is a single free-text column, so a picked reason (plus an optional note) is composed into one string client-side rather than needing a schema change. */
+export const PASSENGER_CANCELLATION_REASONS: CancellationReasonList = [
+  { value: "driver_too_long", label: "Driver is taking too long" },
+  { value: "wrong_pickup", label: "Wrong pickup location" },
+  { value: "changed_mind", label: "Changed my mind" },
+  { value: "booked_by_mistake", label: "Booked by mistake" },
+  { value: "found_another_ride", label: "Found another ride" },
+  { value: "other", label: "Other" },
+];
+
+/** Driver-facing cancellation reasons — same composition approach as PASSENGER_CANCELLATION_REASONS. */
+export const DRIVER_CANCELLATION_REASONS: CancellationReasonList = [
+  { value: "vehicle_issue", label: "Vehicle issue" },
+  { value: "passenger_unreachable", label: "Passenger not reachable" },
+  { value: "passenger_not_at_pickup", label: "Passenger not at pickup" },
+  { value: "wrong_pickup", label: "Wrong pickup location" },
+  { value: "personal_emergency", label: "Personal emergency" },
+  { value: "other", label: "Other" },
+];
+
+/** Composes a picked reason label + optional free-text note into the single string rides.cancellation_reason stores. */
+export function formatCancellationReason(reasons: readonly CancellationReasonOption[], value: string, note?: string): string {
+  const label = reasons.find((r) => r.value === value)?.label ?? "Other";
+  const trimmedNote = note?.trim();
+  return trimmedNote ? `${label}: ${trimmedNote}` : label;
+}
+
 /**
  * Driver cancellation after acceptance — issues a strike per the confirmed
  * business rule (from the original product-architecture phase). The two
@@ -216,7 +255,7 @@ export async function cancelRideByDriver(
 ): Promise<void> {
   const { error: rideError } = await supabase
     .from("rides")
-    .update({ status: "cancelled", cancelled_by: "driver", cancellation_reason: reason })
+    .update({ status: "cancelled", cancelled_by: "driver", cancellation_reason: reason, cancelled_at: new Date().toISOString() })
     .eq("id", rideId);
   if (rideError) throw rideError;
 

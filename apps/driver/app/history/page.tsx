@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, EmptyState, SkeletonRow, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -78,31 +79,33 @@ export default function DriverHistoryPage() {
             const visuals = VEHICLE_VISUALS[ride.vehicle_type];
             const VehicleIcon = visuals.icon;
             return (
-              <Card key={ride.id} className="rounded-xl">
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                    style={{ backgroundColor: visuals.tintVar, color: visuals.colorVar }}
-                  >
-                    <VehicleIcon size={20} />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm text-ink">
-                      {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
-                    </p>
-                    <p className="text-xs text-ink-soft">
-                      {formatDate(ride.requested_at)} · {visuals.label}
-                      {ride.payment_method ? ` · ${PAYMENT_METHOD_LABEL[ride.payment_method] ?? ride.payment_method}` : ""}
-                    </p>
+              <Link key={ride.id} href={`/history/${ride.id}`}>
+                <Card className="rounded-xl" interactive>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
+                      style={{ backgroundColor: visuals.tintVar, color: visuals.colorVar }}
+                    >
+                      <VehicleIcon size={20} />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-ink">
+                        {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
+                      </p>
+                      <p className="text-xs text-ink-soft">
+                        {formatDate(ride.requested_at)} · {visuals.label}
+                        {ride.payment_method ? ` · ${PAYMENT_METHOD_LABEL[ride.payment_method] ?? ride.payment_method}` : ""}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="font-meter text-sm font-medium text-ink">₹{ride.total_fare}</p>
+                      <StatusPill tone={statusTone(ride.status)} dot={false} className="mt-1">
+                        {statusLabel(ride.status)}
+                      </StatusPill>
+                    </div>
                   </div>
-                  <div className="shrink-0 text-right">
-                    <p className="font-meter text-sm font-medium text-ink">₹{ride.total_fare}</p>
-                    <StatusPill tone={statusTone(ride.status)} dot={false} className="mt-1">
-                      {statusLabel(ride.status)}
-                    </StatusPill>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              </Link>
             );
           })}
       </div>

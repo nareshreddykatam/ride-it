@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Star, Bell, ChevronRight } from "lucide-react";
+import { Star, Bell, ChevronRight, LifeBuoy } from "lucide-react";
 import {
   Button,
   Card,
@@ -287,12 +287,23 @@ export default function DriverProfilePage() {
         </Card>
       </Link>
       <Link href="/notifications">
-        <Card interactive className="flex items-center justify-between gap-3">
+        <Card interactive className="mb-2.5 flex items-center justify-between gap-3">
           <span className="flex items-center gap-3">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-alert-red/10 text-alert-red-text">
               <Bell size={16} aria-hidden="true" />
             </span>
             <span className="text-sm text-ink">Notifications</span>
+          </span>
+          <ChevronRight size={14} className="text-ink-soft" aria-hidden="true" />
+        </Card>
+      </Link>
+      <Link href="/support">
+        <Card interactive className="flex items-center justify-between gap-3">
+          <span className="flex items-center gap-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
+              <LifeBuoy size={16} aria-hidden="true" />
+            </span>
+            <span className="text-sm text-ink">Help &amp; support</span>
           </span>
           <ChevronRight size={14} className="text-ink-soft" aria-hidden="true" />
         </Card>

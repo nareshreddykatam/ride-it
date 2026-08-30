@@ -52,7 +52,17 @@ export async function getAppSettingValue(supabase: SupabaseClient, key: string):
 export interface CreateReportInput {
   userId: string;
   rideId?: string;
-  category: "safety" | "driver_issue" | "passenger_issue" | "ride_issue" | "payment_issue" | "other";
+  category:
+    | "safety"
+    | "driver_issue"
+    | "passenger_issue"
+    | "ride_issue"
+    | "payment_issue"
+    | "account"
+    | "driver_verification"
+    | "lost_item"
+    | "app_problem"
+    | "other";
   subject: string;
   description?: string;
   reportedUserId?: string;
@@ -90,6 +100,39 @@ export const DRIVER_REPORT_REASONS: ReportReasonList = [
   { value: "payment_issue", label: "Payment issue", category: "payment_issue" },
   { value: "false_booking", label: "False booking", category: "passenger_issue" },
   { value: "other", label: "Other", category: "other" },
+];
+
+export interface SupportCategoryOption {
+  value: CreateReportInput["category"];
+  label: string;
+}
+
+// Non-empty tuple — see ReportReasonList's comment above for why.
+type SupportCategoryList = readonly [SupportCategoryOption, ...SupportCategoryOption[]];
+
+/**
+ * General Help & Support categories — deliberately distinct from
+ * PASSENGER_REPORT_REASONS: those are safety/conduct reasons surfaced
+ * from the in-ride Safety sheet; these are the non-safety categories
+ * (account, payment, lost items, app bugs) support_ticket_category_enum
+ * already has but that no UI has ever offered a way to actually pick.
+ */
+export const PASSENGER_SUPPORT_CATEGORIES: SupportCategoryList = [
+  { value: "ride_issue", label: "A problem with a ride" },
+  { value: "payment_issue", label: "Payment or billing" },
+  { value: "lost_item", label: "Lost item" },
+  { value: "account", label: "Account" },
+  { value: "app_problem", label: "App problem" },
+  { value: "other", label: "Something else" },
+];
+
+export const DRIVER_SUPPORT_CATEGORIES: SupportCategoryList = [
+  { value: "ride_issue", label: "A problem with a ride" },
+  { value: "payment_issue", label: "Payment or earnings" },
+  { value: "driver_verification", label: "Verification or documents" },
+  { value: "account", label: "Account" },
+  { value: "app_problem", label: "App problem" },
+  { value: "other", label: "Something else" },
 ];
 
 /**

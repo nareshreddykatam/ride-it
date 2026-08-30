@@ -20,7 +20,10 @@ import {
   getAppSettingValue,
   createReport,
   getMatchedPassengerContact,
+  cancelRideByDriver,
   DRIVER_REPORT_REASONS,
+  DRIVER_CANCELLATION_REASONS,
+  formatCancellationReason,
   type RideRow,
   type RideTrackingInfo,
   type MatchedPassengerContact,
@@ -53,6 +56,10 @@ function NavigationPageContent() {
   const [verifying, setVerifying] = React.useState(false);
   const [locationError, setLocationError] = React.useState<GeolocationErrorReason | null>(null);
   const [selfLocation, setSelfLocation] = React.useState<{ lat: number; lng: number } | null>(null);
+  const [cancelSheetOpen, setCancelSheetOpen] = React.useState(false);
+  const [cancelReason, setCancelReason] = React.useState(DRIVER_CANCELLATION_REASONS[0].value);
+  const [cancelNote, setCancelNote] = React.useState("");
+  const [cancelling, setCancelling] = React.useState(false);
 
   const [safetyOpen, setSafetyOpen] = React.useState(false);
   const [safetyView, setSafetyView] = React.useState<SafetyView>("menu");
@@ -112,6 +119,24 @@ function NavigationPageContent() {
     if (!rideId) return;
     await markDriverArriving(supabase, rideId);
     setPhase("VERIFY_PIN");
+  }
+
+  function openCancelSheet() {
+    setCancelReason(DRIVER_CANCELLATION_REASONS[0].value);
+    setCancelNote("");
+    setCancelSheetOpen(true);
+  }
+
+  async function handleCancelRide() {
+    if (!rideId || !user) return;
+    setCancelling(true);
+    try {
+      const reason = formatCancellationReason(DRIVER_CANCELLATION_REASONS, cancelReason, cancelNote);
+      await cancelRideByDriver(supabase, rideId, user.id, reason);
+      router.push("/dashboard");
+    } catch {
+      setCancelling(false);
+    }
   }
 
   async function handlePinComplete(code: string) {
@@ -272,6 +297,13 @@ function NavigationPageContent() {
           <Button className="w-full" onClick={handleArrived}>
             I&apos;ve arrived — enter Ride PIN
           </Button>
+          <button
+            onClick={openCancelSheet}
+            disabled={cancelling}
+            className="mt-3 w-full text-center text-sm font-medium text-alert-red disabled:opacity-50"
+          >
+            {cancelling ? "Cancelling…" : "Cancel ride"}
+          </button>
         </motion.div>
       )}
 
@@ -424,6 +456,35 @@ function NavigationPageContent() {
               </div>
             )}
         </>
+      </BottomSheet>
+
+      <BottomSheet open={cancelSheetOpen} onOpenChange={setCancelSheetOpen}>
+        <div className="flex items-center justify-between">
+          <p className="font-display text-lg font-medium text-ink">Cancel ride</p>
+          <button onClick={() => setCancelSheetOpen(false)} aria-label="Close" className="-m-2.5 p-2.5 text-ink-soft">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="mt-3 flex flex-col gap-3">
+          <Select label="Why are you cancelling?" size="sm" value={cancelReason} onChange={(e) => setCancelReason(e.target.value)}>
+            {DRIVER_CANCELLATION_REASONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </Select>
+          <textarea
+            value={cancelNote}
+            onChange={(e) => setCancelNote(e.target.value)}
+            placeholder="Add a note (optional)"
+            rows={2}
+            aria-label="Additional note"
+            className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
+          />
+          <Button variant="destructive" disabled={cancelling} onClick={handleCancelRide}>
+            {cancelling ? "Cancelling…" : "Confirm cancellation"}
+          </Button>
+        </div>
       </BottomSheet>
     </main>
   );

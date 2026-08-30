@@ -291,6 +291,25 @@ export default function DashboardPage() {
         </Button>
       )}
 
+      {/* Expiry warning — the header above already states "expires in N
+          days" quietly at all times; this is the escalated, hard-to-miss
+          version for when it's genuinely close, so a driver can't lose
+          ride eligibility with zero warning. */}
+      {subscription && daysUntil(subscription.expires_at) <= 3 && (
+        <button
+          type="button"
+          onClick={() => router.push("/subscription")}
+          className="mt-3 flex w-full items-center justify-between rounded-lg border border-marigold/40 bg-marigold/10 px-4 py-3 text-left"
+        >
+          <span className="text-sm font-medium text-marigold-text">
+            {daysUntil(subscription.expires_at) === 0
+              ? "Your subscription expires today"
+              : `Your subscription expires in ${daysUntil(subscription.expires_at)} day${daysUntil(subscription.expires_at) === 1 ? "" : "s"}`}
+          </span>
+          <span className="shrink-0 text-xs font-semibold text-marigold-text underline underline-offset-2">Renew</span>
+        </button>
+      )}
+
       {/* Compact single-line "today" strip — three quick facts, not three
           more equal-weight cards. Grounded on a tinted surface so it reads
           as a distinct info band rather than text floating on bare white. */}

@@ -535,11 +535,13 @@ export interface SupportTicketRow {
   subject: string;
   description: string | null;
   reported_user_id: string | null;
+  assigned_admin_id: string | null;
+  resolved_at: string | null;
   created_at: string;
 }
 
 const SUPPORT_TICKET_COLUMNS =
-  "id, user_id, ride_id, category, severity, status, subject, description, reported_user_id, created_at";
+  "id, user_id, ride_id, category, severity, status, subject, description, reported_user_id, assigned_admin_id, resolved_at, created_at";
 
 export async function listSupportTicketsForUser(supabase: SupabaseClient, userId: string): Promise<SupportTicketRow[]> {
   const { data, error } = await supabase
@@ -572,6 +574,111 @@ export async function listSupportTicketsAdmin(
   const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as unknown as SupportTicketRow[];
+}
+
+export interface AdminSupportTicketRow extends SupportTicketRow {
+  user_name: string | null;
+  assigned_admin_name: string | null;
+}
+
+const ADMIN_SUPPORT_TICKET_COLUMNS =
+  // users!support_tickets_user_id_fkey — support_tickets.user_id is the
+  // only FK to public.users on this table, so the bare hint would
+  // normally resolve unambiguously; the explicit constraint name is used
+  // anyway for consistency with every other admin.ts embed (see
+  // ADMIN_RIDE_COLUMNS's comment for why this project always spells it
+  // out rather than relying on PostgREST's own disambiguation).
+  "id, user_id, ride_id, category, severity, status, subject, description, reported_user_id, assigned_admin_id, resolved_at, created_at, users!support_tickets_user_id_fkey(full_name), admin_users!support_tickets_assigned_admin_id_fkey(users!admin_users_id_fkey(full_name))";
+
+type AdminSupportTicketRawRow = Omit<SupportTicketRow, never> & {
+  users: { full_name: string | null } | Array<{ full_name: string | null }> | null;
+  admin_users: { users: { full_name: string | null } | Array<{ full_name: string | null }> } | Array<{ users: unknown }> | null;
+};
+
+function mapAdminSupportTicketRow(r: AdminSupportTicketRawRow): AdminSupportTicketRow {
+  const u = Array.isArray(r.users) ? r.users[0] : r.users;
+  const assignedAdmin = Array.isArray(r.admin_users) ? r.admin_users[0] : r.admin_users;
+  const assignedUsers = assignedAdmin?.users;
+  const assignedUserRow = Array.isArray(assignedUsers) ? assignedUsers[0] : (assignedUsers as { full_name: string | null } | undefined);
+  return { ...r, user_name: u?.full_name ?? null, assigned_admin_name: assignedUserRow?.full_name ?? null };
+}
+
+/**
+ * Full ticket queue for the admin Support page — every category/status,
+ * with the filer's and assignee's names joined in (listSupportTicketsAdmin
+ * above stays as-is for the Safety dashboard's narrower use).
+ */
+export async function listAllSupportTicketsAdmin(
+  supabase: SupabaseClient,
+  filters: { category?: string; status?: string; assignedAdminId?: string } = {}
+): Promise<AdminSupportTicketRow[]> {
+  let query = supabase.from("support_tickets").select(ADMIN_SUPPORT_TICKET_COLUMNS).order("created_at", { ascending: false });
+  if (filters.category) query = query.eq("category", filters.category);
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.assignedAdminId) query = query.eq("assigned_admin_id", filters.assignedAdminId);
+  const { data, error } = await query;
+  if (error) throw error;
+  return ((data ?? []) as unknown as AdminSupportTicketRawRow[]).map(mapAdminSupportTicketRow);
+}
+
+/** Plain admin-gated column write — support_tickets_all_admin RLS already secures this, same "no RPC needed" convention as every other simple admin write in this file. */
+export async function assignSupportTicket(supabase: SupabaseClient, ticketId: string, adminId: string | null): Promise<void> {
+  const { error } = await supabase.from("support_tickets").update({ assigned_admin_id: adminId }).eq("id", ticketId);
+  if (error) throw error;
+}
+
+/** Admin-only status transition — calls set_support_ticket_status(), which independently re-checks is_admin() and appends a support_ticket_notes audit-trail row on every call. */
+export async function setSupportTicketStatusAdmin(
+  supabase: SupabaseClient,
+  ticketId: string,
+  status: "open" | "in_progress" | "resolved" | "closed",
+  note?: string
+): Promise<void> {
+  const { error } = await supabase.rpc("set_support_ticket_status", { p_ticket_id: ticketId, p_status: status, p_note: note ?? null });
+  if (error) throw error;
+}
+
+export interface SupportTicketNoteRow {
+  id: string;
+  ticket_id: string;
+  admin_id: string | null;
+  admin_name: string | null;
+  note: string | null;
+  status_transition_to: string | null;
+  created_at: string;
+}
+
+/** Admin-only audit trail for one ticket — mirrors listSafetyEventNotes exactly. A non-admin session gets zero rows, even for their own ticket. */
+export async function listSupportTicketNotes(supabase: SupabaseClient, ticketId: string): Promise<SupportTicketNoteRow[]> {
+  const { data, error } = await supabase
+    .from("support_ticket_notes")
+    .select("id, ticket_id, admin_id, note, status_transition_to, created_at, admin_users(users!admin_users_id_fkey(full_name))")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+
+  type Raw = {
+    id: string;
+    ticket_id: string;
+    admin_id: string | null;
+    note: string | null;
+    status_transition_to: string | null;
+    created_at: string;
+    admin_users: { users: { full_name: string | null } | Array<{ full_name: string | null }> } | Array<{ users: unknown }> | null;
+  };
+
+  return ((data ?? []) as unknown as Raw[]).map((r) => {
+    const adminUser = Array.isArray(r.admin_users) ? r.admin_users[0] : r.admin_users;
+    const usersRow = adminUser?.users;
+    const nameRow = Array.isArray(usersRow) ? usersRow[0] : (usersRow as { full_name: string | null } | undefined);
+    return { ...r, admin_name: nameRow?.full_name ?? null };
+  });
+}
+
+/** Admin-only free-standing note (no status change) — calls add_support_ticket_note(), which independently re-checks is_admin() itself. */
+export async function addSupportTicketNoteAdmin(supabase: SupabaseClient, ticketId: string, note: string): Promise<void> {
+  const { error } = await supabase.rpc("add_support_ticket_note", { p_ticket_id: ticketId, p_note: note });
+  if (error) throw error;
 }
 
 export type AdminSafetyEventStatus = "open" | "acknowledged" | "investigating" | "escalated" | "resolved" | "closed";

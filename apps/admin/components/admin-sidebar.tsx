@@ -19,6 +19,7 @@ import {
   LogOut,
   MapPin,
   LifeBuoy,
+  Headset,
   Menu,
   X,
 } from "lucide-react";
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { href: "/passengers", label: "Passengers", icon: Users },
   { href: "/rides", label: "Live Rides", icon: ShieldAlert },
   { href: "/safety", label: "Safety", icon: LifeBuoy },
+  { href: "/support", label: "Support", icon: Headset },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/cities", label: "Cities", icon: MapPin },
@@ -43,11 +45,11 @@ const NAV_ITEMS = [
 const NAV_SECTIONS: { label: string; items: typeof NAV_ITEMS }[] = [
   {
     label: "Operations",
-    items: NAV_ITEMS.slice(0, 8),
+    items: NAV_ITEMS.slice(0, 9),
   },
   {
     label: "Platform",
-    items: NAV_ITEMS.slice(8),
+    items: NAV_ITEMS.slice(9),
   },
 ];
 

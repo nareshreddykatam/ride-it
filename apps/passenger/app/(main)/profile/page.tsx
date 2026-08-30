@@ -159,12 +159,14 @@ export default function PassengerProfilePage() {
             Coming soon
           </StatusPill>
         </div>
-        <div className="flex items-center justify-between border-t border-border px-4 py-3.5 opacity-60">
-          <span className="text-sm text-ink">Help &amp; support</span>
-          <StatusPill tone="pending" dot={false}>
-            Coming soon
-          </StatusPill>
-        </div>
+        <Link href="/support">
+          <div className="flex items-center justify-between border-t border-border px-4 py-3.5 transition-colors hover:bg-ink/[0.03]">
+            <span className="text-sm text-ink">Help &amp; support</span>
+            <span className="flex items-center gap-1 text-xs text-ink-soft">
+              Open <ChevronRight size={14} />
+            </span>
+          </div>
+        </Link>
       </div>
 
       <Button variant="outline" className="mt-8 w-full" disabled={signingOut} onClick={handleLogout}>
