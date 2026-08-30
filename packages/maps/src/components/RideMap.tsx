@@ -2,9 +2,19 @@
 
 import * as React from "react";
 import { cn } from "@ride-it/ui";
+import type { VehicleKind } from "@ride-it/ui";
 import { isGoogleMapsConfigured } from "../env";
 import { loadGoogleMaps } from "../loader";
+import { createVehicleMarkerElement } from "../vehicle-marker";
 import { MockMap, type MockMapProps } from "../fallback/MockMapFallback";
+
+// Lazily loaded — maplibre-gl is a genuinely sizeable bundle (~250KB), and
+// most call sites never need it at all (Google's path, when configured,
+// never touches this code path). React.lazy keeps it out of every route's
+// initial JS and fetches it only the first time a RideMap actually
+// resolves to the OSM tier, matching Phase 9's "don't load what isn't
+// needed" instruction.
+const OsmMap = React.lazy(() => import("./OsmMap").then((m) => ({ default: m.OsmMap })));
 
 export interface LatLng {
   lat: number;
@@ -23,6 +33,8 @@ export interface RideMapProps {
   driverLocationStale?: boolean;
   /** Decoded route geometry (see @ride-it/maps's decodePolyline, fed from server/eta.ts's encodedPolyline) — drawn as a Polyline when present. Omit to show only markers, unchanged from before. */
   routePolyline?: LatLng[];
+  /** The ride's actual vehicle type (auto/bike/scooty/car) — when provided, the driver marker renders that vehicle's real silhouette (@ride-it/ui's VEHICLE_VISUALS) instead of a plain dot. Omit for a driver's own self-location marker, where "which vehicle" isn't meaningful. */
+  vehicleType?: VehicleKind;
 }
 
 // Vijayawada, Andhra Pradesh — the operating/demo city (Part 15). Used only
@@ -33,13 +45,58 @@ const DEFAULT_CITY_CENTER: LatLng = { lat: 16.5062, lng: 80.648 };
 type LoadState = "idle" | "loading" | "ready" | "error";
 
 /**
- * The one component in this codebase that touches the Google Maps JS API.
- * Renders MockMap (the explicit development fallback — see
- * fallback/MockMapFallback.tsx) when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY isn't
- * configured, or if the script genuinely fails to load. Never silently
- * shows a blank map or crashes the surrounding page.
+ * Three-tier map backend, chosen at render time, not configurable per call
+ * site — see the map-ecosystem audit report for the full reasoning:
+ *
+ *   1. Google Maps JS API — used only if NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is
+ *      genuinely configured. Untouched by this change other than the
+ *      driver marker now using the real vehicle silhouette instead of a
+ *      generic pin.
+ *   2. OsmMap (MapLibre GL + OpenFreeMap, see ./OsmMap.tsx) — the new
+ *      default when Google isn't configured. Free, no API key, verified
+ *      commercially usable, renders REAL streets/geography instead of the
+ *      decorative mock — this is the actual fix for "no Maps key
+ *      configured" no longer meaning "fake map."
+ *   3. MockMap — last-resort fallback, only if OsmMap itself reports its
+ *      tile style failed to load (e.g. genuinely offline). Unchanged.
+ *
+ * Never silently shows a blank map or crashes the surrounding page.
  */
-export function RideMap({
+export function RideMap(props: RideMapProps) {
+  const [osmFailed, setOsmFailed] = React.useState(false);
+
+  if (isGoogleMapsConfigured()) {
+    return <GoogleRideMap {...props} />;
+  }
+
+  if (!osmFailed) {
+    return (
+      <React.Suspense
+        fallback={
+          <div className={cn("relative w-full overflow-hidden rounded-lg border border-border bg-ink/5", props.className)}>
+            <div className="absolute inset-0 flex items-center justify-center bg-paper/60 text-xs text-ink-soft">Loading map…</div>
+          </div>
+        }
+      >
+        <OsmMap
+          className={props.className}
+          pickup={props.pickup}
+          drop={props.drop}
+          driverLocation={props.driverLocation}
+          driverLocationStale={props.driverLocationStale}
+          routePolyline={props.routePolyline}
+          vehicleType={props.vehicleType}
+          onUnavailable={() => setOsmFailed(true)}
+        />
+      </React.Suspense>
+    );
+  }
+
+  return <MockMap variant={props.fallbackVariant ?? "static"} progress={props.fallbackProgress} className={props.className} />;
+}
+
+/** The Google Maps JS API backend — used only when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is genuinely configured. Falls back to MockMap if the script itself fails to load (network/key error), same as before this change. */
+function GoogleRideMap({
   className,
   pickup,
   drop,
@@ -48,6 +105,7 @@ export function RideMap({
   fallbackProgress,
   driverLocationStale,
   routePolyline,
+  vehicleType,
 }: RideMapProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<google.maps.Map | null>(null);
@@ -130,12 +188,15 @@ export function RideMap({
 
       if (driverLocation) {
         if (!driverMarkerRef.current) {
-          const el = new PinElement({ background: "#1E6FEF", borderColor: "#ffffff", glyphColor: "#ffffff", scale: 0.95 }).element;
+          // Real vehicle silhouette (auto/bike/scooty/car), not a generic
+          // pin — see ../vehicle-marker.tsx. Shared with OsmMap's driver
+          // marker so both backends render the exact same badge.
+          const el = createVehicleMarkerElement(vehicleType, driverLocationStale);
           driverMarkerRef.current = new AdvancedMarkerElement({ map, content: el });
         }
         driverMarkerRef.current.position = driverLocation;
         if (driverMarkerRef.current.content instanceof HTMLElement) {
-          driverMarkerRef.current.content.style.opacity = driverLocationStale ? "0.5" : "1";
+          driverMarkerRef.current.content.style.opacity = driverLocationStale ? "0.55" : "1";
         }
         bounds.extend(driverLocation);
         hasPoint = true;
@@ -172,7 +233,7 @@ export function RideMap({
     }
 
     syncMarkers();
-  }, [loadState, pickup, drop, driverLocation, driverLocationStale, routePolyline]);
+  }, [loadState, pickup, drop, driverLocation, driverLocationStale, routePolyline, vehicleType]);
 
   // Polyline cleanup on unmount — mirrors the geolocation watcher's own
   // explicit cleanup requirement; a Polyline left attached to a map that
@@ -186,7 +247,10 @@ export function RideMap({
     };
   }, []);
 
-  if (!isGoogleMapsConfigured() || loadState === "error") {
+  // GoogleRideMap is only ever rendered by RideMap once isGoogleMapsConfigured()
+  // is already known true — the only failure mode left to handle here is the
+  // script itself failing to load (network/key error), same as before.
+  if (loadState === "error") {
     return <MockMap variant={fallbackVariant} progress={fallbackProgress} className={className} />;
   }
 

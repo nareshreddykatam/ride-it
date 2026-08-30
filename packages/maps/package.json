@@ -12,14 +12,18 @@
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.1.1",
     "@ride-it/ui": "workspace:*",
-    "framer-motion": "^11.2.0"
+    "framer-motion": "^11.2.0",
+    "maplibre-gl": "^6.6.0"
   },
   "peerDependencies": {
-    "react": "^18.3.0"
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
   },
   "devDependencies": {
     "@types/google.maps": "^3.65.5",
     "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "@types/geojson": "^7946.0.16",
     "typescript": "^5.5.0"
   }
 }

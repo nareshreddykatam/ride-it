@@ -340,6 +340,7 @@ export default function RideStatusPage() {
           drop={tracking?.drop}
           driverLocation={tracking?.driverLocation}
           driverLocationStale={driverStale}
+          vehicleType={ride?.vehicle_type}
           fallbackVariant="live"
           fallbackProgress={0.15 + stepIndex * 0.28}
           className="h-full w-full rounded-none border-0"

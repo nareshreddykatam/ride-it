@@ -22,4 +22,5 @@ export * from "./components/searching-indicator";
 export * from "./components/matching-radar";
 export * from "./components/live-stat-band";
 export * from "./components/pulse-dot";
+export * from "./components/slide-to-action";
 export * from "./icons";

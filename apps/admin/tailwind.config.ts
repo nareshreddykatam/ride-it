@@ -7,5 +7,6 @@ export default {
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
     "../../packages/ui/src/**/*.{ts,tsx}",
+    "../../packages/maps/src/**/*.{ts,tsx}",
   ],
 } satisfies Config;

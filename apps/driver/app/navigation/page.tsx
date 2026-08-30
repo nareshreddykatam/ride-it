@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, Flag, MapPinOff, MessageCircle, Phone, Users, X } from "lucide-react";
-import { BottomSheet, Button, Card, MeterValue, OtpInput, Select, Skeleton, StatusPill, PinGlyph, SafetyIcon } from "@ride-it/ui";
+import { BottomSheet, Button, Card, MeterValue, OtpInput, Select, Skeleton, StatusPill, PinGlyph, SafetyIcon, SlideToAction } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -28,7 +28,7 @@ import {
   type RideTrackingInfo,
   type MatchedPassengerContact,
 } from "@ride-it/data";
-import { RideMap, watchDriverLocation, getCurrentPositionOnce, type GeolocationErrorReason } from "@ride-it/maps";
+import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, type GeolocationErrorReason } from "@ride-it/maps";
 
 type Phase = "TO_PICKUP" | "VERIFY_PIN" | "TO_DROP" | "SUMMARY";
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "report";
@@ -162,6 +162,18 @@ function NavigationPageContent() {
     } finally {
       setVerifying(false);
     }
+  }
+
+  function handleStartNavigation() {
+    // tracking.drop comes from getRideTracking(), which is
+    // SECURITY DEFINER-gated to this ride's own passenger/driver/admin and
+    // reads the ride's real drop_location — never a client-supplied
+    // destination. Opens the universal Google Maps web-nav URL (see
+    // @ride-it/maps's getExternalNavigationUrl): the installed app
+    // intercepts it on a phone, otherwise it opens in the browser. No
+    // turn-by-turn is ever rendered inside RideIT itself.
+    if (!tracking?.drop) return;
+    window.location.href = getExternalNavigationUrl(tracking.drop);
   }
 
   async function handleCompleteRide() {
@@ -319,7 +331,8 @@ function NavigationPageContent() {
       )}
 
       {phase === "TO_DROP" && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-auto pt-8">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-auto flex flex-col gap-3 pt-8">
+          <SlideToAction label="Slide to start navigation" onComplete={handleStartNavigation} disabled={!tracking?.drop} />
           <Button className="w-full" onClick={handleCompleteRide}>
             Complete ride
           </Button>

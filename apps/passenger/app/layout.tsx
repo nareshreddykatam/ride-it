@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "@ride-it/ui/styles/globals.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { AuthProvider } from "@ride-it/auth";
 import { PageTransition } from "../components/page-transition";
 

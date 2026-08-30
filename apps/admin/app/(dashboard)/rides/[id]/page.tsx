@@ -264,6 +264,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
         pickup={tracking?.pickup}
         drop={tracking?.drop}
         driverLocation={tracking?.driverLocation}
+        vehicleType={ride.vehicle_type}
         fallbackVariant="route"
         className="mt-4 h-48"
       />

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import "@ride-it/ui/styles/globals.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { AuthProvider } from "@ride-it/auth";
 
 const body = Inter({ subsets: ["latin"], variable: "--font-body" });
