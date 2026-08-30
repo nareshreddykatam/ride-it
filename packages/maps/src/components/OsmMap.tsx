@@ -90,6 +90,37 @@ function safelyRemoveMap(map: MaplibreMap): void {
   }
 }
 
+function roundCoord(n: number): number {
+  // ~1.1m precision — tighter than GPS accuracy, so this never masks a
+  // real movement, only genuinely-identical repeated poll results.
+  return Math.round(n * 1e5) / 1e5;
+}
+
+/**
+ * A cheap signature of "what fitBounds() would be fed", used to skip the
+ * animated camera re-fit when a re-render was triggered by a fresh object
+ * identity (e.g. a poll-driven refetch) carrying the exact same
+ * coordinates as last time. Shared with RideMap.tsx's GoogleRideMap path,
+ * which has the identical marker-sync-without-recreating-the-map shape.
+ */
+function fitBoundsSignature(
+  pickup: LatLng | undefined,
+  drop: LatLng | undefined,
+  driverLocation: LatLng | null | undefined,
+  routePolyline: LatLng[] | undefined
+): string {
+  const first = routePolyline && routePolyline.length > 1 ? routePolyline[0] : undefined;
+  const last = routePolyline && routePolyline.length > 1 ? routePolyline[routePolyline.length - 1] : undefined;
+  return [
+    pickup ? `p${roundCoord(pickup.lat)},${roundCoord(pickup.lng)}` : "",
+    drop ? `d${roundCoord(drop.lat)},${roundCoord(drop.lng)}` : "",
+    driverLocation ? `v${roundCoord(driverLocation.lat)},${roundCoord(driverLocation.lng)}` : "",
+    first && last
+      ? `r${routePolyline!.length}:${roundCoord(first.lat)},${roundCoord(first.lng)}-${roundCoord(last.lat)},${roundCoord(last.lng)}`
+      : "",
+  ].join("|");
+}
+
 export interface OsmMapProps {
   className?: string;
   pickup?: LatLng;
@@ -117,6 +148,15 @@ export function OsmMap({
   const pickupMarkerRef = React.useRef<Marker | null>(null);
   const dropMarkerRef = React.useRef<Marker | null>(null);
   const driverMarkerRef = React.useRef<Marker | null>(null);
+  // Signature of the last coordinates actually passed to fitBounds() — see
+  // the effect below. Callers like the Ride screen re-fetch tracking data
+  // on a poll interval, which hands this component a brand-new {lat, lng}
+  // object identity every tick even when the underlying position is
+  // numerically unchanged; without this guard that would re-trigger a full
+  // animated camera re-fit every poll, fighting any manual pan/zoom the
+  // rider is doing. Rounded to 5 decimal places (~1.1m) — comfortably
+  // tighter than GPS accuracy, so this never masks a real movement.
+  const lastFitSignatureRef = React.useRef<string | null>(null);
   const [ready, setReady] = React.useState(false);
   const [locating, setLocating] = React.useState(false);
 
@@ -276,7 +316,13 @@ export function OsmMap({
       map.removeSource("route-polyline");
     }
 
-    if (hasPoint) map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 400 });
+    if (hasPoint) {
+      const signature = fitBoundsSignature(pickup, drop, driverLocation, routePolyline);
+      if (signature !== lastFitSignatureRef.current) {
+        lastFitSignatureRef.current = signature;
+        map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 400 });
+      }
+    }
   }, [ready, pickup, drop, driverLocation, driverLocationStale, routePolyline, vehicleType]);
 
   async function handleLocate() {

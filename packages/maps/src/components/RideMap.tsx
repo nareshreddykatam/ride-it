@@ -44,6 +44,41 @@ const DEFAULT_CITY_CENTER: LatLng = { lat: 16.5062, lng: 80.648 };
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
+function roundCoord(n: number): number {
+  // ~1.1m precision — tighter than GPS accuracy, so this never masks a
+  // real movement, only genuinely-identical repeated poll results.
+  return Math.round(n * 1e5) / 1e5;
+}
+
+/**
+ * Signature of "what fitBounds() would be fed" — lets the marker-sync
+ * effect below skip the animated camera re-fit when a re-render was
+ * triggered by a fresh object identity (e.g. a caller's poll-driven
+ * refetch, such as the Ride screen's 10s tracking reconciliation) carrying
+ * the exact same coordinates as last time, rather than a real movement.
+ * Deliberately NOT imported from OsmMap.tsx's identical helper — OsmMap is
+ * React.lazy-loaded specifically to keep the maplibre-gl bundle out of
+ * every route's initial JS (see the import above), and a static import
+ * from it here would defeat that.
+ */
+function googleFitBoundsSignature(
+  pickup: LatLng | undefined,
+  drop: LatLng | undefined,
+  driverLocation: LatLng | null | undefined,
+  routePolyline: LatLng[] | undefined
+): string {
+  const first = routePolyline && routePolyline.length > 1 ? routePolyline[0] : undefined;
+  const last = routePolyline && routePolyline.length > 1 ? routePolyline[routePolyline.length - 1] : undefined;
+  return [
+    pickup ? `p${roundCoord(pickup.lat)},${roundCoord(pickup.lng)}` : "",
+    drop ? `d${roundCoord(drop.lat)},${roundCoord(drop.lng)}` : "",
+    driverLocation ? `v${roundCoord(driverLocation.lat)},${roundCoord(driverLocation.lng)}` : "",
+    first && last
+      ? `r${routePolyline!.length}:${roundCoord(first.lat)},${roundCoord(first.lng)}-${roundCoord(last.lat)},${roundCoord(last.lng)}`
+      : "",
+  ].join("|");
+}
+
 /**
  * Three-tier map backend, chosen at render time, not configurable per call
  * site — see the map-ecosystem audit report for the full reasoning:
@@ -113,6 +148,10 @@ function GoogleRideMap({
   const dropMarkerRef = React.useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const driverMarkerRef = React.useRef<google.maps.marker.AdvancedMarkerElement | null>(null);
   const polylineRef = React.useRef<google.maps.Polyline | null>(null);
+  // Same reasoning as OsmMap's identical guard: avoids re-triggering
+  // fitBounds on every poll-driven refetch when coordinates haven't
+  // actually changed, just been handed a new object identity.
+  const lastFitSignatureRef = React.useRef<string | null>(null);
 
   const [loadState, setLoadState] = React.useState<LoadState>(isGoogleMapsConfigured() ? "loading" : "idle");
 
@@ -229,7 +268,13 @@ function GoogleRideMap({
         polylineRef.current = null;
       }
 
-      if (hasPoint) map.fitBounds(bounds, 60);
+      if (hasPoint) {
+        const signature = googleFitBoundsSignature(pickup, drop, driverLocation, routePolyline);
+        if (signature !== lastFitSignatureRef.current) {
+          lastFitSignatureRef.current = signature;
+          map.fitBounds(bounds, 60);
+        }
+      }
     }
 
     syncMarkers();
