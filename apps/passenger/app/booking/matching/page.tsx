@@ -5,8 +5,8 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, MatchingRadar, type VehicleKind } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { advanceMatching, cancelMatchingRide, subscribeToRide } from "@ride-it/data";
-import { MockMap } from "@ride-it/maps";
+import { advanceMatching, cancelMatchingRide, subscribeToRide, getRide, getAppSettingValue } from "@ride-it/data";
+import { RideMap } from "@ride-it/maps";
 
 // How often the passenger's client "heartbeats" the matching engine
 // forward (expire stale offers, dispatch the next batch if needed) — see
@@ -14,9 +14,18 @@ import { MockMap } from "@ride-it/maps";
 // this is pull-based rather than a server-side scheduler.
 const HEARTBEAT_INTERVAL_MS = 3000;
 
-function formatElapsed(totalSeconds: number): string {
-  const m = Math.floor(totalSeconds / 60);
-  const s = totalSeconds % 60;
+// Display-only fallback if the app_settings row is somehow unreadable —
+// matches the server's own default in dispatch_next_batch(). The REAL
+// minimum is enforced entirely server-side (rides.requested_at +
+// matching_minimum_search_seconds, checked inside dispatch_next_batch());
+// this value only decides what number the countdown starts from, and is
+// immediately corrected once the real setting loads.
+const DEFAULT_MIN_SEARCH_SECONDS = 180;
+
+function formatDuration(totalSeconds: number): string {
+  const clamped = Math.max(0, totalSeconds);
+  const m = Math.floor(clamped / 60);
+  const s = clamped % 60;
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
@@ -31,16 +40,46 @@ function MatchingPageContent() {
 
   const [noDriversFound, setNoDriversFound] = React.useState(false);
   const [cancelling, setCancelling] = React.useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = React.useState(0);
+  // The ride's own requested_at, fetched once from the server — the sole
+  // source of truth the countdown is derived from. Never a client-only
+  // "seconds since this screen mounted" counter: that would restart at
+  // 3:00 on every reload/navigate-away-and-back, exactly the fake-countdown
+  // behavior this screen must not have. requested_at is set once at ride
+  // creation and never changes, so re-fetching it (on mount, on reload, on
+  // returning to this screen) always reproduces the same real start time.
+  const [requestedAt, setRequestedAt] = React.useState<string | null>(null);
+  const [minSearchSeconds, setMinSearchSeconds] = React.useState(DEFAULT_MIN_SEARCH_SECONDS);
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
   const settledRef = React.useRef(false);
 
-  // Real, honestly-derived elapsed time since this screen mounted — not a
-  // fabricated "drivers nearby" style figure. Purely a client-side ticker;
-  // doesn't touch matching state or drive any logic.
   React.useEffect(() => {
-    const interval = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
+    if (!rideId) return;
+    getRide(supabase, rideId).then((ride) => {
+      if (ride) setRequestedAt(ride.requested_at);
+    });
+    // Display-only — the actual minimum is enforced server-side inside
+    // dispatch_next_batch() regardless of what this read returns.
+    getAppSettingValue(supabase, "matching_minimum_search_seconds").then((value) => {
+      const parsed = typeof value === "number" ? value : typeof value === "string" ? parseInt(value, 10) : NaN;
+      if (Number.isFinite(parsed) && parsed > 0) setMinSearchSeconds(parsed);
+    });
+  }, [rideId, supabase]);
+
+  // Ticks the clock so the countdown display re-renders every second — the
+  // actual remaining-time VALUE below is always recomputed from
+  // requestedAt + Date.now(), never accumulated/incremented locally, so it
+  // can't drift and correctly reflects real elapsed time even if the tab
+  // was backgrounded (setInterval throttling doesn't matter here — a
+  // missed tick just means the next one jumps straight to the correct
+  // value instead of the display looking stale for a moment).
+  React.useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
+
+  const remainingSeconds = requestedAt
+    ? Math.max(0, minSearchSeconds - Math.floor((nowMs - new Date(requestedAt).getTime()) / 1000))
+    : null;
 
   React.useEffect(() => {
     if (!rideId) return;
@@ -121,8 +160,8 @@ function MatchingPageContent() {
     <main className="relative flex flex-1 flex-col overflow-hidden">
       <MatchingRadar
         vehicle={vehicle}
-        mapSlot={<MockMap variant="searching" className="h-full w-full rounded-none border-0" />}
-        elapsedLabel={formatElapsed(elapsedSeconds)}
+        mapSlot={<RideMap fallbackVariant="searching" className="h-full w-full rounded-none border-0" />}
+        elapsedLabel={remainingSeconds !== null ? formatDuration(remainingSeconds) : undefined}
         onCancel={handleCancel}
       />
     </main>
