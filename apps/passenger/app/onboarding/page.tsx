@@ -6,7 +6,15 @@ import { motion } from "framer-motion";
 import { Button } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getPassengerProfile, updatePassengerProfile, isPassengerProfileComplete, type GenderRow } from "@ride-it/data";
+import {
+  getPassengerProfile,
+  updatePassengerProfile,
+  isPassengerProfileComplete,
+  redeemReferralCode,
+  getStoredReferralCode,
+  clearStoredReferralCode,
+  type GenderRow,
+} from "@ride-it/data";
 
 const GENDER_OPTIONS: { value: GenderRow; label: string }[] = [
   { value: "female", label: "Female" },
@@ -38,6 +46,7 @@ export default function PassengerOnboardingPage() {
   const [gender, setGender] = React.useState<GenderRow | "">("");
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [referralCode, setReferralCode] = React.useState("");
 
   React.useEffect(() => {
     if (!user) return;
@@ -52,6 +61,15 @@ export default function PassengerOnboardingPage() {
       setLoading(false);
     });
   }, [supabase, user]);
+
+  // Pre-fills from a referral link's ?ref=CODE, captured to localStorage
+  // at /login (see captureReferralCodeFromUrl) — the passenger can still
+  // edit or clear it before continuing. Optional either way: leaving it
+  // blank never blocks onboarding.
+  React.useEffect(() => {
+    const stored = getStoredReferralCode();
+    if (stored) setReferralCode(stored);
+  }, []);
 
   const phoneValid = phone.trim().length === 0 || PHONE_SHAPE.test(phone.trim());
   const emailValid = EMAIL_SHAPE.test(email.trim());
@@ -73,6 +91,19 @@ export default function PassengerOnboardingPage() {
       });
       const updated = await getPassengerProfile(supabase, user.id);
       if (updated && isPassengerProfileComplete(updated)) {
+        // Best-effort, never blocks onboarding: an invalid/expired code,
+        // self-referral, or an already-attributed account all just fail
+        // silently here — attribution isn't the qualifying event anyway
+        // (a completed ride is), so there's nothing time-sensitive lost.
+        if (referralCode.trim()) {
+          try {
+            await redeemReferralCode(supabase, referralCode.trim());
+          } catch {
+            // Intentionally swallowed — see comment above.
+          } finally {
+            clearStoredReferralCode();
+          }
+        }
         router.push("/home");
       } else {
         setError("Couldn't save your details. Please try again.");
@@ -172,6 +203,16 @@ export default function PassengerOnboardingPage() {
                 </button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-ink">Referral code (optional)</label>
+            <input
+              value={referralCode}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+              placeholder="e.g. 2KUFURZ9"
+              className="h-12 w-full rounded-lg border border-border bg-surface px-4 text-sm uppercase tracking-wide text-ink outline-none focus:border-signal-blue"
+            />
           </div>
 
           {error && <p className="text-xs text-alert-red">{error}</p>}

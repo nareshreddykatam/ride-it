@@ -18,6 +18,7 @@ import {
   WalletIcon,
   SafetyIcon,
 } from "@ride-it/ui";
+import { Gift } from "lucide-react";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getDriverProfile, setDriverUpiId, type DriverProfileRow } from "@ride-it/data";
@@ -251,6 +252,7 @@ export default function DriverProfilePage() {
             { href: "/subscription", label: "Subscription plan", icon: WalletIcon, tone: "marigold" },
             { href: "/subscription-history", label: "Subscription history", icon: WalletIcon, tone: "blue" },
             { href: "/history", label: "Ride history", icon: RideIcon, tone: "blue" },
+            { href: "/refer", label: "Refer & earn", icon: Gift, tone: "marigold" },
           ] satisfies { href: string; label: string; icon: React.ElementType; tone: "blue" | "marigold" }[]
         ).map((item) => (
           <Link

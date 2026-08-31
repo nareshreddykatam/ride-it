@@ -22,6 +22,7 @@ import {
   Headset,
   Menu,
   X,
+  Gift,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { href: "/safety", label: "Safety", icon: LifeBuoy },
   { href: "/support", label: "Support", icon: Headset },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
+  { href: "/referrals", label: "Referrals", icon: Gift },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/cities", label: "Cities", icon: MapPin },
   { href: "/admin-users", label: "Admin Users", icon: ShieldCheck },
@@ -45,11 +47,11 @@ const NAV_ITEMS = [
 const NAV_SECTIONS: { label: string; items: typeof NAV_ITEMS }[] = [
   {
     label: "Operations",
-    items: NAV_ITEMS.slice(0, 9),
+    items: NAV_ITEMS.slice(0, 10),
   },
   {
     label: "Platform",
-    items: NAV_ITEMS.slice(9),
+    items: NAV_ITEMS.slice(10),
   },
 ];
 

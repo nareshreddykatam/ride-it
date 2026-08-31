@@ -58,6 +58,28 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleToggleReferrals() {
+    if (!user) return;
+    setSaving("referral_enabled");
+    try {
+      await updateAppSetting(supabase, "referral_enabled", !referralEnabled, user.id);
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleReferralRewardSave(key: string, amount: number) {
+    if (!user) return;
+    setSaving(key);
+    try {
+      await updateAppSetting(supabase, key, amount, user.id);
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
   if (loading) {
     return (
       <div>
@@ -73,6 +95,7 @@ export default function SettingsPage() {
 
   const maintenanceOn = settings.maintenance_mode?.value === true;
   const languages = (settings.supported_languages?.value as string[] | undefined) ?? ["en"];
+  const referralEnabled = settings.referral_enabled?.value === true;
 
   return (
     <div>
@@ -117,6 +140,55 @@ export default function SettingsPage() {
             onClick={() => (maintenanceOn ? handleToggleMaintenance() : setConfirmMaintenanceOpen(true))}
           >
             {maintenanceOn ? "Turn off maintenance mode" : "Turn on maintenance mode"}
+          </Button>
+        </Card>
+
+        <Card accent={referralEnabled ? "green" : undefined}>
+          <CardHeader>
+            <CardTitle>Referral rewards</CardTitle>
+            <StatusPill tone={referralEnabled ? "online" : "pending"}>{referralEnabled ? "Enabled" : "Disabled"}</StatusPill>
+          </CardHeader>
+          <p className="mb-3 text-xs text-ink-soft">
+            Reward the inviter once their invitee completes a qualifying ride. Requires {String(settings.referral_required_completed_rides?.value ?? 1)} completed ride(s).
+          </p>
+          <div className="space-y-3">
+            <ReferralRewardRow
+              label="Passenger → Passenger"
+              settingKey="referral_passenger_to_passenger_reward"
+              value={Number(settings.referral_passenger_to_passenger_reward?.value ?? 0)}
+              saving={saving === "referral_passenger_to_passenger_reward"}
+              onSave={handleReferralRewardSave}
+            />
+            <ReferralRewardRow
+              label="Passenger → Driver"
+              settingKey="referral_passenger_to_driver_reward"
+              value={Number(settings.referral_passenger_to_driver_reward?.value ?? 0)}
+              saving={saving === "referral_passenger_to_driver_reward"}
+              onSave={handleReferralRewardSave}
+            />
+            <ReferralRewardRow
+              label="Driver → Passenger"
+              settingKey="referral_driver_to_passenger_reward"
+              value={Number(settings.referral_driver_to_passenger_reward?.value ?? 0)}
+              saving={saving === "referral_driver_to_passenger_reward"}
+              onSave={handleReferralRewardSave}
+            />
+            <ReferralRewardRow
+              label="Driver → Driver"
+              settingKey="referral_driver_to_driver_reward"
+              value={Number(settings.referral_driver_to_driver_reward?.value ?? 0)}
+              saving={saving === "referral_driver_to_driver_reward"}
+              onSave={handleReferralRewardSave}
+            />
+          </div>
+          <Button
+            size="sm"
+            variant={referralEnabled ? "outline" : "primary"}
+            className="mt-4 w-full"
+            disabled={saving === "referral_enabled"}
+            onClick={handleToggleReferrals}
+          >
+            {referralEnabled ? "Disable referrals" : "Enable referrals"}
           </Button>
         </Card>
 
@@ -168,6 +240,59 @@ export default function SettingsPage() {
         loading={saving === "maintenance_mode"}
         onConfirm={handleToggleMaintenance}
       />
+    </div>
+  );
+}
+
+function ReferralRewardRow({
+  label,
+  settingKey,
+  value,
+  saving,
+  onSave,
+}: {
+  label: string;
+  settingKey: string;
+  value: number;
+  saving: boolean;
+  onSave: (key: string, amount: number) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [amount, setAmount] = React.useState(String(value));
+
+  React.useEffect(() => {
+    if (!editing) setAmount(String(value));
+  }, [value, editing]);
+
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <span className="text-ink">{label}</span>
+      {editing ? (
+        <div className="flex items-center gap-2">
+          <span className="text-ink-soft">₹</span>
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            className="h-8 w-20 rounded border border-border px-2 text-xs"
+            inputMode="decimal"
+          />
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={saving || Number.isNaN(Number(amount)) || Number(amount) < 0}
+            onClick={() => {
+              onSave(settingKey, Number(amount));
+              setEditing(false);
+            }}
+          >
+            Save
+          </Button>
+        </div>
+      ) : (
+        <button onClick={() => setEditing(true)} className="font-meter text-ink-soft hover:text-signal-blue">
+          ₹{value}
+        </button>
+      )}
     </div>
   );
 }

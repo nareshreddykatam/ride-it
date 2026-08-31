@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, requestEmailOtp, detectIdentifier } from "@ride-it/auth";
+import { captureReferralCodeFromUrl } from "@ride-it/data";
 
 export function LoginForm({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
@@ -13,6 +14,16 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [input, setInput] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+
+  // A referral link (?ref=CODE) may land here before the user has any
+  // session at all — captured to localStorage as a pure UX convenience so
+  // the onboarding screen can pre-fill it later. This is NOT the
+  // attribution itself: redeemReferralCode() (an authenticated server
+  // RPC, called from onboarding) is the only thing that ever persists a
+  // real referral.
+  React.useEffect(() => {
+    captureReferralCodeFromUrl();
+  }, []);
   // The middleware (packages/auth/src/middleware.ts) already force-signs-out
   // and redirects here with ?error=wrong_app when a session for a different
   // role hits this app — this just surfaces that server-enforced outcome

@@ -68,6 +68,7 @@ export default function PassengerProfilePage() {
 
   const links = [
     { href: "/profile/edit", label: "Personal details", hint: "Edit" },
+    { href: "/refer", label: "Refer & earn", hint: "Open" },
     { href: "/saved-places", label: "Saved addresses", hint: "Manage" },
     { href: "/trusted-contacts", label: "Trusted contacts", hint: "Manage" },
     { href: "/safety-center", label: "Safety Center", hint: "Open" },

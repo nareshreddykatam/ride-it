@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Button, DriverIcon } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, requestEmailOtp, detectIdentifier } from "@ride-it/auth";
+import { captureReferralCodeFromUrl } from "@ride-it/data";
 
 export function LoginForm({ children }: { children?: React.ReactNode }) {
   const router = useRouter();
@@ -13,6 +14,14 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [input, setInput] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
+
+  // See the Passenger app's identical comment: pure UX convenience,
+  // carries a ?ref=CODE link's code across the pre-auth redirect boundary
+  // only — the real attribution happens later via redeemReferralCode(),
+  // an authenticated server RPC called from onboarding.
+  React.useEffect(() => {
+    captureReferralCodeFromUrl();
+  }, []);
   // The middleware (packages/auth/src/middleware.ts) already force-signs-out
   // and redirects here with ?error=wrong_app when a session for a different
   // role hits this app — this just surfaces that server-enforced outcome

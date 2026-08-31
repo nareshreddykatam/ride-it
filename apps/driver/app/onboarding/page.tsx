@@ -12,6 +12,9 @@ import {
   isDriverPersonalInfoComplete,
   getActiveVehicle,
   upsertActiveVehicle,
+  redeemReferralCode,
+  getStoredReferralCode,
+  clearStoredReferralCode,
   type GenderRow,
 } from "@ride-it/data";
 
@@ -61,6 +64,12 @@ export default function DriverOnboardingPage() {
   const [make, setMake] = React.useState("");
   const [model, setModel] = React.useState("");
   const [color, setColor] = React.useState("");
+  const [referralCode, setReferralCode] = React.useState("");
+
+  React.useEffect(() => {
+    const stored = getStoredReferralCode();
+    if (stored) setReferralCode(stored);
+  }, []);
 
   React.useEffect(() => {
     if (!user) return;
@@ -124,6 +133,19 @@ export default function DriverOnboardingPage() {
       });
       const profile = await getDriverProfile(supabase, user.id);
       if (profile && isDriverPersonalInfoComplete(profile)) {
+        // Best-effort, never blocks onboarding — same reasoning as the
+        // Passenger app's identical hook. A driver invitee also needs
+        // verification/approval before their referral can qualify, which
+        // happens later (Admin document review), well after this point.
+        if (referralCode.trim()) {
+          try {
+            await redeemReferralCode(supabase, referralCode.trim());
+          } catch {
+            // Intentionally swallowed.
+          } finally {
+            clearStoredReferralCode();
+          }
+        }
         router.push("/documents");
       } else {
         setError("Couldn't save your details. Please try again.");
@@ -297,6 +319,12 @@ export default function DriverOnboardingPage() {
             value={color}
             onChange={(e) => setColor(e.target.value)}
             placeholder="White, Black, Red…"
+          />
+          <Input
+            label="Referral code (optional)"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            placeholder="e.g. 2KUFURZ9"
           />
           {error && <p className="text-xs text-alert-red">{error}</p>}
         </div>
