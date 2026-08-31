@@ -7,6 +7,7 @@ import type { Feature, LineString } from "geojson";
 import { cn } from "@ride-it/ui";
 import type { VehicleKind } from "@ride-it/ui";
 import { createVehicleMarkerElement } from "../vehicle-marker";
+import { SelectionPinOverlay } from "./SelectionPinOverlay";
 import type { LatLng } from "./RideMap";
 
 // maplibre-gl needs a one-time setWorkerUrl() call under webpack/Next.js —
@@ -131,6 +132,11 @@ export interface OsmMapProps {
   vehicleType?: VehicleKind;
   /** Called once if the map tile style itself fails to load (e.g. genuinely offline, or tiles.openfreemap.org unreachable) — the parent (RideMap) falls back to MockMap when this fires, the same honest-degradation contract Google's path already has. */
   onUnavailable: () => void;
+  /** See RideMapProps.selectionMode — same contract, this backend's implementation. */
+  selectionMode?: boolean;
+  selectionTone?: "pickup" | "drop";
+  selectionInitialCenter?: LatLng;
+  onSelectionIdle?: (center: LatLng) => void;
 }
 
 export function OsmMap({
@@ -142,6 +148,10 @@ export function OsmMap({
   routePolyline,
   vehicleType,
   onUnavailable,
+  selectionMode,
+  selectionTone = "pickup",
+  selectionInitialCenter,
+  onSelectionIdle,
 }: OsmMapProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<MaplibreMap | null>(null);
@@ -159,16 +169,22 @@ export function OsmMap({
   const lastFitSignatureRef = React.useRef<string | null>(null);
   const [ready, setReady] = React.useState(false);
   const [locating, setLocating] = React.useState(false);
+  // Latest onSelectionIdle — read from a ref inside listeners registered
+  // once at map-creation time, same reasoning as GoogleRideMap's identical
+  // ref (a fresh callback identity per render never needs a re-register).
+  const onSelectionIdleRef = React.useRef(onSelectionIdle);
+  onSelectionIdleRef.current = onSelectionIdle;
 
   // Create the map instance once.
   React.useEffect(() => {
     if (!containerRef.current) return;
     let cancelled = false;
 
+    const initialCenter = selectionMode ? (selectionInitialCenter ?? pickup ?? DEFAULT_CITY_CENTER) : (pickup ?? DEFAULT_CITY_CENTER);
     const map = new MaplibreMap({
       container: containerRef.current,
       style: OFM_STYLE_URL,
-      center: [pickup?.lng ?? DEFAULT_CITY_CENTER.lng, pickup?.lat ?? DEFAULT_CITY_CENTER.lat],
+      center: [initialCenter.lng, initialCenter.lat],
       zoom: 13,
       attributionControl: { compact: true },
     });
@@ -197,7 +213,24 @@ export function OsmMap({
 
     map.on("load", () => {
       if (!cancelled) setReady(true);
+      // Fires once as soon as the map is ready, so an address preview is
+      // available before the passenger has touched the map at all — the
+      // "moveend" listener below then covers every pan/zoom after this.
+      if (!cancelled && selectionMode) {
+        const c = map.getCenter();
+        onSelectionIdleRef.current?.({ lat: c.lat, lng: c.lng });
+      }
     });
+    if (selectionMode) {
+      // "moveend" fires once panning/zooming genuinely settles — never
+      // per-frame during the drag itself — matching Part 13's "move map,
+      // wait until movement stops, resolve once" requirement.
+      map.on("moveend", () => {
+        if (cancelled) return;
+        const c = map.getCenter();
+        onSelectionIdleRef.current?.({ lat: c.lat, lng: c.lng });
+      });
+    }
     map.on("error", () => {
       if (!cancelled) onUnavailable();
     });
@@ -245,9 +278,12 @@ export function OsmMap({
   }, []);
 
   // Keep markers/route in sync with props, without recreating the map.
+  // Selection mode uses the always-centered CSS pin overlay instead and
+  // deliberately skips fitBounds() — it would fight the passenger's own
+  // pan gesture, same reasoning as GoogleRideMap's identical guard.
   React.useEffect(() => {
     const map = mapRef.current;
-    if (!ready || !map) return;
+    if (!ready || !map || selectionMode) return;
 
     const bounds = new LngLatBounds();
     let hasPoint = false;
@@ -323,7 +359,7 @@ export function OsmMap({
         map.fitBounds(bounds, { padding: 60, maxZoom: 16, duration: 400 });
       }
     }
-  }, [ready, pickup, drop, driverLocation, driverLocationStale, routePolyline, vehicleType]);
+  }, [ready, pickup, drop, driverLocation, driverLocationStale, routePolyline, vehicleType, selectionMode]);
 
   async function handleLocate() {
     const map = mapRef.current;
@@ -360,6 +396,7 @@ export function OsmMap({
           <path d="M12 2v3M12 19v3M2 12h3M19 12h3" strokeLinecap="round" />
         </svg>
       </button>
+      {selectionMode && ready && <SelectionPinOverlay tone={selectionTone} />}
     </div>
   );
 }

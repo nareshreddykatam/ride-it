@@ -50,3 +50,44 @@ export async function geocodeAddress(address: string): Promise<GeocodeResult | n
     formattedAddress: first.formatted_address,
   };
 }
+
+export interface ReverseGeocodeResult {
+  formattedAddress: string;
+}
+
+/**
+ * Server-only — the reverse-lookup counterpart to geocodeAddress(), same
+ * Google Geocoding API endpoint and key, just `latlng=` instead of
+ * `address=` (Google's documented reverse-geocoding usage of this exact
+ * endpoint — no separate API/product). Used by the map pin-selection flow
+ * (booking/map-select) to show a human-readable address for a
+ * passenger-selected coordinate — never to derive coordinates from text,
+ * that remains geocodeAddress()'s job.
+ *
+ * Same "NOT executable in this environment" caveat as geocodeAddress():
+ * maps.googleapis.com is not reachable from this sandbox and no real key
+ * is configured here — the request shape follows Google's current
+ * documented reverse-geocoding format but has not been exercised against
+ * the live API in this environment.
+ */
+export async function reverseGeocodeCoordinates(lat: number, lng: number): Promise<ReverseGeocodeResult | null> {
+  const apiKey = getGoogleMapsGeocodingKey();
+  const url = new URL("https://maps.googleapis.com/maps/api/geocode/json");
+  url.searchParams.set("latlng", `${lat},${lng}`);
+  url.searchParams.set("key", apiKey);
+
+  const response = await fetch(url.toString());
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as {
+    status: string;
+    results: Array<{ formatted_address: string }>;
+  };
+
+  if (data.status !== "OK" || data.results.length === 0) return null;
+
+  const first = data.results[0];
+  if (!first) return null;
+
+  return { formattedAddress: first.formatted_address };
+}

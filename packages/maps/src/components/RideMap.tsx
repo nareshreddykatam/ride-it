@@ -7,6 +7,7 @@ import { isGoogleMapsConfigured } from "../env";
 import { loadGoogleMaps } from "../loader";
 import { createVehicleMarkerElement } from "../vehicle-marker";
 import { MockMap, type MockMapProps } from "../fallback/MockMapFallback";
+import { SelectionPinOverlay } from "./SelectionPinOverlay";
 
 // Lazily loaded — maplibre-gl is a genuinely sizeable bundle (~250KB), and
 // most call sites never need it at all (Google's path, when configured,
@@ -35,7 +36,33 @@ export interface RideMapProps {
   routePolyline?: LatLng[];
   /** The ride's actual vehicle type (auto/bike/scooty/car) — when provided, the driver marker renders that vehicle's real silhouette (@ride-it/ui's VEHICLE_VISUALS) instead of a plain dot. Omit for a driver's own self-location marker, where "which vehicle" isn't meaningful. */
   vehicleType?: VehicleKind;
+  /**
+   * Exact-point pin-selection mode (booking/map-select) — renders a pin
+   * fixed to the container's visual center (not a real map marker, so it
+   * stays glued to center as the passenger pans the map underneath it)
+   * instead of the normal pickup/drop markers. The selected coordinate is
+   * always exactly what the pin visually points at — this is what makes
+   * "the visual pin and submitted coordinates must be the same location"
+   * true by construction, not by convention.
+   */
+  selectionMode?: boolean;
+  /** Pin color while in selectionMode — "pickup" (green) or "drop" (red), same PinTone vocabulary as PinGlyph/RideMap's own markers elsewhere. */
+  selectionTone?: "pickup" | "drop";
+  /** Where to center the map on first mount when selectionMode is active — construction-time only (panning afterward never fights the passenger's own gesture), mirrors the existing pickup-as-initial-center behavior when omitted. */
+  selectionInitialCenter?: LatLng;
+  /** Fires once panning/zooming settles (debounced by the underlying map's own "idle"/"moveend" event, never per-frame) with the coordinate now under the fixed center pin — see Part 13's "move map, wait until movement stops, resolve once" requirement. Also fires once immediately when the map becomes ready, so an address preview is available before the passenger even touches the map. */
+  onSelectionIdle?: (center: LatLng) => void;
+  /**
+   * Fires once if selectionMode is requested but the map has fallen all
+   * the way to the MockMap fallback (no real WebGL map available) — a
+   * decorative SVG has no real-world coordinate space, so exact-point
+   * selection is architecturally impossible there. Callers must show an
+   * honest unavailable state instead of a fake movable pin; RideMap
+   * itself already does this for its own default rendering (Part 10).
+   */
+  onSelectionUnavailable?: () => void;
 }
+
 
 // Vijayawada, Andhra Pradesh — the operating/demo city (Part 15). Used only
 // as the initial map center before pickup/drop are known; every other
@@ -121,13 +148,46 @@ export function RideMap(props: RideMapProps) {
           driverLocationStale={props.driverLocationStale}
           routePolyline={props.routePolyline}
           vehicleType={props.vehicleType}
+          selectionMode={props.selectionMode}
+          selectionTone={props.selectionTone}
+          selectionInitialCenter={props.selectionInitialCenter}
+          onSelectionIdle={props.onSelectionIdle}
           onUnavailable={() => setOsmFailed(true)}
         />
       </React.Suspense>
     );
   }
 
+  // Genuine last resort: a decorative SVG with no real-world coordinate
+  // space. Exact-point selection is architecturally impossible here — per
+  // Part 10, this must say so honestly rather than render a fake movable
+  // pin that would silently submit meaningless coordinates.
+  if (props.selectionMode) {
+    return <SelectionUnavailableFallback className={props.className} onUnavailable={props.onSelectionUnavailable} />;
+  }
+
   return <MockMap variant={props.fallbackVariant ?? "static"} progress={props.fallbackProgress} className={props.className} />;
+}
+
+function SelectionUnavailableFallback({ className, onUnavailable }: { className?: string; onUnavailable?: () => void }) {
+  React.useEffect(() => {
+    onUnavailable?.();
+    // Fire exactly once when this fallback actually mounts — not on every
+    // parent re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div
+      className={cn(
+        "relative flex w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-border bg-ink/5 p-6 text-center",
+        className
+      )}
+    >
+      <p className="text-sm font-medium text-ink">Map selection isn&apos;t available right now</p>
+      <p className="text-xs text-ink-soft">Please search for the location instead.</p>
+    </div>
+  );
 }
 
 /** The Google Maps JS API backend — used only when NEXT_PUBLIC_GOOGLE_MAPS_API_KEY is genuinely configured. Falls back to MockMap if the script itself fails to load (network/key error), same as before this change. */
@@ -141,6 +201,10 @@ function GoogleRideMap({
   driverLocationStale,
   routePolyline,
   vehicleType,
+  selectionMode,
+  selectionTone = "pickup",
+  selectionInitialCenter,
+  onSelectionIdle,
 }: RideMapProps) {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<google.maps.Map | null>(null);
@@ -152,6 +216,12 @@ function GoogleRideMap({
   // fitBounds on every poll-driven refetch when coordinates haven't
   // actually changed, just been handed a new object identity.
   const lastFitSignatureRef = React.useRef<string | null>(null);
+  // Latest onSelectionIdle — read from a ref inside the map's own "idle"
+  // listener (registered once, at map-creation time) so a caller passing
+  // a fresh function identity every render never needs to tear down and
+  // re-register the listener.
+  const onSelectionIdleRef = React.useRef(onSelectionIdle);
+  onSelectionIdleRef.current = onSelectionIdle;
 
   const [loadState, setLoadState] = React.useState<LoadState>(isGoogleMapsConfigured() ? "loading" : "idle");
 
@@ -165,7 +235,7 @@ function GoogleRideMap({
         if (cancelled || !containerRef.current) return;
         const { Map } = (await g.maps.importLibrary("maps")) as google.maps.MapsLibrary;
         mapRef.current = new Map(containerRef.current, {
-          center: pickup ?? DEFAULT_CITY_CENTER,
+          center: selectionMode ? (selectionInitialCenter ?? pickup ?? DEFAULT_CITY_CENTER) : (pickup ?? DEFAULT_CITY_CENTER),
           zoom: 14,
           disableDefaultUI: true,
           zoomControl: true,
@@ -176,6 +246,20 @@ function GoogleRideMap({
           // Cloud Console. Documented in .env.example.
           mapId: process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || "DEMO_MAP_ID",
         });
+
+        if (selectionMode) {
+          // "idle" fires once panning/zooming settles — never per-frame —
+          // exactly the "move map, wait until movement stops, resolve
+          // once" pattern Part 13 requires. Registered once here (not in
+          // the marker-sync effect below, which this mode skips entirely)
+          // and reads the latest callback via a ref so a fresh function
+          // identity per render never needs a listener teardown/re-add.
+          mapRef.current.addListener("idle", () => {
+            const center = mapRef.current?.getCenter();
+            if (center) onSelectionIdleRef.current?.({ lat: center.lat(), lng: center.lng() });
+          });
+        }
+
         setLoadState("ready");
       })
       .catch(() => {
@@ -189,8 +273,12 @@ function GoogleRideMap({
   }, []);
 
   // Keep markers in sync with props, without recreating the map itself.
+  // Selection mode uses the always-centered CSS pin overlay instead (see
+  // SelectionPinOverlay) and deliberately never calls fitBounds() here —
+  // doing so would fight the passenger's own pan gesture, recentering the
+  // map out from under them mid-drag.
   React.useEffect(() => {
-    if (loadState !== "ready" || !mapRef.current) return;
+    if (loadState !== "ready" || !mapRef.current || selectionMode) return;
     const g = google;
     const map = mapRef.current;
     const bounds = new g.maps.LatLngBounds();
@@ -278,7 +366,7 @@ function GoogleRideMap({
     }
 
     syncMarkers();
-  }, [loadState, pickup, drop, driverLocation, driverLocationStale, routePolyline, vehicleType]);
+  }, [loadState, pickup, drop, driverLocation, driverLocationStale, routePolyline, vehicleType, selectionMode]);
 
   // Polyline cleanup on unmount — mirrors the geolocation watcher's own
   // explicit cleanup requirement; a Polyline left attached to a map that
@@ -296,6 +384,9 @@ function GoogleRideMap({
   // is already known true — the only failure mode left to handle here is the
   // script itself failing to load (network/key error), same as before.
   if (loadState === "error") {
+    if (selectionMode) {
+      return <SelectionUnavailableFallback className={className} />;
+    }
     return <MockMap variant={fallbackVariant} progress={fallbackProgress} className={className} />;
   }
 
@@ -307,6 +398,7 @@ function GoogleRideMap({
           Loading map…
         </div>
       )}
+      {selectionMode && loadState === "ready" && <SelectionPinOverlay tone={selectionTone} />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import type { GeocodeResult } from "./server/geocoding";
+import type { GeocodeResult, ReverseGeocodeResult } from "./server/geocoding";
 import type { EtaResult, EtaVehicleType } from "./server/eta";
 
 /**
@@ -24,6 +24,27 @@ export async function fetchGeocode(address: string): Promise<GeocodeResult | nul
     });
     if (!res.ok) return null;
     return (await res.json()) as GeocodeResult;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Calls this app's own /api/reverse-geocode Route Handler — the reverse
+ * counterpart to fetchGeocode(), same "return null on any failure, never
+ * throw" contract so callers (the map pin-selection flow) can keep the
+ * exact coordinates and show a fallback label rather than blocking the
+ * passenger because an address lookup failed (Part 12).
+ */
+export async function fetchReverseGeocode(lat: number, lng: number): Promise<ReverseGeocodeResult | null> {
+  try {
+    const res = await fetch("/api/reverse-geocode", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lat, lng }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as ReverseGeocodeResult;
   } catch {
     return null;
   }
