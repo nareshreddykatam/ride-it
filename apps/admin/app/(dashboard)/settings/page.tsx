@@ -12,8 +12,10 @@ import {
   listPricingRulesAdmin,
   updatePricingRule,
   createPricingRule,
+  getAdminSurgeRecommendation,
   type AppSettingRow,
   type PricingRuleRow,
+  type SurgeRecommendationRow,
 } from "@ride-it/data";
 
 // The authoritative vehicle-type set — read from the same source every
@@ -28,14 +30,20 @@ export default function SettingsPage() {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [settings, setSettings] = React.useState<Record<string, AppSettingRow>>({});
   const [pricing, setPricing] = React.useState<PricingRuleRow[]>([]);
+  const [surgeRecs, setSurgeRecs] = React.useState<SurgeRecommendationRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState<string | null>(null);
   const [confirmMaintenanceOpen, setConfirmMaintenanceOpen] = React.useState(false);
 
   const refresh = React.useCallback(async () => {
-    const [s, p] = await Promise.all([listAppSettingsAdmin(supabase), listPricingRulesAdmin(supabase)]);
+    const [s, p, sr] = await Promise.all([
+      listAppSettingsAdmin(supabase),
+      listPricingRulesAdmin(supabase),
+      getAdminSurgeRecommendation(supabase),
+    ]);
     setSettings(Object.fromEntries(s.map((row) => [row.key, row])));
     setPricing(p);
+    setSurgeRecs(sr);
   }, [supabase]);
 
   React.useEffect(() => {
@@ -86,6 +94,62 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSurgeMultiplierSave(rule: PricingRuleRow, multiplier: number) {
+    setSaving(`surge-${rule.id}`);
+    try {
+      await updatePricingRule(supabase, rule.id, { surgeMultiplier: multiplier });
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleApplyRecommendation(rule: PricingRuleRow, suggested: number) {
+    setSaving(`surge-${rule.id}`);
+    try {
+      await updatePricingRule(supabase, rule.id, { surgeMultiplier: suggested });
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleToggleSurge() {
+    if (!user) return;
+    const current = settings.surge_enabled?.value === true;
+    setSaving("surge_enabled");
+    try {
+      await updateAppSetting(supabase, "surge_enabled", !current, user.id);
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleSurgeMaxSave(value: number) {
+    if (!user) return;
+    setSaving("surge_max_multiplier");
+    try {
+      await updateAppSetting(supabase, "surge_max_multiplier", value, user.id);
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  async function handleSurgeWindowSave(key: "surge_starts_at" | "surge_ends_at", value: string) {
+    if (!user) return;
+    setSaving(key);
+    try {
+      // Empty input clears the schedule (back to manual on/off only) —
+      // stored as JSON null, matching the migration's own default.
+      await updateAppSetting(supabase, key, value ? new Date(value).toISOString() : null, user.id);
+      await refresh();
+    } finally {
+      setSaving(null);
+    }
+  }
+
   async function handleToggleReferrals() {
     if (!user) return;
     setSaving("referral_enabled");
@@ -124,6 +188,16 @@ export default function SettingsPage() {
   const maintenanceOn = settings.maintenance_mode?.value === true;
   const languages = (settings.supported_languages?.value as string[] | undefined) ?? ["en"];
   const referralEnabled = settings.referral_enabled?.value === true;
+  const surgeEnabled = settings.surge_enabled?.value === true;
+  const surgeMax = Number(settings.surge_max_multiplier?.value ?? 2);
+  const surgeStartsAt = (settings.surge_starts_at?.value as string | null) ?? null;
+  const surgeEndsAt = (settings.surge_ends_at?.value as string | null) ?? null;
+  // Same window logic compute_ride_fare()/get_surge_status() use server-side
+  // — purely for an at-a-glance "is surge ACTUALLY in effect right now"
+  // label; the server, not this computation, is what's ever enforced.
+  const surgeInWindow =
+    (!surgeStartsAt || new Date(surgeStartsAt) <= new Date()) && (!surgeEndsAt || new Date(surgeEndsAt) >= new Date());
+  const surgeCurrentlyActive = surgeEnabled && surgeInWindow;
 
   return (
     <div>
@@ -144,7 +218,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle>Vehicle pricing</CardTitle>
           </CardHeader>
-          <p className="mb-3 text-xs text-ink-soft">Base fare + per-km, per vehicle type. No surge pricing.</p>
+          <p className="mb-3 text-xs text-ink-soft">Base fare + per-km, per vehicle type. Surge multipliers are configured separately below.</p>
           <div className="space-y-3">
             {VEHICLE_TYPES.map((vehicleType) => {
               // Prefer the active rule if one exists; otherwise fall back
@@ -166,6 +240,64 @@ export default function SettingsPage() {
               );
             })}
           </div>
+        </Card>
+
+        <Card accent={surgeCurrentlyActive ? "red" : undefined}>
+          <CardHeader>
+            <CardTitle>Surge control</CardTitle>
+            <StatusPill tone={surgeCurrentlyActive ? "alert" : "pending"}>
+              {surgeCurrentlyActive ? "ACTIVE" : surgeEnabled ? "ENABLED (outside window)" : "OFF"}
+            </StatusPill>
+          </CardHeader>
+          <p className="mb-3 text-xs text-ink-soft">
+            Multiplies base + distance fare per vehicle type while enabled. Server-enforced regardless of what any
+            client requests — see compute_ride_fare().
+          </p>
+          <div className="space-y-3">
+            {VEHICLE_TYPES.map((vehicleType) => {
+              const rulesForType = pricing.filter((r) => r.vehicle_type === vehicleType);
+              const rule = rulesForType.find((r) => r.is_active) ?? rulesForType[0];
+              const rec = surgeRecs.find((r) => r.vehicle_type === vehicleType);
+              return (
+                <SurgeMultiplierRow
+                  key={vehicleType}
+                  vehicleType={vehicleType}
+                  rule={rule}
+                  maxMultiplier={surgeMax}
+                  recommendation={rec}
+                  saving={saving === `surge-${rule?.id}`}
+                  onSave={handleSurgeMultiplierSave}
+                  onApplyRecommendation={handleApplyRecommendation}
+                />
+              );
+            })}
+          </div>
+
+          <div className="mt-4 space-y-2 border-t border-border/60 pt-3 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-ink-soft">Maximum allowed multiplier</span>
+              <MaxMultiplierEditor value={surgeMax} saving={saving === "surge_max_multiplier"} onSave={handleSurgeMaxSave} />
+            </div>
+            <p className="text-xs text-ink-soft">
+              Scope: platform-wide (no per-city/zone pricing exists yet — see final report). Hard safety ceiling: 5.00x, enforced regardless of this setting.
+            </p>
+            <SurgeWindowEditor
+              startsAt={surgeStartsAt}
+              endsAt={surgeEndsAt}
+              savingKey={saving}
+              onSave={handleSurgeWindowSave}
+            />
+          </div>
+
+          <Button
+            size="sm"
+            variant={surgeEnabled ? "outline" : "destructive"}
+            className="mt-4 w-full"
+            disabled={saving === "surge_enabled"}
+            onClick={handleToggleSurge}
+          >
+            {surgeEnabled ? "Turn off surge" : "Turn on surge"}
+          </Button>
         </Card>
 
         <Card accent={maintenanceOn ? "red" : "green"}>
@@ -345,6 +477,194 @@ function ReferralRewardRow({
 function isValidFareValue(raw: string): boolean {
   const n = Number(raw);
   return raw.trim() !== "" && Number.isFinite(n) && n >= 0;
+}
+
+// Absolute hard ceiling — mirrors pricing_rules_surge_multiplier_valid's
+// own DB-level CHECK constraint exactly, so the client rejects an invalid
+// value before ever attempting the write (server remains the real
+// enforcement either way).
+const SURGE_HARD_MAX = 5;
+
+/** A surge multiplier is valid if it's finite, >= 1.00 (never a discount, never zero/negative), and within the absolute hard ceiling. */
+function isValidSurgeMultiplier(raw: string): boolean {
+  const n = Number(raw);
+  return raw.trim() !== "" && Number.isFinite(n) && n >= 1 && n <= SURGE_HARD_MAX;
+}
+
+function SurgeMultiplierRow({
+  vehicleType,
+  rule,
+  maxMultiplier,
+  recommendation,
+  saving,
+  onSave,
+  onApplyRecommendation,
+}: {
+  vehicleType: keyof typeof VEHICLE_TYPE_LABELS_DB;
+  rule: PricingRuleRow | undefined;
+  maxMultiplier: number;
+  recommendation: SurgeRecommendationRow | undefined;
+  saving: boolean;
+  onSave: (rule: PricingRuleRow, multiplier: number) => void;
+  onApplyRecommendation: (rule: PricingRuleRow, suggested: number) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [value, setValue] = React.useState(String(rule?.surge_multiplier ?? 1));
+
+  const valid = isValidSurgeMultiplier(value) && Number(value) <= maxMultiplier;
+
+  if (!rule) {
+    // No pricing rule at all for this vehicle yet — surge has nothing to
+    // multiply. Configure base pricing above first.
+    return (
+      <div className="flex items-center justify-between text-sm text-ink-soft">
+        <span>{VEHICLE_TYPE_LABELS_DB[vehicleType]}</span>
+        <span className="text-xs italic">Set base pricing first</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-1 border-b border-border/60 pb-2.5 last:border-b-0 last:pb-0">
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-ink">{VEHICLE_TYPE_LABELS_DB[vehicleType]}</span>
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <input
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              inputMode="decimal"
+              className="h-8 w-16 rounded border border-border px-2 text-xs"
+            />
+            <span className="text-ink-soft">x</span>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={saving || !valid}
+              onClick={() => {
+                onSave(rule, Number(value));
+                setEditing(false);
+              }}
+            >
+              Save
+            </Button>
+            <Button size="sm" variant="ghost" disabled={saving} onClick={() => setEditing(false)}>
+              Cancel
+            </Button>
+          </div>
+        ) : (
+          <button onClick={() => setEditing(true)} className="font-meter text-ink-soft hover:text-signal-blue">
+            {rule.surge_multiplier}x
+          </button>
+        )}
+      </div>
+      {editing && !valid && (
+        <p className="text-xs text-alert-red">Must be between 1.00x and {Math.min(maxMultiplier, SURGE_HARD_MAX)}x.</p>
+      )}
+      {!editing && recommendation && recommendation.suggested_multiplier > 1 && (
+        <div className="flex items-center justify-between rounded bg-tint-marigold/40 px-2 py-1.5 text-xs">
+          <span className="text-marigold-text">{recommendation.recommendation}</span>
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={saving}
+            onClick={() => onApplyRecommendation(rule, Math.min(recommendation.suggested_multiplier, maxMultiplier))}
+          >
+            Apply {Math.min(recommendation.suggested_multiplier, maxMultiplier)}x
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MaxMultiplierEditor({
+  value,
+  saving,
+  onSave,
+}: {
+  value: number;
+  saving: boolean;
+  onSave: (value: number) => void;
+}) {
+  const [editing, setEditing] = React.useState(false);
+  const [input, setInput] = React.useState(String(value));
+  const valid = isValidSurgeMultiplier(input);
+
+  return editing ? (
+    <div className="flex items-center gap-2">
+      <input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        inputMode="decimal"
+        className="h-8 w-16 rounded border border-border px-2 text-xs"
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={saving || !valid}
+        onClick={() => {
+          onSave(Number(input));
+          setEditing(false);
+        }}
+      >
+        Save
+      </Button>
+    </div>
+  ) : (
+    <button onClick={() => setEditing(true)} className="font-meter text-ink hover:text-signal-blue">
+      {value}x
+    </button>
+  );
+}
+
+/** Renders/edits the two nullable app_settings timestamps as <input type="datetime-local">. Empty = no schedule (manual on/off only). */
+function SurgeWindowEditor({
+  startsAt,
+  endsAt,
+  savingKey,
+  onSave,
+}: {
+  startsAt: string | null;
+  endsAt: string | null;
+  savingKey: string | null;
+  onSave: (key: "surge_starts_at" | "surge_ends_at", value: string) => void;
+}) {
+  function toLocalInputValue(iso: string | null): string {
+    if (!iso) return "";
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-ink-soft">Start (optional)</span>
+        <input
+          type="datetime-local"
+          defaultValue={toLocalInputValue(startsAt)}
+          disabled={savingKey === "surge_starts_at"}
+          onBlur={(e) => onSave("surge_starts_at", e.target.value)}
+          className="h-8 rounded border border-border px-2 text-xs"
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <span className="text-ink-soft">End (optional)</span>
+        <input
+          type="datetime-local"
+          defaultValue={toLocalInputValue(endsAt)}
+          disabled={savingKey === "surge_ends_at"}
+          onBlur={(e) => onSave("surge_ends_at", e.target.value)}
+          className="h-8 rounded border border-border px-2 text-xs"
+        />
+      </div>
+      <p className="text-xs text-ink-soft">
+        Leave both blank for manual on/off only. If set, surge automatically stops applying to new rides the moment
+        the end time passes — no action needed.
+      </p>
+    </div>
+  );
 }
 
 function PricingRow({

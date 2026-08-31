@@ -1067,6 +1067,7 @@ export interface PricingRuleRow {
   per_km_rate: number;
   cancellation_fee: number;
   is_active: boolean;
+  surge_multiplier: number;
 }
 
 /**
@@ -1081,7 +1082,7 @@ export interface PricingRuleRow {
 export async function listPricingRulesAdmin(supabase: SupabaseClient): Promise<PricingRuleRow[]> {
   const { data, error } = await supabase
     .from("pricing_rules")
-    .select("id, city_id, vehicle_type, base_fare, per_km_rate, cancellation_fee, is_active")
+    .select("id, city_id, vehicle_type, base_fare, per_km_rate, cancellation_fee, is_active, surge_multiplier")
     .is("city_id", null)
     .order("vehicle_type");
   if (error) throw error;
@@ -1092,12 +1093,13 @@ export async function listPricingRulesAdmin(supabase: SupabaseClient): Promise<P
 export async function updatePricingRule(
   supabase: SupabaseClient,
   ruleId: string,
-  patch: { baseFare?: number; perKmRate?: number; isActive?: boolean }
+  patch: { baseFare?: number; perKmRate?: number; isActive?: boolean; surgeMultiplier?: number }
 ): Promise<void> {
   const update: Record<string, number | boolean> = {};
   if (patch.baseFare !== undefined) update.base_fare = patch.baseFare;
   if (patch.perKmRate !== undefined) update.per_km_rate = patch.perKmRate;
   if (patch.isActive !== undefined) update.is_active = patch.isActive;
+  if (patch.surgeMultiplier !== undefined) update.surge_multiplier = patch.surgeMultiplier;
   const { error } = await supabase.from("pricing_rules").update(update).eq("id", ruleId);
   if (error) throw error;
 }
@@ -1120,10 +1122,32 @@ export async function createPricingRule(
   const { data, error } = await supabase
     .from("pricing_rules")
     .insert({ vehicle_type: vehicleType, base_fare: baseFare, per_km_rate: perKmRate, city_id: null, is_active: true })
-    .select("id, city_id, vehicle_type, base_fare, per_km_rate, cancellation_fee, is_active")
+    .select("id, city_id, vehicle_type, base_fare, per_km_rate, cancellation_fee, is_active, surge_multiplier")
     .single();
   if (error) throw error;
   return data as unknown as PricingRuleRow;
+}
+
+export interface SurgeRecommendationRow {
+  vehicle_type: "bike" | "scooty" | "auto" | "car";
+  open_requests: number;
+  available_drivers: number;
+  demand_supply_ratio: number | null;
+  suggested_multiplier: number;
+  recommendation: string;
+}
+
+/**
+ * Read-only, rule-based demand/supply surge suggestion per vehicle type —
+ * admin_surge_recommendation() (20260831130000) never writes anything.
+ * Applying a suggestion is a separate, explicit admin action (Settings
+ * page's "Apply suggestion" button calls the normal updatePricingRule()
+ * path) — this function only surfaces the numbers.
+ */
+export async function getAdminSurgeRecommendation(supabase: SupabaseClient): Promise<SurgeRecommendationRow[]> {
+  const { data, error } = await supabase.rpc("admin_surge_recommendation");
+  if (error) throw error;
+  return (data ?? []) as unknown as SurgeRecommendationRow[];
 }
 
 // ---------------------------------------------------------------------------
