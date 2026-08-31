@@ -99,13 +99,12 @@ export default function RideCompletePage() {
   async function handleCashOrUpiConfirm(selected: PaymentMethod) {
     setConfirming(true);
     try {
-      // Phase 16 fix: confirmDirectPayment() is the actual path that
-      // marks payment_status='paid' — complete_ride()'s own cash/
-      // driver_upi auto-confirm branch (Phase 11) checks payment_method
-      // at ride-completion time, but this screen (where the method is
-      // actually chosen) only appears AFTER the ride has already
-      // completed, so that branch was never reachable in practice. See
-      // PHASE_16_END_TO_END_INTEGRATION_REVIEW.md.
+      // confirmDirectPayment() is the sole path that marks
+      // payment_status='paid' for cash/driver_upi — complete_ride() no
+      // longer auto-confirms payment at ride-completion time (see the
+      // fix_ride_completion_premature_paid migration). Ride completion
+      // and payment completion are separate events; this explicit
+      // passenger action is what actually records the payment.
       await confirmDirectPayment(supabase, params.id, selected === PaymentMethod.CASH ? "cash" : "driver_upi");
       router.push(`/ride/${params.id}/rate`);
     } catch {
