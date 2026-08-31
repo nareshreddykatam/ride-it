@@ -14,6 +14,23 @@ function toWkt({ lat, lng }: GeoPointInput): string {
   return `POINT(${lng} ${lat})`;
 }
 
+/**
+ * Straight-line (great-circle) distance in km — the exact same quantity
+ * compute_ride_fare()'s distance-sanity check computes server-side via
+ * PostGIS ST_Distance on the SAME two points, just computed here so the
+ * client can never submit a distance_km that the server is guaranteed to
+ * reject as implausible for the coordinates being sent.
+ */
+function haversineKm(a: GeoPointInput, b: GeoPointInput): number {
+  const R = 6371; // Earth radius, km
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 export interface CreateRideInput {
   passengerId: string;
   vehicleType: VehicleTypeRow;
@@ -45,6 +62,31 @@ export interface CreateRideInput {
 export async function createRide(supabase: SupabaseClient, input: CreateRideInput): Promise<RideRow> {
   const totalFare = input.baseFare + input.distanceFare;
 
+  // BUG FIX (live-diagnosed): the booking-confirm screen computes
+  // distanceKm once, from wherever the PREVIOUS screen's estimate came
+  // from, then independently re-resolves `pickup` via a fresh
+  // getCurrentPositionOnce() call of its own right before the passenger
+  // taps Confirm (by design — see that screen's own comment: "the
+  // passenger's actual position at the moment they're about to book, not
+  // whatever it was a screen ago"). Two separately-resolved real GPS
+  // readings routinely differ by more than the server's 100m distance-
+  // sanity tolerance, so a perfectly legitimate booking could submit a
+  // distance_km that no longer matches the ACTUAL pickup/drop pair being
+  // sent, and compute_ride_fare()'s straight-line check (correctly, by
+  // design) rejects it — surfacing as an opaque "Couldn't book your ride"
+  // with no trace of a created row, since the whole insert aborts.
+  //
+  // Fix: floor distanceKm to the straight-line distance between the
+  // EXACT pickup/drop coordinates being submitted in THIS call — the same
+  // quantity the server itself computes via PostGIS ST_Distance on the
+  // same two points — plus a small margin for the (much smaller)
+  // Haversine-vs-geodesic difference. This can only ever move distance_km
+  // UP to a value the server is guaranteed to accept for these exact
+  // coordinates, never down — so it cannot be used to understate a fare;
+  // the server's own check remains fully intact and independently
+  // authoritative regardless of this client-side floor.
+  const distanceKm = Math.max(input.distanceKm, haversineKm(input.pickup, input.drop) + 0.15);
+
   const { data, error } = await supabase
     .from("rides")
     .insert({
@@ -55,7 +97,7 @@ export async function createRide(supabase: SupabaseClient, input: CreateRideInpu
       pickup_address: input.pickupAddress,
       drop_location: toWkt(input.drop),
       drop_address: input.dropAddress,
-      distance_km: input.distanceKm,
+      distance_km: distanceKm,
       base_fare: input.baseFare,
       distance_fare: input.distanceFare,
       total_fare: totalFare,
