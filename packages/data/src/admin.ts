@@ -1069,11 +1069,19 @@ export interface PricingRuleRow {
   is_active: boolean;
 }
 
+/**
+ * ALL global (city_id null) rules regardless of is_active — deliberately
+ * not filtered to is_active=true only (that was the previous behavior).
+ * Admin needs to see a deactivated rule too, not have it silently vanish
+ * from the list the moment it's turned off; the passenger/driver-facing
+ * read path (pricing_rules_select_authenticated RLS, and compute_ride_fare()
+ * itself) is unaffected — this only changes what the Admin UI's query asks
+ * for, not what anyone is authorized to see.
+ */
 export async function listPricingRulesAdmin(supabase: SupabaseClient): Promise<PricingRuleRow[]> {
   const { data, error } = await supabase
     .from("pricing_rules")
     .select("id, city_id, vehicle_type, base_fare, per_km_rate, cancellation_fee, is_active")
-    .eq("is_active", true)
     .is("city_id", null)
     .order("vehicle_type");
   if (error) throw error;
@@ -1084,13 +1092,38 @@ export async function listPricingRulesAdmin(supabase: SupabaseClient): Promise<P
 export async function updatePricingRule(
   supabase: SupabaseClient,
   ruleId: string,
-  patch: { baseFare?: number; perKmRate?: number }
+  patch: { baseFare?: number; perKmRate?: number; isActive?: boolean }
 ): Promise<void> {
-  const update: Record<string, number> = {};
+  const update: Record<string, number | boolean> = {};
   if (patch.baseFare !== undefined) update.base_fare = patch.baseFare;
   if (patch.perKmRate !== undefined) update.per_km_rate = patch.perKmRate;
+  if (patch.isActive !== undefined) update.is_active = patch.isActive;
   const { error } = await supabase.from("pricing_rules").update(update).eq("id", ruleId);
   if (error) throw error;
+}
+
+/**
+ * Creates the initial global pricing rule for a vehicle type that
+ * currently has none at all — used by the Admin pricing page's "MISSING
+ * CONFIGURATION" rows. Never called with an invented default: the caller
+ * (Settings page) requires the admin to type real values first, exactly
+ * like editing an existing rule. Secured by the same pricing_rules_all_admin
+ * RLS as updatePricingRule — this is a plain client insert, not an RPC,
+ * consistent with how updatePricingRule already works.
+ */
+export async function createPricingRule(
+  supabase: SupabaseClient,
+  vehicleType: PricingRuleRow["vehicle_type"],
+  baseFare: number,
+  perKmRate: number
+): Promise<PricingRuleRow> {
+  const { data, error } = await supabase
+    .from("pricing_rules")
+    .insert({ vehicle_type: vehicleType, base_fare: baseFare, per_km_rate: perKmRate, city_id: null, is_active: true })
+    .select("id, city_id, vehicle_type, base_fare, per_km_rate, cancellation_fee, is_active")
+    .single();
+  if (error) throw error;
+  return data as unknown as PricingRuleRow;
 }
 
 // ---------------------------------------------------------------------------
