@@ -34,6 +34,12 @@ function MatchingPageContent() {
   const params = useSearchParams();
   const rideId = params.get("rideId");
   const vehicleParam = params.get("vehicleType");
+  // Set only when this screen was reached via the driver-cancelled ->
+  // automatic-reassignment path (see apps/passenger/app/ride/[id]/page.tsx),
+  // not the normal first-time booking flow — surfaces the "your driver
+  // cancelled" context the passenger needs before the familiar "searching"
+  // UI takes over, without duplicating any of MatchingRadar's own UI.
+  const reassigning = params.get("reason") === "driver_cancelled";
   const vehicle: VehicleKind =
     vehicleParam === "bike" || vehicleParam === "scooty" || vehicleParam === "car" ? vehicleParam : "auto";
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
@@ -158,6 +164,11 @@ function MatchingPageContent() {
 
   return (
     <main className="relative flex flex-1 flex-col overflow-hidden">
+      {reassigning && (
+        <div className="absolute inset-x-0 top-0 z-20 mx-4 mt-4 rounded-lg bg-alert-red/95 px-4 py-2.5 text-center text-sm font-medium text-white shadow-lg backdrop-blur-sm">
+          Your driver cancelled the ride. Finding you another driver…
+        </div>
+      )}
       <MatchingRadar
         vehicle={vehicle}
         mapSlot={<RideMap fallbackVariant="searching" className="h-full w-full rounded-none border-0" />}

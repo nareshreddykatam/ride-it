@@ -166,6 +166,16 @@ export default function RideStatusPage() {
         navigatedRef.current = true;
         router.push(`/ride/${params.id}/complete`);
       }
+      // The assigned driver cancelled — cancel_ride_by_driver() (migration
+      // 20260831150000) reset this SAME ride back to "requested" rather
+      // than creating a new one, so the existing Matching screen (which
+      // re-fetches requested_at fresh and subscribes to this same ride's
+      // status) is fully reusable for showing the passenger realtime
+      // reassignment progress, with zero duplicated matching UI.
+      if (!navigatedRef.current && updated.status === "requested") {
+        navigatedRef.current = true;
+        router.push(`/booking/matching?rideId=${params.id}&vehicleType=${updated.vehicle_type}&reason=driver_cancelled`);
+      }
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -323,7 +333,7 @@ export default function RideStatusPage() {
   const status = ride?.status ?? "accepted";
   const stepIndex = stepIndexForStatus(status);
   const progressPct = (stepIndex / (STEPS.length - 1)) * 100;
-  const canCancel = status === "accepted";
+  const canCancel = status === "accepted" || status === "driver_arriving" || status === "ride_started";
   const driverStale = tracking?.driverLocationUpdatedAt ? isStale(tracking.driverLocationUpdatedAt) : false;
 
   const driverEtaLabel =

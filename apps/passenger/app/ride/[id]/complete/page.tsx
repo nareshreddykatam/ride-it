@@ -32,6 +32,8 @@ export default function RideCompletePage() {
   const [onlineState, setOnlineState] = React.useState<OnlineState>("idle");
   const [onlineError, setOnlineError] = React.useState<string | null>(null);
   const [payment, setPayment] = React.useState<PaymentRow | null>(null);
+  const [qrUrl, setQrUrl] = React.useState<string | null>(null);
+  const [qrLoading, setQrLoading] = React.useState(false);
 
   React.useEffect(() => {
     let active = true;
@@ -70,6 +72,29 @@ export default function RideCompletePage() {
       else if (updated.status === "failed") setOnlineState("failed");
     });
   }, [supabase, payment, router, params.id]);
+
+  // Driver UPI QR — fetched via the signed-URL route (never a raw Storage
+  // path from the client), which itself only resolves once this ride's
+  // fare is final and driver_upi is genuinely the selected method. See
+  // get_matched_driver_qr_path() (migration 20260831160000) and
+  // apps/passenger/app/api/rides/[id]/driver-qr/route.ts.
+  React.useEffect(() => {
+    if (method !== PaymentMethod.DRIVER_UPI) return;
+    let active = true;
+    setQrLoading(true);
+    fetch(`/api/rides/${params.id}/driver-qr`)
+      .then((res) => res.json())
+      .then((body: { signedUrl: string | null }) => {
+        if (active) setQrUrl(body.signedUrl);
+      })
+      .catch(() => {
+        if (active) setQrUrl(null);
+      })
+      .finally(() => active && setQrLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [method, params.id]);
 
   async function handleCashOrUpiConfirm(selected: PaymentMethod) {
     setConfirming(true);
@@ -194,6 +219,18 @@ export default function RideCompletePage() {
                 <span>Distance fare</span>
                 <span className="font-meter text-ink">₹{ride.distance_fare}</span>
               </div>
+              {ride.surge_multiplier > 1 && (
+                <div className="mt-2 flex items-center justify-between text-sm text-ink-soft">
+                  <span>Surge applied</span>
+                  <span className="font-meter text-marigold-text">{ride.surge_multiplier}x</span>
+                </div>
+              )}
+              {ride.discount_amount > 0 && (
+                <div className="mt-2 flex items-center justify-between text-sm text-ink-soft">
+                  <span>Discount</span>
+                  <span className="font-meter text-meter-green-text">-₹{ride.discount_amount}</span>
+                </div>
+              )}
               <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
                 <span className="text-sm font-medium text-ink">Total</span>
                 <MeterValue value={`₹${ride.total_fare}`} size="lg" />
@@ -263,6 +300,34 @@ export default function RideCompletePage() {
                 <p className="mt-2 text-xs text-ink-soft">{onlineError ?? "You can try again."}</p>
               </Card>
             )}
+          </div>
+        )}
+
+        {method === PaymentMethod.DRIVER_UPI && (
+          <div className="mt-4">
+            <Card className="text-center">
+              {qrLoading ? (
+                <Skeleton className="mx-auto h-40 w-40" />
+              ) : qrUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL, not a static asset
+                <img src={qrUrl} alt="Driver's UPI payment QR code" className="mx-auto h-40 w-40 rounded-lg object-contain" />
+              ) : (
+                <p className="text-sm text-ink-soft">
+                  This driver hasn&apos;t set up a verified UPI QR code yet — please pay by Cash instead.
+                </p>
+              )}
+              {qrUrl && (
+                <>
+                  <p className="mt-3 text-sm font-medium text-ink">Scan to pay ₹{ride?.total_fare}</p>
+                  <p className="mt-1 text-xs text-ink-soft">This is your driver&apos;s verified UPI QR code for the exact final fare.</p>
+                </>
+              )}
+              <StatusPill tone="pending" className="mt-3">Payment pending</StatusPill>
+              <p className="mt-1.5 text-xs text-ink-soft">
+                Ride It can&apos;t automatically verify a Driver UPI payment. Tapping &quot;Confirm&quot; below records that you and your
+                driver have completed this payment between yourselves — it isn&apos;t proof of transfer.
+              </p>
+            </Card>
           </div>
         )}
       </motion.div>

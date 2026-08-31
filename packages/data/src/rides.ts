@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RideRow, VehicleTypeRow, PaymentMethodRow } from "./types";
 
 const RIDE_COLUMNS =
-  "id, passenger_id, driver_id, vehicle_id, city_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, discount_amount, total_fare, currency, payment_method, payment_status, passenger_rating, driver_rating, cancelled_by, cancellation_reason, requested_at, completed_at, cancelled_at, created_at";
+  "id, passenger_id, driver_id, vehicle_id, city_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, discount_amount, total_fare, surge_multiplier, currency, payment_method, payment_status, passenger_rating, driver_rating, cancelled_by, cancellation_reason, requested_at, completed_at, cancelled_at, created_at";
 
 export interface GeoPointInput {
   lat: number;
@@ -300,12 +300,15 @@ export function formatCancellationReason(reasons: readonly CancellationReasonOpt
 }
 
 /**
- * Driver cancellation after acceptance — issues a strike per the confirmed
- * business rule (from the original product-architecture phase). The two
- * writes (ride status + driver strike count) are not atomic across tables
- * in this phase — a Postgres RPC function would be the correct fix if this
- * needs to be transactional, flagged as debt rather than built here, same
- * category as the wallet-transaction atomicity note from Phase 3.
+ * Driver cancellation after acceptance — atomically records the
+ * cancellation, resets the SAME ride back into the matching pool (same
+ * id, same passenger_id) so the existing matching engine automatically
+ * finds another driver, and issues the existing strike business rule, all
+ * inside cancel_ride_by_driver() (migration 20260831150000). Supersedes
+ * the old two-step plain-.update()-then-separate-RPC version, which was
+ * non-atomic (flagged as debt in that version's own comment) and never
+ * reassigned — it left the ride permanently cancelled, forcing the
+ * passenger to rebook from scratch.
  */
 export async function cancelRideByDriver(
   supabase: SupabaseClient,
@@ -313,18 +316,13 @@ export async function cancelRideByDriver(
   driverId: string,
   reason: string
 ): Promise<void> {
-  const { error: rideError } = await supabase
-    .from("rides")
-    .update({ status: "cancelled", cancelled_by: "driver", cancellation_reason: reason, cancelled_at: new Date().toISOString() })
-    .eq("id", rideId);
-  if (rideError) throw rideError;
-
-  // Phase 6.1: increment_driver_strike() no longer takes a driver_id
-  // parameter — it always acts on auth.uid() only. driverId is still
-  // accepted by this TS function for call-site source-compatibility (the
-  // Driver app doesn't need to change) but is no longer forwarded.
-  const { error: strikeError } = await supabase.rpc("increment_driver_strike");
-  if (strikeError) throw strikeError;
+  // driverId is still accepted for call-site source-compatibility (the
+  // Driver app doesn't need to change its call) but is no longer
+  // forwarded — the RPC derives the cancelling driver solely from
+  // auth.uid(), never from a client-supplied id.
+  void driverId;
+  const { error } = await supabase.rpc("cancel_ride_by_driver", { p_ride_id: rideId, p_reason: reason });
+  if (error) throw error;
 }
 
 /**
@@ -412,6 +410,21 @@ export async function getMatchedDriverContact(supabase: SupabaseClient, rideId: 
  */
 export async function getMatchedDriverSelfiePath(supabase: SupabaseClient, rideId: string): Promise<string | null> {
   const { data, error } = await supabase.rpc("get_matched_driver_selfie_path", { p_ride_id: rideId });
+  if (error) throw error;
+  return (data as string | null) ?? null;
+}
+
+/**
+ * Calls get_matched_driver_qr_path() (migration
+ * 20260831160000_matched_driver_qr_access) — returns a Storage *path* to
+ * the matched driver's admin-approved UPI QR image, never a URL, and only
+ * once the ride has reached a fare-final status with driver_upi selected.
+ * The caller (apps/passenger/app/api/rides/[id]/driver-qr/route.ts) mints
+ * a short-lived signed URL server-side from this path. Never expose the
+ * raw path itself to a browser.
+ */
+export async function getMatchedDriverQrPath(supabase: SupabaseClient, rideId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc("get_matched_driver_qr_path", { p_ride_id: rideId });
   if (error) throw error;
   return (data as string | null) ?? null;
 }

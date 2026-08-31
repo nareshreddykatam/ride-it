@@ -51,6 +51,7 @@ export interface RideRow {
   distance_fare: number;
   discount_amount: number;
   total_fare: number;
+  surge_multiplier: number;
   currency: string;
   payment_method: PaymentMethodRow | null;
   payment_status: PaymentStatusRow;

@@ -21,6 +21,7 @@ import {
   createReport,
   getMatchedPassengerContact,
   cancelRideByDriver,
+  subscribeToRide,
   DRIVER_REPORT_REASONS,
   DRIVER_CANCELLATION_REASONS,
   formatCancellationReason,
@@ -30,7 +31,7 @@ import {
 } from "@ride-it/data";
 import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, type GeolocationErrorReason } from "@ride-it/maps";
 
-type Phase = "TO_PICKUP" | "VERIFY_PIN" | "TO_DROP" | "SUMMARY";
+type Phase = "TO_PICKUP" | "VERIFY_PIN" | "TO_DROP" | "SUMMARY" | "CANCELLED_BY_PASSENGER" | "CANCELLED_BY_DRIVER";
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "report";
 
 const LOCATION_ERROR_MESSAGE: Record<GeolocationErrorReason, string> = {
@@ -70,12 +71,34 @@ function NavigationPageContent() {
   const [reportDescription, setReportDescription] = React.useState("");
   const [submittingReport, setSubmittingReport] = React.useState(false);
   const [passengerContact, setPassengerContact] = React.useState<MatchedPassengerContact | null>(null);
+  // Set right before this driver's own cancel RPC call resolves, so the
+  // realtime subscription below (which will also receive that same write)
+  // doesn't mistake the driver's own cancellation for a passenger-side one.
+  const selfCancelledRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!rideId) return;
     getMatchedPassengerContact(supabase, rideId)
       .then(setPassengerContact)
       .catch(() => setPassengerContact(null));
+  }, [supabase, rideId]);
+
+  // Realtime: the passenger can now cancel an active ride at any point up
+  // to and including ride_started (see passenger_cancel_active_ride(),
+  // migration 20260831150000) — this driver screen previously had no way
+  // to find out except the next manual action failing with a confusing
+  // error. Surfaces a clear, dedicated "Passenger cancelled the ride"
+  // screen instead of silently leaving the driver mid-flow.
+  React.useEffect(() => {
+    if (!rideId) return;
+    const unsubscribe = subscribeToRide(supabase, rideId, (updated) => {
+      if (selfCancelledRef.current) return;
+      setRide(updated);
+      if (updated.status === "cancelled" && updated.cancelled_by === "passenger") {
+        setPhase("CANCELLED_BY_PASSENGER");
+      }
+    });
+    return unsubscribe;
   }, [supabase, rideId]);
 
   React.useEffect(() => {
@@ -98,7 +121,7 @@ function NavigationPageContent() {
   // it (Phase 8's lighter online-but-idle ping continues to cover that
   // case on the Dashboard, unchanged).
   React.useEffect(() => {
-    if (!user || !rideId || phase === "SUMMARY") return;
+    if (!user || !rideId || phase === "SUMMARY" || phase === "CANCELLED_BY_PASSENGER" || phase === "CANCELLED_BY_DRIVER") return;
 
     const stopWatching = watchDriverLocation({
       onUpdate: (pos) => {
@@ -132,9 +155,19 @@ function NavigationPageContent() {
     setCancelling(true);
     try {
       const reason = formatCancellationReason(DRIVER_CANCELLATION_REASONS, cancelReason, cancelNote);
+      // Marked before the RPC resolves — cancel_ride_by_driver() updates
+      // this same ride row, which the realtime subscription above would
+      // otherwise also receive and misread as a passenger cancellation.
+      selfCancelledRef.current = true;
       await cancelRideByDriver(supabase, rideId, user.id, reason);
-      router.push("/dashboard");
+      setCancelSheetOpen(false);
+      // A dedicated confirmation screen, not a silent redirect — the
+      // driver needs to actually see that the cancellation went through
+      // and that the ride is being reassigned, not wonder whether their
+      // tap registered.
+      setPhase("CANCELLED_BY_DRIVER");
     } catch {
+      selfCancelledRef.current = false;
       setCancelling(false);
     }
   }
@@ -167,13 +200,35 @@ function NavigationPageContent() {
   function handleStartNavigation() {
     // tracking.drop comes from getRideTracking(), which is
     // SECURITY DEFINER-gated to this ride's own passenger/driver/admin and
-    // reads the ride's real drop_location — never a client-supplied
-    // destination. Opens the universal Google Maps web-nav URL (see
-    // @ride-it/maps's getExternalNavigationUrl): the installed app
-    // intercepts it on a phone, otherwise it opens in the browser. No
-    // turn-by-turn is ever rendered inside RideIT itself.
+    // reads the ride's real drop_location — never a client-supplied,
+    // manually-entered, hardcoded, or stale destination. Always the
+    // ACCEPTED ride's actual drop coordinates, re-fetched for this ride id
+    // on every mount of this screen.
     if (!tracking?.drop) return;
-    window.location.href = getExternalNavigationUrl(tracking.drop);
+    const url = getExternalNavigationUrl(tracking.drop);
+
+    // Platform-aware, and RideIT must stay open either way:
+    //  - Mobile: window.location.href lets the OS intercept the Google
+    //    Maps universal link and hand off to the installed app (the
+    //    standard, sanctioned way a mobile web page launches a native app
+    //    via a universal/App Link — there is no other browser-safe
+    //    mechanism). If Google Maps isn't installed, the OS/browser falls
+    //    back to the web URL in the SAME tab, matching normal mobile
+    //    browser behavior for any external link.
+    //  - Desktop: window.open in a new tab/window, so the RideIT tab the
+    //    driver is actively using never navigates away. There is no
+    //    native "Google Maps app" to hand off to on a desktop browser —
+    //    this is honestly the same Google Maps web page a driver would
+    //    get from clicking a maps link anywhere else on the web.
+    // No popup-under/redirect tricks, no fake second tab pretending to be
+    // a native app — a normal web page cannot force a native Google Maps
+    // app to open on every device, and this does not claim otherwise.
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = url;
+    } else {
+      window.open(url, "_blank", "noopener,noreferrer");
+    }
   }
 
   async function handleCompleteRide() {
@@ -237,6 +292,40 @@ function NavigationPageContent() {
 
   const pickupLabel = ride?.pickup_address ?? "Pickup";
   const dropLabel = ride?.drop_address ?? "Drop";
+
+  if (phase === "CANCELLED_BY_PASSENGER") {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-alert-red/10 text-alert-red">
+          <X size={22} aria-hidden="true" />
+        </span>
+        <p className="mt-4 font-display text-lg font-semibold text-ink">Passenger cancelled the ride</p>
+        <p className="mt-1 max-w-xs text-sm text-ink-soft">
+          {ride?.cancellation_reason ? `Reason given: ${ride.cancellation_reason}` : "The passenger cancelled this ride from their app."}
+        </p>
+        <Button className="mt-6 w-full max-w-xs" onClick={() => router.push("/dashboard")}>
+          Back to dashboard
+        </Button>
+      </main>
+    );
+  }
+
+  if (phase === "CANCELLED_BY_DRIVER") {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center px-6 py-8 text-center">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-meter-green/10 text-meter-green">
+          <CheckCircle2 size={22} aria-hidden="true" />
+        </span>
+        <p className="mt-4 font-display text-lg font-semibold text-ink">Ride cancelled</p>
+        <p className="mt-1 max-w-xs text-sm text-ink-soft">
+          You cancelled this ride. We&apos;ve notified the passenger and are automatically finding them another driver.
+        </p>
+        <Button className="mt-6 w-full max-w-xs" onClick={() => router.push("/dashboard")}>
+          Back to dashboard
+        </Button>
+      </main>
+    );
+  }
 
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
@@ -327,6 +416,13 @@ function NavigationPageContent() {
             <OtpInput length={4} value={pin} onChange={setPin} onComplete={handlePinComplete} error={pinError} disabled={verifying} />
           </div>
           {pinError && <p className="mt-2 text-xs text-alert-red">That PIN doesn&apos;t match. Ask the passenger to confirm it and try again.</p>}
+          <button
+            onClick={openCancelSheet}
+            disabled={cancelling}
+            className="mt-6 w-full text-center text-sm font-medium text-alert-red disabled:opacity-50"
+          >
+            {cancelling ? "Cancelling…" : "Cancel ride"}
+          </button>
         </motion.div>
       )}
 
