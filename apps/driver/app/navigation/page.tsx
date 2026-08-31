@@ -22,12 +22,15 @@ import {
   getMatchedPassengerContact,
   cancelRideByDriver,
   subscribeToRide,
+  getDriverProfile,
+  getDriverQrSignedUrl,
   DRIVER_REPORT_REASONS,
   DRIVER_CANCELLATION_REASONS,
   formatCancellationReason,
   type RideRow,
   type RideTrackingInfo,
   type MatchedPassengerContact,
+  type DriverProfileRow,
 } from "@ride-it/data";
 import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, type GeolocationErrorReason } from "@ride-it/maps";
 
@@ -71,6 +74,9 @@ function NavigationPageContent() {
   const [reportDescription, setReportDescription] = React.useState("");
   const [submittingReport, setSubmittingReport] = React.useState(false);
   const [passengerContact, setPassengerContact] = React.useState<MatchedPassengerContact | null>(null);
+  const [driverProfile, setDriverProfile] = React.useState<DriverProfileRow | null>(null);
+  const [qrUrl, setQrUrl] = React.useState<string | null>(null);
+  const [qrLoading, setQrLoading] = React.useState(false);
   // Set right before this driver's own cancel RPC call resolves, so the
   // realtime subscription below (which will also receive that same write)
   // doesn't mistake the driver's own cancellation for a passenger-side one.
@@ -82,6 +88,35 @@ function NavigationPageContent() {
       .then(setPassengerContact)
       .catch(() => setPassengerContact(null));
   }, [supabase, rideId]);
+
+  // Driver's own payment identity + QR — shown only once the ride is
+  // actually complete (this driver already sees their own profile via
+  // the same RLS/RPC path payment-settings uses; no new server code, this
+  // is purely wiring up already-authoritative data). getDriverQrSignedUrl()
+  // works directly with THIS driver's own session — unlike the passenger
+  // side (apps/passenger/.../driver-qr/route.ts), no service-role hop is
+  // needed here since Storage RLS already grants a driver read access to
+  // their own upload.
+  React.useEffect(() => {
+    if (phase !== "SUMMARY" || !user) return;
+    let active = true;
+    getDriverProfile(supabase, user.id)
+      .then((profile) => {
+        if (!active) return;
+        setDriverProfile(profile);
+        if (profile?.upi_qr_path && profile.upi_qr_status === "approved") {
+          setQrLoading(true);
+          getDriverQrSignedUrl(supabase, profile.upi_qr_path)
+            .then((url) => active && setQrUrl(url))
+            .catch(() => active && setQrUrl(null))
+            .finally(() => active && setQrLoading(false));
+        }
+      })
+      .catch(() => active && setDriverProfile(null));
+    return () => {
+      active = false;
+    };
+  }, [supabase, user, phase]);
 
   // Realtime: the passenger can now cancel an active ride at any point up
   // to and including ride_started (see passenger_cancel_active_ride(),
@@ -437,7 +472,43 @@ function NavigationPageContent() {
 
       {phase === "SUMMARY" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-auto pt-8 text-center">
-          <MeterValue value={`₹${ride?.total_fare ?? 0}`} label="Fare collected" size="lg" className="items-center" />
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Ride completed</p>
+          {/* ride.total_fare is the server's own compute_ride_fare() result
+              for this ride — never recalculated or overridden here. */}
+          <MeterValue value={`₹${ride?.total_fare ?? 0}`} label="Final fare" size="lg" className="items-center" />
+
+          {ride?.payment_method === "driver_upi" && (
+            <Card className="mt-5 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Payment</p>
+              {qrLoading ? (
+                <Skeleton className="mx-auto mt-3 h-40 w-40" />
+              ) : qrUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL, not a static asset */}
+                  <img src={qrUrl} alt="Your UPI payment QR code" className="mx-auto mt-3 h-40 w-40 rounded-lg object-contain" />
+                  <p className="mt-2 text-center text-sm font-medium text-ink">Scan to pay ₹{ride?.total_fare ?? 0}</p>
+                </>
+              ) : (
+                <p className="mt-2 text-center text-xs text-ink-soft">
+                  No verified QR on file — go to Payment settings to upload and get it admin-approved.
+                </p>
+              )}
+              <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs">
+                <span className="text-ink-soft">UPI ID</span>
+                <span className="text-ink">{driverProfile?.upi_id ?? "Not set"}</span>
+              </div>
+              <div className="mt-1.5 flex items-center justify-between text-xs">
+                <span className="text-ink-soft">Payment status</span>
+                <StatusPill tone={ride?.payment_status === "paid" ? "online" : "pending"} dot={false}>
+                  {ride?.payment_status === "paid" ? "Paid" : "Pending"}
+                </StatusPill>
+              </div>
+              <p className="mt-2 text-[11px] text-ink-soft">
+                RideIT can&apos;t automatically verify a Driver UPI payment — this only updates once the passenger confirms on their side.
+              </p>
+            </Card>
+          )}
+
           <Button className="mt-6 w-full" onClick={() => router.push(`/rate/${rideId}`)}>
             Rate your passenger
           </Button>

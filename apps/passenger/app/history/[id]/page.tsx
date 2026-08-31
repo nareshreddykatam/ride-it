@@ -150,6 +150,12 @@ export default function RideReceiptPage() {
                   <span>Distance fare</span>
                   <span className="tabular-nums text-ink">₹{ride.distance_fare}</span>
                 </div>
+                {ride.surge_multiplier > 1 && (
+                  <div className="flex items-center justify-between text-marigold-text">
+                    <span>Surge</span>
+                    <span className="tabular-nums">{ride.surge_multiplier}x</span>
+                  </div>
+                )}
                 {ride.discount_amount > 0 && (
                   <div className="flex items-center justify-between text-meter-green-text">
                     <span>Discount</span>

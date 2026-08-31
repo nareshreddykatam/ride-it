@@ -23,3 +23,4 @@ export * from "./ratings";
 export * from "./errors";
 export * from "./admin-analytics";
 export * from "./referrals";
+export * from "./pricing";

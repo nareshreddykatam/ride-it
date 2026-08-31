@@ -343,6 +343,11 @@ export default function DashboardPage() {
             currency: "INR",
             distanceKm: pendingOffer.distance_km ?? 0,
             etaMinutes: 5,
+            // The offer's base_fare/distance_fare are already surge-inclusive
+            // (set from the ride's own server-computed values at dispatch
+            // time) — this field isn't rendered by RideRequestSheet, kept
+            // only to satisfy FareEstimate's shape.
+            surgeMultiplier: 1,
           }}
           onAccept={handleAccept}
           onReject={handleReject}

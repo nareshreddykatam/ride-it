@@ -67,6 +67,8 @@ export interface FareEstimate {
   currency: "INR";
   distanceKm: number;
   etaMinutes: number;
+  /** The multiplier actually applied to baseFare/distanceFare — 1 when surge is off/not applicable. Mirrors rides.surge_multiplier's role server-side (see compute_ride_fare()). */
+  surgeMultiplier: number;
 }
 
 export interface Ride {

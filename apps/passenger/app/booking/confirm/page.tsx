@@ -7,10 +7,10 @@ import { motion } from "framer-motion";
 import { RefreshCw, Route, Clock3, Pencil, X, Navigation, Search, Map as MapIcon } from "lucide-react";
 import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS, BottomSheet } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
-import { computeFareEstimate } from "@ride-it/utils";
+import { computeFareEstimate, type FareRate } from "@ride-it/utils";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { createRide, startMatching } from "@ride-it/data";
+import { createRide, startMatching, getActivePricingRules, getSurgeStatus } from "@ride-it/data";
 import { RideMap, getCurrentPositionOnce, fetchGeocode, fetchEta, decodePolyline, type LatLng } from "@ride-it/maps";
 
 // Fallback ONLY when real geolocation/geocoding is unavailable (permission
@@ -40,6 +40,7 @@ function ConfirmBookingPageContent() {
   const initialFare = params.get("fare") ?? "0";
   const initialBaseFare = Number(params.get("baseFare") ?? "0");
   const initialDistanceFare = Number(params.get("distanceFare") ?? "0");
+  const initialSurgeMultiplier = Number(params.get("surgeMultiplier") ?? "1");
   const initialDistanceKm = Number(params.get("distanceKm") ?? "0");
   const etaMinutes = params.get("etaMinutes") ?? "5";
   const destLatParam = params.get("destLat");
@@ -72,8 +73,38 @@ function ConfirmBookingPageContent() {
   // assumed. No second fare system — this reuses both functions verbatim.
   const [liveDistanceKm, setLiveDistanceKm] = React.useState(initialDistanceKm);
   const [liveRoutePolyline, setLiveRoutePolyline] = React.useState<LatLng[] | undefined>(initialRoutePolyline);
-  const [liveFare, setLiveFare] = React.useState({ baseFare: initialBaseFare, distanceFare: initialDistanceFare, totalFare: Number(initialFare) });
+  const [liveFare, setLiveFare] = React.useState({
+    baseFare: initialBaseFare,
+    distanceFare: initialDistanceFare,
+    totalFare: Number(initialFare),
+    surgeMultiplier: initialSurgeMultiplier,
+  });
   const [staleEstimate, setStaleEstimate] = React.useState(false);
+  // The real, admin-configured rate for THIS ride's vehicle type — same
+  // source as the Booking screen (getActivePricingRules/getSurgeStatus),
+  // fetched once here so the recompute effect below never falls back to
+  // the FARE_RATES placeholder. Undefined while loading; null if this
+  // vehicle type genuinely has no active pricing rule right now.
+  const [realRate, setRealRate] = React.useState<FareRate | null | undefined>(undefined);
+
+  React.useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const dbType = vehicleTypeToDb(vehicleType);
+        const [rules, surge] = await Promise.all([getActivePricingRules(supabase), getSurgeStatus(supabase)]);
+        if (!active) return;
+        const rule = rules.find((r) => r.vehicle_type === dbType);
+        const surgeRow = surge.find((s) => s.vehicle_type === dbType);
+        setRealRate(rule ? { baseFare: rule.base_fare, perKm: rule.per_km_rate, surgeMultiplier: surgeRow?.vehicle_multiplier ?? 1 } : null);
+      } catch {
+        if (active) setRealRate(null);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [supabase, vehicleType]);
   const visual = VEHICLE_VISUALS[vehicleTypeToDb(vehicleType)];
   const VehicleIcon = visual.icon;
 
@@ -134,7 +165,7 @@ function ConfirmBookingPageContent() {
   // rather than reset to zero or silently left claiming a distance that
   // no longer matches the current pickup.
   React.useEffect(() => {
-    if (resolvingLocations) return;
+    if (resolvingLocations || realRate === undefined) return;
     let active = true;
     (async () => {
       const eta = await fetchEta(pickup, drop, vehicleTypeToDb(vehicleType));
@@ -143,8 +174,13 @@ function ConfirmBookingPageContent() {
         const newDistanceKm = Math.max(0.1, eta.distanceMeters / 1000);
         setLiveDistanceKm(newDistanceKm);
         if (eta.encodedPolyline) setLiveRoutePolyline(decodePolyline(eta.encodedPolyline));
-        const estimate = computeFareEstimate(vehicleType, newDistanceKm, Number(etaMinutes));
-        setLiveFare({ baseFare: estimate.baseFare, distanceFare: estimate.distanceFare, totalFare: estimate.totalFare });
+        const estimate = computeFareEstimate(vehicleType, newDistanceKm, Number(etaMinutes), realRate ?? undefined);
+        setLiveFare({
+          baseFare: estimate.baseFare,
+          distanceFare: estimate.distanceFare,
+          totalFare: estimate.totalFare,
+          surgeMultiplier: estimate.surgeMultiplier,
+        });
         setStaleEstimate(false);
       } else {
         setStaleEstimate(true);
@@ -154,7 +190,7 @@ function ConfirmBookingPageContent() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvingLocations, pickup.lat, pickup.lng, drop.lat, drop.lng, vehicleType]);
+  }, [resolvingLocations, pickup.lat, pickup.lng, drop.lat, drop.lng, vehicleType, realRate]);
 
   function openEditPickup() {
     setEditSheetOpen(true);
@@ -350,9 +386,18 @@ function ConfirmBookingPageContent() {
               <span className="font-meter font-semibold tabular-nums text-ink">₹{liveFare.distanceFare.toFixed(2)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
-              <span>Surge / Platform Cut</span>
-              <span className="font-meter font-bold tabular-nums text-meter-green-text">₹0.00 (Zero Surge)</span>
+              <span>Surge</span>
+              {liveFare.surgeMultiplier > 1 ? (
+                <span className="font-meter font-bold tabular-nums text-marigold-text">{liveFare.surgeMultiplier}x applied</span>
+              ) : (
+                <span className="font-meter font-bold tabular-nums text-meter-green-text">₹0.00 (Zero Surge)</span>
+              )}
             </div>
+            {realRate === null && (
+              <p className="mt-2 text-[11px] text-alert-red">
+                Couldn&apos;t confirm current pricing for this vehicle — the amount below may be outdated.
+              </p>
+            )}
 
             <div className="my-3 h-px bg-ink/10" />
 
@@ -382,10 +427,14 @@ function ConfirmBookingPageContent() {
         <Button
           className="w-full h-12 text-base font-display font-bold shadow-brand transition-transform active:scale-[0.99]"
           size="lg"
-          disabled={booking || resolvingLocations}
+          disabled={booking || resolvingLocations || realRate === null}
           onClick={handleConfirmBooking}
         >
-          {booking ? "Connecting to nearby drivers…" : `Confirm & Find ${VEHICLE_TYPE_LABELS_DB[dbType]}`}
+          {booking
+            ? "Connecting to nearby drivers…"
+            : realRate === null
+              ? "Fare unavailable — try again"
+              : `Confirm & Find ${VEHICLE_TYPE_LABELS_DB[dbType]}`}
         </Button>
       </div>
 
