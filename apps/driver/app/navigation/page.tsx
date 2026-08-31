@@ -23,7 +23,6 @@ import {
   cancelRideByDriver,
   subscribeToRide,
   getDriverProfile,
-  getDriverQrSignedUrl,
   DRIVER_REPORT_REASONS,
   DRIVER_CANCELLATION_REASONS,
   formatCancellationReason,
@@ -33,6 +32,7 @@ import {
   type DriverProfileRow,
 } from "@ride-it/data";
 import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, type GeolocationErrorReason } from "@ride-it/maps";
+import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi";
 
 type Phase = "TO_PICKUP" | "VERIFY_PIN" | "TO_DROP" | "SUMMARY" | "CANCELLED_BY_PASSENGER" | "CANCELLED_BY_DRIVER";
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "report";
@@ -90,33 +90,46 @@ function NavigationPageContent() {
   }, [supabase, rideId]);
 
   // Driver's own payment identity + QR — shown only once the ride is
-  // actually complete (this driver already sees their own profile via
-  // the same RLS/RPC path payment-settings uses; no new server code, this
-  // is purely wiring up already-authoritative data). getDriverQrSignedUrl()
-  // works directly with THIS driver's own session — unlike the passenger
-  // side (apps/passenger/.../driver-qr/route.ts), no service-role hop is
-  // needed here since Storage RLS already grants a driver read access to
-  // their own upload.
+  // actually complete. This driver already reads their own profile via
+  // the same RLS path payment-settings uses (auth.uid() = drivers.id) —
+  // no new server code for the identity itself. The QR is GENERATED
+  // client-side from that registered UPI id + this ride's own
+  // already-authoritative total_fare (packages/payments/src/upi.ts) —
+  // it does not depend on the driver having separately uploaded a QR
+  // image (upi_qr_path/upi_qr_status), which was the previous, incorrect
+  // requirement. A upi://pay URI has nothing secret in it, so generating
+  // it client-side is not a security shortcut — it's the same thing a
+  // server-generated QR would encode.
   React.useEffect(() => {
-    if (phase !== "SUMMARY" || !user) return;
+    if (phase !== "SUMMARY" || !user || !ride) return;
     let active = true;
     getDriverProfile(supabase, user.id)
-      .then((profile) => {
+      .then(async (profile) => {
         if (!active) return;
         setDriverProfile(profile);
-        if (profile?.upi_qr_path && profile.upi_qr_status === "approved") {
+        if (profile?.upi_id && profile.accepts_driver_upi) {
           setQrLoading(true);
-          getDriverQrSignedUrl(supabase, profile.upi_qr_path)
-            .then((url) => active && setQrUrl(url))
-            .catch(() => active && setQrUrl(null))
-            .finally(() => active && setQrLoading(false));
+          try {
+            const uri = buildUpiPaymentUri({
+              upiId: profile.upi_id,
+              payeeName: profile.full_name ?? "RideIT driver",
+              amount: ride.total_fare,
+              note: `RideIT ride ${rideId?.slice(0, 8) ?? ""}`,
+            });
+            const dataUrl = await generateUpiQrDataUrl(uri);
+            if (active) setQrUrl(dataUrl);
+          } catch {
+            if (active) setQrUrl(null);
+          } finally {
+            if (active) setQrLoading(false);
+          }
         }
       })
       .catch(() => active && setDriverProfile(null));
     return () => {
       active = false;
     };
-  }, [supabase, user, phase]);
+  }, [supabase, user, phase, ride, rideId]);
 
   // Realtime: the passenger can now cancel an active ride at any point up
   // to and including ride_started (see passenger_cancel_active_ride(),
@@ -480,18 +493,28 @@ function NavigationPageContent() {
           {ride?.payment_method === "driver_upi" && (
             <Card className="mt-5 text-left">
               <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Payment</p>
+              <div className="mt-2 flex items-center justify-between text-sm">
+                <span className="text-ink-soft">Payable amount</span>
+                <span className="font-meter font-semibold text-ink">₹{ride?.total_fare ?? 0}</span>
+              </div>
               {qrLoading ? (
-                <Skeleton className="mx-auto mt-3 h-40 w-40" />
+                <Skeleton className="mx-auto mt-3 h-56 w-56" />
               ) : qrUrl ? (
                 <>
-                  {/* eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL, not a static asset */}
-                  <img src={qrUrl} alt="Your UPI payment QR code" className="mx-auto mt-3 h-40 w-40 rounded-lg object-contain" />
-                  <p className="mt-2 text-center text-sm font-medium text-ink">Scan to pay ₹{ride?.total_fare ?? 0}</p>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a client-generated data: URL, not a static asset */}
+                  <img src={qrUrl} alt="Your UPI payment QR code" className="mx-auto mt-3 h-56 w-56 rounded-lg object-contain" />
+                  <p className="mt-2 text-center text-sm font-medium text-ink">Ask passenger to scan this QR to pay ₹{ride?.total_fare ?? 0}</p>
                 </>
-              ) : (
+              ) : driverProfile && !driverProfile.upi_id ? (
                 <p className="mt-2 text-center text-xs text-ink-soft">
-                  No verified QR on file — go to Payment settings to upload and get it admin-approved.
+                  No UPI ID on file — add one in Payment settings, or accept Cash for this ride.
                 </p>
+              ) : driverProfile && !driverProfile.accepts_driver_upi ? (
+                <p className="mt-2 text-center text-xs text-ink-soft">
+                  You&apos;ve turned off Driver UPI in Payment settings — accept Cash for this ride instead.
+                </p>
+              ) : (
+                <p className="mt-2 text-center text-xs text-ink-soft">Couldn&apos;t load your payment details.</p>
               )}
               <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs">
                 <span className="text-ink-soft">UPI ID</span>

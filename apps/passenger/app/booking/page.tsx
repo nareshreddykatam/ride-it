@@ -163,6 +163,7 @@ function BookingPageContent() {
       distanceFare: String(selectedEstimate.distanceFare),
       etaMinutes: String(selectedEstimate.etaMinutes),
       surgeMultiplier: String(selectedEstimate.surgeMultiplier),
+      usedRealRoute: String(usedRealRoute),
     });
     if (drop) {
       query.set("destLat", String(drop.lat));
@@ -254,9 +255,13 @@ function BookingPageContent() {
         </div>
 
         <div className="mt-4 rounded-xl border border-border/80 bg-surface/60 p-3.5 text-center text-xs text-ink-soft">
-          <p className="font-medium text-ink">100% Direct Driver Platform</p>
+          <p className="font-medium text-ink">
+            {usedRealRoute ? `Estimated distance: ${distanceKm.toFixed(1)} km` : "Estimated fare — exact route unavailable"}
+          </p>
           <p className="mt-0.5 text-[11px]">
-            Fixed rate: Base fare + Distance fare. 0% commission cuts from driver earnings.
+            {usedRealRoute
+              ? "This estimate is calculated from your live route. Final fare is calculated by RideIT when the ride is completed."
+              : "We couldn't calculate your exact route right now, so this fare uses an approximate distance. Final fare is calculated by RideIT from your ride's actual distance when it completes."}
           </p>
         </div>
       </div>

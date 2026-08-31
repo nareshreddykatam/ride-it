@@ -6,12 +6,15 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./client-checkout": "./src/client-checkout.ts"
+    "./client-checkout": "./src/client-checkout.ts",
+    "./upi": "./src/upi.ts"
   },
   "dependencies": {
-    "razorpay": "^2.9.8"
+    "razorpay": "^2.9.8",
+    "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@types/qrcode": "^1.5.5",
     "typescript": "^5.5.0"
   }
 }

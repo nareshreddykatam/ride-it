@@ -8,9 +8,10 @@ import { Button, Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui"
 import { PaymentMethod } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getRide, setRidePaymentMethod, confirmDirectPayment, type RideRow } from "@ride-it/data";
+import { getRide, setRidePaymentMethod, confirmDirectPayment, getMatchedDriverUpi, type RideRow } from "@ride-it/data";
 import { createPendingRidePayment, attachRidePaymentOrder, getRidePayment, subscribeToPayment, type PaymentRow } from "@ride-it/data";
 import { openRazorpayCheckout } from "@ride-it/payments/client-checkout";
+import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi";
 
 const METHODS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
   { value: PaymentMethod.CASH, label: "Cash", icon: Banknote },
@@ -32,8 +33,9 @@ export default function RideCompletePage() {
   const [onlineState, setOnlineState] = React.useState<OnlineState>("idle");
   const [onlineError, setOnlineError] = React.useState<string | null>(null);
   const [payment, setPayment] = React.useState<PaymentRow | null>(null);
-  const [qrUrl, setQrUrl] = React.useState<string | null>(null);
+  const [qrDataUrl, setQrDataUrl] = React.useState<string | null>(null);
   const [qrLoading, setQrLoading] = React.useState(false);
+  const [driverUpi, setDriverUpi] = React.useState<{ upiId: string | null; driverName: string | null; acceptsDriverUpi: boolean } | null>(null);
 
   React.useEffect(() => {
     let active = true;
@@ -73,28 +75,45 @@ export default function RideCompletePage() {
     });
   }, [supabase, payment, router, params.id]);
 
-  // Driver UPI QR — fetched via the signed-URL route (never a raw Storage
-  // path from the client), which itself only resolves once this ride's
-  // fare is final and driver_upi is genuinely the selected method. See
-  // get_matched_driver_qr_path() (migration 20260831160000) and
-  // apps/passenger/app/api/rides/[id]/driver-qr/route.ts.
+  // Driver UPI QR — generated client-side from the matched driver's
+  // registered UPI id (get_matched_driver_upi(), scoped server-side to
+  // this passenger's own fare-final ride — never a client-supplied
+  // driver id) and this ride's own already-authoritative total_fare. No
+  // uploaded QR image involved; a upi://pay URI has nothing secret in it
+  // (it's exactly what the driver's own printed QR would encode), so
+  // there's no reason to mint it server-side.
   React.useEffect(() => {
-    if (method !== PaymentMethod.DRIVER_UPI) return;
+    if (method !== PaymentMethod.DRIVER_UPI || !ride) return;
     let active = true;
     setQrLoading(true);
-    fetch(`/api/rides/${params.id}/driver-qr`)
-      .then((res) => res.json())
-      .then((body: { signedUrl: string | null }) => {
-        if (active) setQrUrl(body.signedUrl);
+    getMatchedDriverUpi(supabase, params.id)
+      .then(async (info) => {
+        if (!active) return;
+        setDriverUpi(info);
+        if (info.upiId && info.acceptsDriverUpi) {
+          const uri = buildUpiPaymentUri({
+            upiId: info.upiId,
+            payeeName: info.driverName ?? "Your driver",
+            amount: ride.total_fare,
+            note: `RideIT ride ${params.id.slice(0, 8)}`,
+          });
+          const dataUrl = await generateUpiQrDataUrl(uri);
+          if (active) setQrDataUrl(dataUrl);
+        } else {
+          setQrDataUrl(null);
+        }
       })
       .catch(() => {
-        if (active) setQrUrl(null);
+        if (active) {
+          setDriverUpi(null);
+          setQrDataUrl(null);
+        }
       })
       .finally(() => active && setQrLoading(false));
     return () => {
       active = false;
     };
-  }, [method, params.id]);
+  }, [method, params.id, ride, supabase]);
 
   async function handleCashOrUpiConfirm(selected: PaymentMethod) {
     setConfirming(true);
@@ -194,7 +213,7 @@ export default function RideCompletePage() {
           <CheckCircle2 size={22} strokeWidth={1.8} />
         </motion.span>
         <h1 className="mt-3 font-display text-2xl font-semibold text-ink">Ride completed</h1>
-        <p className="mt-1 text-sm text-ink-soft">Here&apos;s your fare breakdown.</p>
+        <p className="mt-1 text-sm text-ink-soft">Here&apos;s your final fare — calculated by RideIT from your ride&apos;s actual distance.</p>
 
         <Card className="mt-6">
           {loading || !ride ? (
@@ -210,7 +229,11 @@ export default function RideCompletePage() {
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-between text-sm text-ink-soft">
+              <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-ink-soft">
+                <span>Final fare</span>
+                {ride.distance_km != null && <span className="tabular-nums">{Number(ride.distance_km).toFixed(2)} km</span>}
+              </div>
+              <div className="mt-3 flex items-center justify-between text-sm text-ink-soft">
                 <span>Base fare</span>
                 <span className="font-meter text-ink">₹{ride.base_fare}</span>
               </div>
@@ -306,19 +329,23 @@ export default function RideCompletePage() {
           <div className="mt-4">
             <Card className="text-center">
               {qrLoading ? (
-                <Skeleton className="mx-auto h-40 w-40" />
-              ) : qrUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- a short-lived signed URL, not a static asset
-                <img src={qrUrl} alt="Driver's UPI payment QR code" className="mx-auto h-40 w-40 rounded-lg object-contain" />
+                <Skeleton className="mx-auto h-48 w-48" />
+              ) : qrDataUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a client-generated data: URL, not a static asset
+                <img src={qrDataUrl} alt="Scan to pay your driver via UPI" className="mx-auto h-48 w-48 rounded-lg object-contain" />
+              ) : driverUpi && !driverUpi.upiId ? (
+                <p className="text-sm text-ink-soft">UPI payment unavailable — use Cash instead.</p>
+              ) : driverUpi && !driverUpi.acceptsDriverUpi ? (
+                <p className="text-sm text-ink-soft">Your driver isn&apos;t accepting Driver UPI right now — use Cash instead.</p>
               ) : (
-                <p className="text-sm text-ink-soft">
-                  This driver hasn&apos;t set up a verified UPI QR code yet — please pay by Cash instead.
-                </p>
+                <p className="text-sm text-ink-soft">Couldn&apos;t load payment details — use Cash instead.</p>
               )}
-              {qrUrl && (
+              {qrDataUrl && (
                 <>
-                  <p className="mt-3 text-sm font-medium text-ink">Scan to pay ₹{ride?.total_fare}</p>
-                  <p className="mt-1 text-xs text-ink-soft">This is your driver&apos;s verified UPI QR code for the exact final fare.</p>
+                  <p className="mt-3 text-sm font-medium text-ink">Scan the driver&apos;s QR code to pay ₹{ride?.total_fare}</p>
+                  <p className="mt-1 text-xs text-ink-soft">
+                    UPI ID: {driverUpi?.upiId} {driverUpi?.driverName ? `· ${driverUpi.driverName}` : ""}
+                  </p>
                 </>
               )}
               <StatusPill tone="pending" className="mt-3">Payment pending</StatusPill>

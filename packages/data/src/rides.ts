@@ -414,19 +414,32 @@ export async function getMatchedDriverSelfiePath(supabase: SupabaseClient, rideI
   return (data as string | null) ?? null;
 }
 
+export interface MatchedDriverUpi {
+  upiId: string | null;
+  driverName: string | null;
+  acceptsDriverUpi: boolean;
+}
+
 /**
- * Calls get_matched_driver_qr_path() (migration
- * 20260831160000_matched_driver_qr_access) — returns a Storage *path* to
- * the matched driver's admin-approved UPI QR image, never a URL, and only
- * once the ride has reached a fare-final status with driver_upi selected.
- * The caller (apps/passenger/app/api/rides/[id]/driver-qr/route.ts) mints
- * a short-lived signed URL server-side from this path. Never expose the
- * raw path itself to a browser.
+ * Calls get_matched_driver_upi() (migration
+ * 20260831190000_matched_driver_upi_identity) — returns the matched
+ * driver's registered UPI id + display name for the calling passenger's
+ * own ride, once fare-final with driver_upi selected. No QR image or
+ * amount here — callers combine this with their own getRide().total_fare
+ * and packages/payments/src/upi.ts's buildUpiPaymentUri()/
+ * generateUpiQrDataUrl() to render the actual QR client-side.
  */
-export async function getMatchedDriverQrPath(supabase: SupabaseClient, rideId: string): Promise<string | null> {
-  const { data, error } = await supabase.rpc("get_matched_driver_qr_path", { p_ride_id: rideId });
+export async function getMatchedDriverUpi(supabase: SupabaseClient, rideId: string): Promise<MatchedDriverUpi> {
+  const { data, error } = await supabase.rpc("get_matched_driver_upi", { p_ride_id: rideId });
   if (error) throw error;
-  return (data as string | null) ?? null;
+  const row = (Array.isArray(data) ? data[0] : data) as
+    | { upi_id: string | null; driver_name: string | null; accepts_driver_upi: boolean | null }
+    | undefined;
+  return {
+    upiId: row?.upi_id ?? null,
+    driverName: row?.driver_name ?? null,
+    acceptsDriverUpi: row?.accepts_driver_upi ?? false,
+  };
 }
 
 export interface MatchedPassengerContact {

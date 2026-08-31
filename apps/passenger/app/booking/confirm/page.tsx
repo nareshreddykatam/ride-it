@@ -41,6 +41,7 @@ function ConfirmBookingPageContent() {
   const initialBaseFare = Number(params.get("baseFare") ?? "0");
   const initialDistanceFare = Number(params.get("distanceFare") ?? "0");
   const initialSurgeMultiplier = Number(params.get("surgeMultiplier") ?? "1");
+  const initialUsedRealRoute = params.get("usedRealRoute") === "true";
   const initialDistanceKm = Number(params.get("distanceKm") ?? "0");
   const etaMinutes = params.get("etaMinutes") ?? "5";
   const destLatParam = params.get("destLat");
@@ -80,6 +81,14 @@ function ConfirmBookingPageContent() {
     surgeMultiplier: initialSurgeMultiplier,
   });
   const [staleEstimate, setStaleEstimate] = React.useState(false);
+  // Whether liveDistanceKm currently reflects a real, calculated route
+  // (Google Routes) rather than the Booking screen's honest fallback
+  // guess — drives the "estimate is approximate" framing below. Only
+  // ever flips false -> true (a successful recompute here always
+  // supersedes an earlier fallback); a later failed recompute leaves
+  // whatever distance/flag we already have rather than un-flagging a
+  // genuinely-real distance as approximate.
+  const [usedRealRoute, setUsedRealRoute] = React.useState(initialUsedRealRoute);
   // The real, admin-configured rate for THIS ride's vehicle type — same
   // source as the Booking screen (getActivePricingRules/getSurgeStatus),
   // fetched once here so the recompute effect below never falls back to
@@ -182,6 +191,7 @@ function ConfirmBookingPageContent() {
           surgeMultiplier: estimate.surgeMultiplier,
         });
         setStaleEstimate(false);
+        setUsedRealRoute(true);
       } else {
         setStaleEstimate(true);
       }
@@ -338,8 +348,10 @@ function ConfirmBookingPageContent() {
             <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
               <Route size={18} className="shrink-0 text-signal-blue" />
               <div>
-                <p className="font-meter text-sm font-bold tabular-nums text-ink">{liveDistanceKm.toFixed(1)} km</p>
-                <p className="text-[10px] font-medium uppercase text-ink-soft">Est. Distance</p>
+                <p className="font-meter text-sm font-bold tabular-nums text-ink">{liveDistanceKm.toFixed(2)} km</p>
+                <p className="text-[10px] font-medium uppercase text-ink-soft">
+                  {usedRealRoute ? "Est. Distance (live route)" : "Est. Distance (approximate)"}
+                </p>
               </div>
             </div>
             <div className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
@@ -377,12 +389,13 @@ function ConfirmBookingPageContent() {
               own compute_ride_fare() trigger remains the sole
               authoritative fare once the ride is actually created. */}
           <div className="mt-3.5 rounded-2xl border border-marigold/30 bg-tint-marigold/60 p-5 shadow-sm">
-            <div className="flex items-center justify-between text-xs font-medium text-ink-soft">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Fare estimate</p>
+            <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
               <span>Base Fare</span>
               <span className="font-meter font-semibold tabular-nums text-ink">₹{liveFare.baseFare.toFixed(2)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
-              <span>Distance Fare ({liveDistanceKm.toFixed(1)} km)</span>
+              <span>Distance Fare ({liveDistanceKm.toFixed(2)} km)</span>
               <span className="font-meter font-semibold tabular-nums text-ink">₹{liveFare.distanceFare.toFixed(2)}</span>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
@@ -403,7 +416,7 @@ function ConfirmBookingPageContent() {
 
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Total Guaranteed Fare</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Estimated Total</p>
                 <p className="text-xs text-ink-soft">Cash or Direct UPI to Driver</p>
               </div>
               <MeterValue value={`₹${liveFare.totalFare}`} size="lg" />
@@ -414,6 +427,10 @@ function ConfirmBookingPageContent() {
               Couldn&apos;t refresh the route just now — this estimate is for your previous pickup point.
             </p>
           )}
+          <p className="mt-2 text-center text-xs text-ink-soft">
+            Final fare is calculated by RideIT from your ride&apos;s actual distance when it&apos;s completed
+            {!usedRealRoute && " — this estimate uses an approximate distance and may differ"}.
+          </p>
 
           <p className="mt-3.5 text-center text-xs text-ink-soft">
             Free cancellation before your driver arrives.
