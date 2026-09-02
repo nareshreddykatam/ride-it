@@ -12,7 +12,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // that decision is made.
 const config: CapacitorConfig = {
   appId: "com.rideit.driver",
-  appName: "Ride It Driver",
+  appName: "Ridora Driver",
   webDir: "out",
   server: {
     androidScheme: "https",

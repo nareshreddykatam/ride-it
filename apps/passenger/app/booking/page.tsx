@@ -260,8 +260,8 @@ function BookingPageContent() {
           </p>
           <p className="mt-0.5 text-[11px]">
             {usedRealRoute
-              ? "This estimate is calculated from your live route. Final fare is calculated by RideIT when the ride is completed."
-              : "We couldn't calculate your exact route right now, so this fare uses an approximate distance. Final fare is calculated by RideIT from your ride's actual distance when it completes."}
+              ? "This estimate is calculated from your live route. Final fare is calculated by Ridora when the ride is completed."
+              : "We couldn't calculate your exact route right now, so this fare uses an approximate distance. Final fare is calculated by Ridora from your ride's actual distance when it completes."}
           </p>
         </div>
       </div>

@@ -67,7 +67,7 @@ export default function PassengerReferPage() {
     if (!link) return;
     if (navigator.share) {
       try {
-        await navigator.share({ title: "Join RideIT", text: `Use my code ${summary?.referralCode} to join RideIT.`, url: link });
+        await navigator.share({ title: "Join Ridora", text: `Use my code ${summary?.referralCode} to join Ridora.`, url: link });
         return;
       } catch {
         // User cancelled the share sheet, or it's unsupported — fall through to copy.

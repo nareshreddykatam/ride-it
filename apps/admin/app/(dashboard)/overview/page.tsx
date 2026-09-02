@@ -97,8 +97,8 @@ export default function OverviewPage() {
             <CardTitle>Revenue</CardTitle>
             <StatusPill tone="info">This month</StatusPill>
           </CardHeader>
-          {/* Subscription revenue (what Ride It actually collects) shown
-              separately from ride fare volume (analytics only — Ride It
+          {/* Subscription revenue (what Ridora actually collects) shown
+              separately from ride fare volume (analytics only — Ridora
               takes no commission from passenger fares, per product policy). */}
           {loading ? (
             <div className="flex gap-8">

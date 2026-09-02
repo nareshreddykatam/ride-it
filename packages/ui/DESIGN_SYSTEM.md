@@ -1,4 +1,4 @@
-# Ride It — Design System
+# Ridora — Design System
 
 > **v2 (2026-08).** This pass is a genuine visual redesign, not a token
 > tweak — see additions below. The v1 grounding (flat subscription vs.
@@ -9,7 +9,7 @@
 > get sanctioned gradients instead of flat fills.
 
 ## Grounding
-Ride It's real differentiator is structural, not cosmetic: drivers pay a **flat
+Ridora's real differentiator is structural, not cosmetic: drivers pay a **flat
 subscription** instead of a **per-ride meter cut**. Indian auto-rickshaws are
 also visually iconic — yellow-black or green-yellow livery, mechanical fare
 meters with ticking digits. The design system leans on that world instead of
@@ -71,7 +71,7 @@ ride history) reads from this one map so a vehicle's color/icon can never
 drift screen-to-screen. See `packages/ui/src/icons/vehicle-icons.tsx`.
 
 Everything else icon-shaped lives in `packages/ui/src/icons/index.ts` —
-Lucide re-exported under RideIT names (`HomeIcon`, `WalletIcon`,
+Lucide re-exported under Ridora names (`HomeIcon`, `WalletIcon`,
 `SafetyIcon`…) so no screen imports `lucide-react` under an inconsistent
 name, plus `PinGlyph` (the branded teardrop marker used inline in
 pickup/destination rows — RideMap's actual Google Maps markers stay real

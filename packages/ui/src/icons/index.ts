@@ -1,5 +1,5 @@
 /**
- * RideIT icon system — the one place icons are named and sourced from, so
+ * Ridora icon system — the one place icons are named and sourced from, so
  * no screen reaches for a raw emoji, Unicode glyph, or an ad hoc
  * lucide-react import under a mismatched name. Lucide covers generic UI
  * concepts (home, wallet, shield…); vehicles and map pins are custom SVG

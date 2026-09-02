@@ -82,7 +82,7 @@ export default function EmergencyContactsPage() {
         </button>
       </div>
       <p className="mt-1 text-sm text-ink-soft">
-        People Ride It may share context with during an SOS. Up to 5 contacts.
+        People Ridora may share context with during an SOS. Up to 5 contacts.
       </p>
 
       <div className="mt-4 flex flex-col gap-3">
@@ -92,7 +92,7 @@ export default function EmergencyContactsPage() {
           <EmptyState
             icon={<Users size={20} />}
             title="No emergency contacts yet"
-            description="Add someone you'd want Ride It to reach in an emergency."
+            description="Add someone you'd want Ridora to reach in an emergency."
           />
         )}
 

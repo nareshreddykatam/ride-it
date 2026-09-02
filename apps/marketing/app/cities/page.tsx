@@ -22,7 +22,7 @@ export default function CitiesPage() {
             Cities we serve
           </h1>
           <p className="mt-4 max-w-xl text-lg text-white/80">
-            Ride It is launching city by city. Service-area scoping
+            Ridora is launching city by city. Service-area scoping
             (single-city vs. multi-city launch) is still an open item from
             the PRD review — this list reflects a reasonable placeholder
             rollout plan.

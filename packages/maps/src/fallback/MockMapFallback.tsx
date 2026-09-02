@@ -284,7 +284,7 @@ export function MockMap({
       {/* Map Badge */}
       <span className="pointer-events-none absolute bottom-2.5 right-2.5 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0c1628]/90 px-2.5 py-1 text-[10px] font-medium text-white/75 shadow-md backdrop-blur-sm">
         <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
-        RideIT Live Spatial Context
+        Ridora Live Spatial Context
       </span>
     </div>
   );

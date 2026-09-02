@@ -31,7 +31,7 @@ function Wordmark({ className = "" }: { className?: string }) {
         <AutoIcon size={18} strokeWidth={2} />
       </span>
       <span className="font-display text-lg font-semibold tracking-tight text-ink-blue">
-        Ride<span className="text-marigold">It</span>
+        Rid<span className="text-marigold">ora</span>
       </span>
     </span>
   );
@@ -180,7 +180,7 @@ export function SiteFooter() {
           </div>
         </div>
         <div className="mt-10 flex flex-col-reverse items-start justify-between gap-4 border-t border-border pt-6 sm:flex-row sm:items-center">
-          <p className="text-xs text-ink-soft">© 2026 Ride It. All rights reserved.</p>
+          <p className="text-xs text-ink-soft">© 2026 Ridora. All rights reserved.</p>
           <span className="rounded-full border border-marigold/30 bg-tint-marigold px-2.5 py-1 text-xs font-semibold text-marigold-text">
             Coming soon
           </span>

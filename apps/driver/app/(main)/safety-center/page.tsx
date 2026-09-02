@@ -108,7 +108,7 @@ export default function SafetyCenterPage() {
               </span>
               <span>
                 <span className="block text-sm font-medium text-ink">Emergency contacts</span>
-                <span className="block text-xs text-ink-soft">People Ride It may share context with during an SOS</span>
+                <span className="block text-xs text-ink-soft">People Ridora may share context with during an SOS</span>
               </span>
             </span>
             <ChevronRight size={16} className="shrink-0 text-ink-soft" aria-hidden="true" />

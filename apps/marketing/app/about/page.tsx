@@ -6,11 +6,11 @@ export default function AboutPage() {
       <p className="font-meter text-xs font-medium uppercase tracking-wide text-signal-blue">
         Our story
       </p>
-      <h1 className="mt-2 font-display text-4xl font-medium text-ink">About Ride It</h1>
+      <h1 className="mt-2 font-display text-4xl font-medium text-ink">About Ridora</h1>
 
       <Card tone="elevated" className="mt-8 flex flex-col gap-4 p-6 text-ink-soft sm:p-8">
         <p>
-          Ride It exists because the standard ride-hailing model asks drivers
+          Ridora exists because the standard ride-hailing model asks drivers
           to give up a slice of every single fare to the platform that
           connects them with riders. We think that&apos;s backwards. Drivers do
           the driving, own the vehicle, and take on the risk — they should

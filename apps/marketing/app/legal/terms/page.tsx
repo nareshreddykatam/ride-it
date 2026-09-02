@@ -11,7 +11,7 @@ export default function TermsPage() {
         This is placeholder legal copy. Final Terms of Service should be
         drafted and reviewed by legal counsel before launch, covering
         subscription billing terms, cancellation policy, liability, and
-        dispute resolution specific to the Ride It platform.
+        dispute resolution specific to the Ridora platform.
       </Card>
     </main>
   );

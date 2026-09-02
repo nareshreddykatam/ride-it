@@ -146,7 +146,7 @@ export default function CommandCenterPage() {
           </span>
           <div>
             <h1 className="font-display text-2xl font-medium text-ink">Command Center</h1>
-            <p className="text-sm text-ink-soft">What's happening on RideIT right now.</p>
+            <p className="text-sm text-ink-soft">What's happening on Ridora right now.</p>
           </div>
         </div>
         {snapshot && (
@@ -279,7 +279,7 @@ export default function CommandCenterPage() {
           <HealthRow
             label="Payment gateway (Razorpay)"
             status={appConfig === null ? "unavailable" : appConfig.payments ? "healthy" : "configuration_required"}
-            detail={appConfig === null ? "Could not check." : appConfig.payments ? "Credentials configured." : "No credentials set — Ride It Online is unavailable to passengers."}
+            detail={appConfig === null ? "Could not check." : appConfig.payments ? "Credentials configured." : "No credentials set — Ridora Online is unavailable to passengers."}
           />
           <HealthRow
             label="SMS (MSG91) / Push (FCM)"

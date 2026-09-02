@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-Ride It's production authentication is phone OTP through Supabase Auth
+Ridora's production authentication is phone OTP through Supabase Auth
 (unchanged, unmodified by this feature — see
 `packages/auth/src/phone-otp.ts`). The real hosted Supabase project has
 no funded SMS provider, which has blocked real hosted end-to-end testing

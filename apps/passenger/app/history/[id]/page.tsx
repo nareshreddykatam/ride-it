@@ -12,7 +12,7 @@ import { getRide, getRideParticipantName, getOwnRatingForRide, type RideRow, typ
 const PAYMENT_METHOD_LABEL: Record<string, string> = {
   cash: "Cash",
   driver_upi: "Driver UPI",
-  online: "Ride It Online",
+  online: "Ridora Online",
 };
 
 const PAYMENT_STATUS_LABEL: Record<string, string> = {

@@ -121,7 +121,7 @@ export default function DriverProfilePage() {
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate font-display text-lg font-semibold text-ink">
-              {profile?.full_name ?? "Ride It Driver"}
+              {profile?.full_name ?? "Ridora Driver"}
             </p>
             <p className="mt-0.5 text-sm text-ink-soft">
               {profile?.phone ? `+91 ${profile.phone}` : ""}
@@ -160,7 +160,7 @@ export default function DriverProfilePage() {
           )}
         </div>
         <p className="mt-0.5 text-xs text-ink-soft">
-          Passengers paying by Driver UPI pay this ID directly — Ride It never processes that payment. An admin
+          Passengers paying by Driver UPI pay this ID directly — Ridora never processes that payment. An admin
           must verify it before it can be shown to passengers.
         </p>
         {editingUpi ? (

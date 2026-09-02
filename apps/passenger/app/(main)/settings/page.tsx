@@ -87,7 +87,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <p className="mt-8 text-center text-xs text-ink-soft">Ride It Passenger v1.4.2</p>
+      <p className="mt-8 text-center text-xs text-ink-soft">Ridora Passenger v1.4.2</p>
     </main>
   );
 }

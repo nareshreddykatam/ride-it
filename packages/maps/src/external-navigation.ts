@@ -10,9 +10,9 @@ import type { LatLng } from "./components/RideMap";
  * "installed app, else web" fallback is Google's own behavior for this URL
  * shape, not something this function needs to detect/implement itself.
  *
- * Deliberately the ENTIRE navigation surface RideIT touches for the driver
+ * Deliberately the ENTIRE navigation surface Ridora touches for the driver
  * — no turn-by-turn is rendered in-app (see Phase 7 of the map-ecosystem
- * task brief: "Do not implement turn-by-turn navigation inside RideIT").
+ * task brief: "Do not implement turn-by-turn navigation inside Ridora").
  */
 export function getExternalNavigationUrl(destination: LatLng): string {
   const url = new URL("https://www.google.com/maps/dir/");

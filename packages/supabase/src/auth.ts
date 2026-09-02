@@ -2,7 +2,7 @@ import type { SupabaseClient, Session, User } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
 /**
- * Auth helpers — deliberately read-only/utility for now. Ride It's actual
+ * Auth helpers — deliberately read-only/utility for now. Ridora's actual
  * sign-in flow (mobile OTP) is not wired to Supabase yet; these functions
  * just give the rest of the codebase a single, typed place to ask "who's
  * signed in?" once that wiring happens, instead of every screen calling

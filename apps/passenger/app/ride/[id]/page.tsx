@@ -500,7 +500,7 @@ export default function RideStatusPage() {
                   [
                     { value: "cash" as const, label: "Cash", icon: Banknote, offered: driver.accepts_cash },
                     { value: "driver_upi" as const, label: "Driver UPI", icon: Smartphone, offered: driver.accepts_driver_upi && driver.upi_verified },
-                    { value: "online" as const, label: "Ride It Online", icon: CreditCard, offered: driver.accepts_online },
+                    { value: "online" as const, label: "Ridora Online", icon: CreditCard, offered: driver.accepts_online },
                   ] as const
                 )
                   .filter((m) => m.offered)
@@ -624,7 +624,7 @@ export default function RideStatusPage() {
                   </li>
                   <li className="flex gap-2">
                     <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
-                    Ride It&apos;s safety team has been notified and will review it.
+                    Ridora&apos;s safety team has been notified and will review it.
                   </li>
                   <li className="flex gap-2">
                     <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
@@ -632,7 +632,7 @@ export default function RideStatusPage() {
                   </li>
                 </ul>
                 <p className="mt-3 text-xs text-alert-red">
-                  Ride It has not contacted police or emergency services on your behalf. If you are in immediate
+                  Ridora has not contacted police or emergency services on your behalf. If you are in immediate
                   danger, call {emergencyNumber ?? "your local emergency number"} directly.
                 </p>
                 <Button className="mt-4 w-full" onClick={() => setSafetyOpen(false)}>

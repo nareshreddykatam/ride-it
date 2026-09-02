@@ -52,7 +52,7 @@ export default function CitiesPage() {
         <div>
           <h1 className="font-display text-2xl font-medium text-ink">Cities</h1>
           <p className="text-sm text-ink-soft">
-            Ride It launches city by city: Vijayawada → Hyderabad → additional cities. Activate or add cities as the
+            Ridora launches city by city: Vijayawada → Hyderabad → additional cities. Activate or add cities as the
             rollout expands — this is service-area scoping only, not a driver-matching/geofencing system.
           </p>
         </div>

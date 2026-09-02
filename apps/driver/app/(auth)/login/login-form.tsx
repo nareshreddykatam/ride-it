@@ -64,7 +64,7 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
         <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-tint-blue text-signal-blue">
           <DriverIcon size={24} aria-hidden="true" />
         </span>
-        <p className="mt-4 font-display text-sm font-medium text-ink-blue">Ride It Driver</p>
+        <p className="mt-4 font-display text-sm font-medium text-ink-blue">Ridora Driver</p>
         <h1 className="mt-2 font-display text-3xl font-medium leading-tight text-ink">
           Keep 100%
           <br />
@@ -103,7 +103,7 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
           {submitting ? "Sending code..." : "Continue"}
         </Button>
         <p className="mt-3 text-center text-xs text-ink-soft">
-          By continuing, you agree to Ride It&apos;s Driver Terms and Privacy Policy.
+          By continuing, you agree to Ridora&apos;s Driver Terms and Privacy Policy.
         </p>
         {children}
       </div>

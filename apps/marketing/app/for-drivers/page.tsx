@@ -24,7 +24,7 @@ export default function ForDriversPage() {
             One flat fee. Keep every rupee you earn.
           </h1>
           <p className="mt-3 max-w-xl text-ink/80">
-            Most platforms take a cut of every single ride. Ride It charges
+            Most platforms take a cut of every single ride. Ridora charges
             one fixed subscription instead — the rest of the fare, cash or
             UPI, is entirely yours.
           </p>

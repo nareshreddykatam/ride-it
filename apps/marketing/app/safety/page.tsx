@@ -48,7 +48,7 @@ export default function SafetyPage() {
             Built in, not bolted on
           </span>
           <h1 className="mt-4 font-display text-4xl font-medium text-white sm:text-5xl">
-            Safety at Ride It
+            Safety at Ridora
           </h1>
           <p className="mt-3 max-w-xl text-white/80">
             A few of the things built into every ride to keep passengers and

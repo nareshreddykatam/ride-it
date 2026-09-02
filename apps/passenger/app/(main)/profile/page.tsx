@@ -96,7 +96,7 @@ export default function PassengerProfilePage() {
             </span>
             <div className="min-w-0">
               <p className="truncate font-display text-lg font-semibold text-ink">
-                {profile?.full_name ?? "Ride It Passenger"}
+                {profile?.full_name ?? "Ridora Passenger"}
               </p>
               <p className="truncate text-sm text-ink-soft">
                 {profile?.phone ? `+91 ${profile.phone}` : profile?.email ?? ""}

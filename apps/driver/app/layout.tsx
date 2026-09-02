@@ -13,7 +13,7 @@ const meter = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ride It Driver",
+  title: "Ridora Driver",
   description: "Go online, accept rides, keep 100% of your earnings.",
 };
 

@@ -428,7 +428,7 @@ function ConfirmBookingPageContent() {
             </p>
           )}
           <p className="mt-2 text-center text-xs text-ink-soft">
-            Final fare is calculated by RideIT from your ride&apos;s actual distance when it&apos;s completed
+            Final fare is calculated by Ridora from your ride&apos;s actual distance when it&apos;s completed
             {!usedRealRoute && " — this estimate uses an approximate distance and may differ"}.
           </p>
 

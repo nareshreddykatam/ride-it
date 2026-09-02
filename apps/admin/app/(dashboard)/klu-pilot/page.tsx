@@ -287,7 +287,7 @@ export default function KluPilotPage() {
             </dl>
           )}
           <p className="mt-3 text-xs text-ink-soft">
-            "Rides / online driver-day" is a proxy for utilization — RideIT has no online/offline session history to compute true busy-time.
+            "Rides / online driver-day" is a proxy for utilization — Ridora has no online/offline session history to compute true busy-time.
           </p>
         </Card>
       </div>
@@ -366,12 +366,12 @@ export default function KluPilotPage() {
               <div>
                 <p className="text-xs text-ink-soft">Ride fare volume (GMV)</p>
                 <p className="font-meter text-xl font-medium text-ink">{fmtInr(revenue.gmv)}</p>
-                <p className="text-[11px] text-ink-soft">Not RideIT revenue — passenger-to-driver fare volume</p>
+                <p className="text-[11px] text-ink-soft">Not Ridora revenue — passenger-to-driver fare volume</p>
               </div>
               <div>
                 <p className="text-xs text-ink-soft">Subscription revenue</p>
                 <p className="font-meter text-xl font-medium text-meter-green-text">{fmtInr(revenue.subscription_revenue)}</p>
-                <p className="text-[11px] text-ink-soft">RideIT's own collected revenue (0% ride commission)</p>
+                <p className="text-[11px] text-ink-soft">Ridora's own collected revenue (0% ride commission)</p>
               </div>
               <div>
                 <p className="text-xs text-ink-soft">Avg. fare</p>

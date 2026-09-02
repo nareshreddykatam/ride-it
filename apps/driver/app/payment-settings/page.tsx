@@ -110,7 +110,7 @@ export default function PaymentSettingsPage() {
           [
             { key: "cash" as const, label: "Cash", icon: Banknote, enabled: profile?.accepts_cash ?? false },
             { key: "driver_upi" as const, label: "UPI (paid directly to you)", icon: Smartphone, enabled: profile?.accepts_driver_upi ?? false },
-            { key: "online" as const, label: "Online (Ride It Online / Razorpay)", icon: Globe, enabled: profile?.accepts_online ?? false },
+            { key: "online" as const, label: "Online (Ridora Online / Razorpay)", icon: Globe, enabled: profile?.accepts_online ?? false },
           ] as const
         ).map((m) => (
           <div key={m.key} className="flex items-center justify-between gap-3 border-b border-border py-3.5 last:border-b-0">

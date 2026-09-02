@@ -14,8 +14,8 @@ const meter = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ride It — Your Ride. Your Way.",
-  description: "Book safe, affordable Bike and Auto rides with Ride It.",
+  title: "Ridora — Your Ride. Your Way.",
+  description: "Book safe, affordable Bike and Auto rides with Ridora.",
   manifest: "/manifest.json",
 };
 

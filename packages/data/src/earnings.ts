@@ -30,7 +30,7 @@ export interface DriverEarningsSummary {
  * Earnings are always derived from `rides` (sum of total_fare where this
  * driver completed the ride), never stored as a running total anywhere —
  * a stored/cached total would just be a copy of this query that could
- * drift out of sync. Ride It's whole pitch is drivers keep 100% of the
+ * drift out of sync. Ridora's whole pitch is drivers keep 100% of the
  * fare, so this sum *is* the driver's take-home, with no commission
  * subtracted anywhere in this query.
  */

@@ -45,7 +45,7 @@ export default function SplashPage() {
           transition={{ delay: 0.3, duration: 0.4 }}
           className="mt-4 font-display text-2xl font-medium text-white"
         >
-          Ride It
+          Ridora
         </motion.p>
         <motion.p
           initial={{ opacity: 0 }}

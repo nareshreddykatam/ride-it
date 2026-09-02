@@ -16,7 +16,7 @@ import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi"
 const METHODS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
   { value: PaymentMethod.CASH, label: "Cash", icon: Banknote },
   { value: PaymentMethod.DRIVER_UPI, label: "Driver UPI", icon: Smartphone },
-  { value: PaymentMethod.ONLINE, label: "Ride It Online", icon: CreditCard },
+  { value: PaymentMethod.ONLINE, label: "Ridora Online", icon: CreditCard },
 ];
 
 type OnlineState = "idle" | "creating" | "awaiting_checkout" | "verifying" | "captured" | "failed" | "unavailable";
@@ -95,7 +95,7 @@ export default function RideCompletePage() {
             upiId: info.upiId,
             payeeName: info.driverName ?? "Your driver",
             amount: ride.total_fare,
-            note: `RideIT ride ${params.id.slice(0, 8)}`,
+            note: `Ridora ride ${params.id.slice(0, 8)}`,
           });
           const dataUrl = await generateUpiQrDataUrl(uri);
           if (active) setQrDataUrl(dataUrl);
@@ -149,7 +149,7 @@ export default function RideCompletePage() {
         // Includes the "gateway not configured" 503 — shown honestly,
         // not disguised as a generic error.
         setOnlineState("unavailable");
-        setOnlineError(createData.error ?? "Ride It Online payment isn't available right now.");
+        setOnlineError(createData.error ?? "Ridora Online payment isn't available right now.");
         return;
       }
 
@@ -162,7 +162,7 @@ export default function RideCompletePage() {
         orderId: createData.orderId,
         amountInSmallestUnit: Math.round(createData.amount * 100),
         currency: createData.currency,
-        name: "Ride It",
+        name: "Ridora",
         description: `Ride payment — ${params.id.slice(0, 8)}`,
         onSuccess: async (result) => {
           setOnlineState("verifying");
@@ -213,7 +213,7 @@ export default function RideCompletePage() {
           <CheckCircle2 size={22} strokeWidth={1.8} />
         </motion.span>
         <h1 className="mt-3 font-display text-2xl font-semibold text-ink">Ride completed</h1>
-        <p className="mt-1 text-sm text-ink-soft">Here&apos;s your final fare — calculated by RideIT from your ride&apos;s actual distance.</p>
+        <p className="mt-1 text-sm text-ink-soft">Here&apos;s your final fare — calculated by Ridora from your ride&apos;s actual distance.</p>
 
         <Card className="mt-6">
           {loading || !ride ? (
@@ -296,7 +296,7 @@ export default function RideCompletePage() {
           <div className="mt-4">
             {onlineState === "unavailable" && (
               <Card className="border-marigold bg-marigold/5">
-                <p className="text-sm text-ink">Ride It Online payment isn&apos;t available right now.</p>
+                <p className="text-sm text-ink">Ridora Online payment isn&apos;t available right now.</p>
                 <p className="mt-1 text-xs text-ink-soft">{onlineError ?? "Please choose Cash or Driver UPI instead."}</p>
               </Card>
             )}
@@ -350,7 +350,7 @@ export default function RideCompletePage() {
               )}
               <StatusPill tone="pending" className="mt-3">Payment pending</StatusPill>
               <p className="mt-1.5 text-xs text-ink-soft">
-                Ride It can&apos;t automatically verify a Driver UPI payment. Tapping &quot;Confirm&quot; below records that you and your
+                Ridora can&apos;t automatically verify a Driver UPI payment. Tapping &quot;Confirm&quot; below records that you and your
                 driver have completed this payment between yourselves — it isn&apos;t proof of transfer.
               </p>
             </Card>

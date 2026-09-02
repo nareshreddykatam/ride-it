@@ -106,7 +106,7 @@ export default function TrustedContactsPage() {
         </button>
       </div>
       <p className="mt-1 text-sm text-ink-soft">
-        People you can share an active ride with, and who Ride It may notify context about during an SOS. Up to 5 contacts.
+        People you can share an active ride with, and who Ridora may notify context about during an SOS. Up to 5 contacts.
       </p>
 
       <div className="mt-4 flex flex-col gap-3">

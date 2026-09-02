@@ -63,7 +63,7 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
       >
-        <p className="font-display text-sm font-semibold text-signal-blue">Ride It</p>
+        <p className="font-display text-sm font-semibold text-signal-blue">Ridora</p>
         <h1 className="mt-2 font-display text-3xl font-semibold leading-tight text-ink">
           Your ride.
           <br />
@@ -106,7 +106,7 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
           {submitting ? "Sending code…" : "Continue"}
         </Button>
         <p className="mt-3 text-center text-xs text-ink-soft">
-          By continuing, you agree to Ride It&apos;s Terms and Privacy Policy.
+          By continuing, you agree to Ridora&apos;s Terms and Privacy Policy.
         </p>
         {children}
       </div>

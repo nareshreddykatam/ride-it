@@ -5,7 +5,7 @@ export interface VehicleIconProps extends React.SVGAttributes<SVGSVGElement> {
 }
 
 /**
- * RideIT Professional Transportation Iconography.
+ * Ridora Professional Transportation Iconography.
  *
  * Each vehicle is crafted for immediate real-world recognizability,
  * mirroring the silhouette clarity of standard transportation emojis:

@@ -77,7 +77,7 @@ const DRIVER_STEPS: Step[] = [
   },
   {
     title: "Keep 100% of the fare",
-    body: "Whatever the passenger pays — cash or UPI — is yours. Ride It doesn't take a cut.",
+    body: "Whatever the passenger pays — cash or UPI — is yours. Ridora doesn't take a cut.",
     icon: PaymentIcon,
     tint: "bg-cyan/10 text-cyan-text",
   },
@@ -133,7 +133,7 @@ export default function HowItWorksPage() {
             The full picture
           </p>
           <h1 className="mt-3 max-w-2xl font-display text-5xl font-medium leading-[1.02] text-white sm:text-6xl">
-            How Ride It works
+            How Ridora works
           </h1>
           <p className="mt-4 max-w-xl text-lg text-white/80">
             One platform, two very different economics: passengers get

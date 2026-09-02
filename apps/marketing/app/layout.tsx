@@ -12,9 +12,9 @@ const meter = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ride It — Your Ride. Your Way.",
+  title: "Ridora — Your Ride. Your Way.",
   description:
-    "Ride It is a subscription-based Bike and Auto platform. Drivers pay a flat fee and keep 100% of every fare.",
+    "Ridora is a subscription-based Bike and Auto platform. Drivers pay a flat fee and keep 100% of every fare.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

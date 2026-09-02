@@ -50,7 +50,7 @@ export default function HistoryPage() {
         </span>
         <div>
           <h1 className="font-display text-2xl font-bold text-ink">Ride history</h1>
-          <p className="text-sm text-ink-soft">Every trip you&apos;ve taken with RideIT.</p>
+          <p className="text-sm text-ink-soft">Every trip you&apos;ve taken with Ridora.</p>
         </div>
       </div>
 
@@ -77,7 +77,7 @@ export default function HistoryPage() {
           <EmptyState
             icon={<Clock size={20} />}
             title="No rides yet"
-            description="Book your first RideIT trip and it'll show up here."
+            description="Book your first Ridora trip and it'll show up here."
           />
         )}
 

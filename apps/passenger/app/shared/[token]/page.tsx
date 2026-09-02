@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<string, string> = {
 
 /**
  * No authentication anywhere on this page — the person viewing it is a
- * trusted contact, not a Ride It account holder. Authorization is
+ * trusted contact, not a Ridora account holder. Authorization is
  * entirely the token in the URL, validated server-side by
  * get_shared_ride_info() on every load (see that function's migration
  * comment for the full reasoning). This page polls rather than uses
@@ -74,7 +74,7 @@ export default function SharedRidePage() {
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-        <p className="text-xs font-medium text-signal-blue">Shared by a Ride It passenger</p>
+        <p className="text-xs font-medium text-signal-blue">Shared by a Ridora passenger</p>
         <h1 className="mt-1 font-display text-xl font-semibold text-ink">Live ride status</h1>
 
         <RideMap driverLocation={info.driverLocation} fallbackVariant="live" className="mt-4 h-48 rounded-lg" />

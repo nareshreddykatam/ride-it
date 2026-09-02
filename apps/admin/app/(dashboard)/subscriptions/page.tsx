@@ -75,7 +75,7 @@ export default function SubscriptionsPage() {
         <div>
           <h1 className="font-display text-2xl font-medium text-ink">Subscriptions</h1>
           <p className="text-sm text-ink-soft">
-            Configure plan pricing and review subscription payments. This is Ride It&apos;s only source of platform revenue.
+            Configure plan pricing and review subscription payments. This is Ridora&apos;s only source of platform revenue.
           </p>
         </div>
       </div>

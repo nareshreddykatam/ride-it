@@ -1,4 +1,4 @@
-# Ride It — Monorepo
+# Ridora — Monorepo
 
 Built from the Master/Passenger/Driver/Admin PRDs. See `packages/ui/DESIGN_SYSTEM.md`
 for the visual design rationale.
@@ -14,7 +14,7 @@ for the visual design rationale.
   `packages/api-client` (typed fetch wrapper — no backend exists yet, so
   every call is a stub pointing at `NEXT_PUBLIC_API_BASE_URL`).
 - Admin "Revenue" intentionally separates **subscription revenue** (what
-  Ride It actually collects) from **ride fare volume** (cash/UPI passengers
+  Ridora actually collects) from **ride fare volume** (cash/UPI passengers
   pay drivers directly — shown for analytics only, never conflated with
   platform revenue).
 

@@ -14,7 +14,7 @@ export interface PinGlyphProps extends React.SVGAttributes<SVGSVGElement> {
 }
 
 /**
- * RideIT's teardrop marker glyph — used inline in pickup/destination rows
+ * Ridora's teardrop marker glyph — used inline in pickup/destination rows
  * (booking cards, active-ride overlay) so the same mark that appears on the
  * map also anchors the text rows describing it. Not a map marker itself;
  * RideMap's real Google Maps AdvancedMarkerElement/PinElement carries the

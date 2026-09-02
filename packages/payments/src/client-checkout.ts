@@ -43,7 +43,7 @@ function loadCheckoutScript(): Promise<void> {
 
 /**
  * Opens Razorpay's own checkout widget. This function does not verify
- * anything and does not talk to Ride It's backend — it only collects
+ * anything and does not talk to Ridora's backend — it only collects
  * payment details and hands back what the gateway returned, which the
  * caller must then send to a Route Handler (e.g. /api/payments/verify)
  * for real server-side signature verification. Never treat onSuccess

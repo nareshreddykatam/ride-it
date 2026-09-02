@@ -33,7 +33,7 @@ if (firebaseConfig.apiKey) {
 
   if (messaging) {
     messaging.onBackgroundMessage((payload) => {
-      const title = (payload.notification && payload.notification.title) || "Ride It Driver";
+      const title = (payload.notification && payload.notification.title) || "Ridora Driver";
       const body = (payload.notification && payload.notification.body) || "";
       const deepLink = (payload.data && payload.data.deep_link) || "/dashboard";
       self.registration.showNotification(title, { body, icon: "/icon-192.png", data: { deepLink } });

@@ -302,7 +302,7 @@ export default function SafetyDashboardPage() {
         <div>
           <h1 className="font-display text-2xl font-medium text-ink">Safety</h1>
           <p className="text-sm text-ink-soft">
-            SOS events and safety-related reports. Ride It has no automated emergency-service integration — every
+            SOS events and safety-related reports. Ridora has no automated emergency-service integration — every
             event here requires human review.
           </p>
         </div>

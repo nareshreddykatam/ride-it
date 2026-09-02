@@ -10,7 +10,7 @@ export default function CareersPage() {
       </p>
       <h1 className="mt-2 font-display text-4xl font-medium text-ink">Careers</h1>
       <p className="mt-3 text-ink-soft">
-        We&apos;re building Ride It with a small, focused team.
+        We&apos;re building Ridora with a small, focused team.
       </p>
 
       <Card tone="elevated" className="mt-8 p-2 sm:p-4">

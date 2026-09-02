@@ -413,7 +413,7 @@ export default function RideDetailPage({ params }: { params: { id: string } }) {
             {refundError && <p className="text-xs text-alert-red">{refundError}</p>}
           </div>
         ) : (
-          <Button variant="outline" disabled title="Only a captured Ride It Online payment can be refunded from here">
+          <Button variant="outline" disabled title="Only a captured Ridora Online payment can be refunded from here">
             Issue refund
           </Button>
         )}

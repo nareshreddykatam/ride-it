@@ -112,9 +112,9 @@ function NavigationPageContent() {
           try {
             const uri = buildUpiPaymentUri({
               upiId: profile.upi_id,
-              payeeName: profile.full_name ?? "RideIT driver",
+              payeeName: profile.full_name ?? "Ridora driver",
               amount: ride.total_fare,
-              note: `RideIT ride ${rideId?.slice(0, 8) ?? ""}`,
+              note: `Ridora ride ${rideId?.slice(0, 8) ?? ""}`,
             });
             const dataUrl = await generateUpiQrDataUrl(uri);
             if (active) setQrUrl(dataUrl);
@@ -255,7 +255,7 @@ function NavigationPageContent() {
     if (!tracking?.drop) return;
     const url = getExternalNavigationUrl(tracking.drop);
 
-    // Platform-aware, and RideIT must stay open either way:
+    // Platform-aware, and Ridora must stay open either way:
     //  - Mobile: window.location.href lets the OS intercept the Google
     //    Maps universal link and hand off to the installed app (the
     //    standard, sanctioned way a mobile web page launches a native app
@@ -263,7 +263,7 @@ function NavigationPageContent() {
     //    mechanism). If Google Maps isn't installed, the OS/browser falls
     //    back to the web URL in the SAME tab, matching normal mobile
     //    browser behavior for any external link.
-    //  - Desktop: window.open in a new tab/window, so the RideIT tab the
+    //  - Desktop: window.open in a new tab/window, so the Ridora tab the
     //    driver is actively using never navigates away. There is no
     //    native "Google Maps app" to hand off to on a desktop browser —
     //    this is honestly the same Google Maps web page a driver would
@@ -527,7 +527,7 @@ function NavigationPageContent() {
                 </StatusPill>
               </div>
               <p className="mt-2 text-[11px] text-ink-soft">
-                RideIT can&apos;t automatically verify a Driver UPI payment — this only updates once the passenger confirms on their side.
+                Ridora can&apos;t automatically verify a Driver UPI payment — this only updates once the passenger confirms on their side.
               </p>
             </Card>
           )}
@@ -623,11 +623,11 @@ function NavigationPageContent() {
                   </li>
                   <li className="flex gap-2">
                     <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-meter-green" aria-hidden="true" />
-                    Ride It&apos;s safety team has been notified and will review it.
+                    Ridora&apos;s safety team has been notified and will review it.
                   </li>
                 </ul>
                 <p className="mt-3 text-xs text-alert-red">
-                  Ride It has not contacted police or emergency services on your behalf. If you are in immediate danger, call{" "}
+                  Ridora has not contacted police or emergency services on your behalf. If you are in immediate danger, call{" "}
                   {emergencyNumber ?? "your local emergency number"} directly.
                 </p>
                 <Button className="mt-4 w-full" onClick={() => setSafetyOpen(false)}>

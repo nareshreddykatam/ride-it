@@ -133,7 +133,7 @@ export interface RevenueMetrics {
   subscription_payment_success_rate: number | null;
 }
 
-/** Phase 7. gmv/online_volume/cash_volume/driver_upi_volume are ride FARE volume, never RideIT's own revenue — RideIT collects zero ride commission (0007_subscriptions.sql); subscription_revenue is the only field here that is actually RideIT's own money. */
+/** Phase 7. gmv/online_volume/cash_volume/driver_upi_volume are ride FARE volume, never Ridora's own revenue — Ridora collects zero ride commission (0007_subscriptions.sql); subscription_revenue is the only field here that is actually Ridora's own money. */
 export async function getRevenueMetrics(supabase: SupabaseClient, start: Date, end: Date): Promise<RevenueMetrics> {
   return callRpcSingleRow<RevenueMetrics>(supabase, "admin_revenue_metrics", { p_start: start.toISOString(), p_end: end.toISOString() });
 }

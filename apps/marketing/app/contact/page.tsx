@@ -14,7 +14,7 @@ export default function ContactPage() {
       </p>
       <h1 className="mt-2 font-display text-4xl font-medium text-ink">Contact us</h1>
       <p className="mt-2 text-ink-soft">
-        Questions about Ride It? Send us a message and we&apos;ll get back to you.
+        Questions about Ridora? Send us a message and we&apos;ll get back to you.
       </p>
 
       {submitted ? (

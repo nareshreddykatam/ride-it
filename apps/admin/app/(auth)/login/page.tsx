@@ -47,7 +47,7 @@ function AdminLoginPageContent() {
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/15 text-white">
             <ShieldCheck size={22} />
           </span>
-          <p className="mt-6 font-display text-2xl font-medium text-white">Ride It</p>
+          <p className="mt-6 font-display text-2xl font-medium text-white">Ridora</p>
           <p className="text-sm font-medium uppercase tracking-wide text-white/70">Admin Console</p>
         </div>
         <div>
@@ -69,7 +69,7 @@ function AdminLoginPageContent() {
               <ShieldCheck size={18} />
             </span>
             <div>
-              <p className="font-display text-sm font-medium text-ink-blue">Ride It</p>
+              <p className="font-display text-sm font-medium text-ink-blue">Ridora</p>
               <p className="text-xs text-ink-soft">Admin Console</p>
             </div>
           </div>
@@ -90,7 +90,7 @@ function AdminLoginPageContent() {
                   type="email"
                   autoFocus
                   autoComplete="email"
-                  placeholder="you@rideit.com"
+                  placeholder="you@ridora.in"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="h-14 w-full bg-transparent px-4 text-sm text-ink outline-none"

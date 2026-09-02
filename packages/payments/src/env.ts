@@ -40,7 +40,7 @@ export function getRazorpayWebhookSecret(): string {
 
 /**
  * Whether the payment gateway is configured at all — checked before
- * offering "Ride It Online" as a selectable payment method, and before
+ * offering "Ridora Online" as a selectable payment method, and before
  * any Route Handler attempts a gateway call. No credentials exist in
  * this development environment, so this returns false here — the app
  * must (and does) degrade honestly rather than crash. See

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
   if (!isPaymentGatewayConfigured()) {
     return NextResponse.json(
-      { error: "Ride It Online payment is not configured in this environment yet." },
+      { error: "Ridora Online payment is not configured in this environment yet." },
       { status: 503 }
     );
   }

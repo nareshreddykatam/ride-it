@@ -72,7 +72,7 @@ export function PushNotificationSettings({ userId }: { userId: string }) {
           <div className="min-w-0">
             <p className="text-sm font-medium text-ink">Blocked in your browser</p>
             <p className="text-xs text-ink-soft">
-              Allow notifications for Ride It Driver in your browser&apos;s site settings, then reload this page.
+              Allow notifications for Ridora Driver in your browser&apos;s site settings, then reload this page.
             </p>
           </div>
         </div>

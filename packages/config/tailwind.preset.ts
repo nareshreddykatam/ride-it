@@ -18,7 +18,7 @@ function withOpacitySupport(cssVar: string) {
 }
 
 /**
- * Shared Ride It Tailwind preset.
+ * Shared Ridora Tailwind preset.
  * Apps import this and extend with app-specific `content` globs:
  *
  *   import ridePreset from "@ride-it/config/tailwind.preset";

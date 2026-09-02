@@ -13,7 +13,7 @@ const meter = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ride It — Admin",
+  title: "Ridora — Admin",
   description: "Manage drivers, passengers, rides, and subscriptions.",
 };
 

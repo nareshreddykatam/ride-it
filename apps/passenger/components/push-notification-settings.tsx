@@ -75,7 +75,7 @@ export function PushNotificationSettings({ userId }: { userId: string }) {
             <div className="min-w-0">
               <p className="text-sm font-medium text-ink">Blocked in your browser</p>
               <p className="text-xs text-ink-soft">
-                Notifications were denied for this site. To enable them, allow notifications for Ride It in your
+                Notifications were denied for this site. To enable them, allow notifications for Ridora in your
                 browser&apos;s site settings, then reload this page.
               </p>
             </div>

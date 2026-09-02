@@ -171,7 +171,7 @@ export default function MarketingHomePage() {
               For drivers
             </p>
             <h2 className="mt-3 font-display text-4xl font-medium leading-[1.05] text-ink sm:text-5xl">
-              Drive with Ride It, keep every rupee you earn
+              Drive with Ridora, keep every rupee you earn
             </h2>
             <p className="mt-4 max-w-md text-base text-ink/80 sm:text-lg">
               Choose a Daily, Weekly, Monthly, or Yearly subscription. No

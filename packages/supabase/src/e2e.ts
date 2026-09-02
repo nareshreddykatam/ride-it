@@ -5,7 +5,7 @@ import { getSupabaseAdminClient } from "./server";
  * Development-only E2E auth bootstrap (Phase 20; revised in a later
  * change to sign in via email/password instead of phone/password).
  *
- * WHY THIS EXISTS: Ride It's production authentication is phone OTP
+ * WHY THIS EXISTS: Ridora's production authentication is phone OTP
  * (packages/auth/src/phone-otp.ts, unchanged by this file). The real
  * hosted Supabase project has no funded SMS provider, which has blocked
  * every real hosted end-to-end test since Phase 17. This module does

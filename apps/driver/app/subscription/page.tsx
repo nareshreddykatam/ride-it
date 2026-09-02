@@ -56,7 +56,7 @@ export default function SubscriptionPage() {
         orderId: createData.orderId,
         amountInSmallestUnit: Math.round(createData.amount * 100),
         currency: createData.currency,
-        name: "Ride It",
+        name: "Ridora",
         description: `${selected.charAt(0).toUpperCase() + selected.slice(1)} subscription`,
         onSuccess: async (result) => {
           setPayState("verifying");
