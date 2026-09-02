@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MeterValue, RideIcon, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { listLiveRidesAdmin, subscribeToAllRideChanges, type AdminRideListRow } from "@ride-it/data";
+import { listLiveRidesAdmin, subscribeToAllRideChanges, errorMessage, type AdminRideListRow } from "@ride-it/data";
 import { DataTable, type Column } from "../../../components/data-table";
 
 const STATUS_TONE: Record<string, "pending" | "info" | "online" | "offline" | "alert"> = {
@@ -70,7 +70,7 @@ export default function RidesPage() {
   const refresh = React.useCallback(() => {
     listLiveRidesAdmin(supabase)
       .then(setRides)
-      .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load live rides."))
+      .catch((e) => setError(errorMessage(e) ?? "Couldn't load live rides."))
       .finally(() => setLoading(false));
   }, [supabase]);
 

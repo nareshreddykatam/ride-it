@@ -12,6 +12,7 @@ import {
   listAdminUsers,
   getCurrentAdminInfo,
   updateAdminUserRole,
+  errorMessage,
   type AdminRoleRow,
   type AdminPermissionRow,
   type AdminUserRow,
@@ -46,7 +47,7 @@ export default function AdminUsersPage() {
 
   React.useEffect(() => {
     refresh()
-      .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load RBAC data."))
+      .catch((e) => setError(errorMessage(e) ?? "Couldn't load RBAC data."))
       .finally(() => setLoading(false));
   }, [refresh]);
 
@@ -60,7 +61,7 @@ export default function AdminUsersPage() {
       await updateAdminUserRole(supabase, adminUserId, newRoleId);
       await refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't update role — only super admins can reassign roles.");
+      setError(errorMessage(e) ?? "Couldn't update role — only super admins can reassign roles.");
     }
   }
 

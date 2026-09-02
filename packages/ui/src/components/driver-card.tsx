@@ -23,34 +23,46 @@ export interface DriverCardProps {
  */
 export function DriverCard({ name, rating, vehicleLabel, plateNumber, verified, etaLabel, photoUrl, className }: DriverCardProps) {
   return (
-    <div className={cn("flex items-center gap-3.5 rounded-lg border border-border bg-surface p-4", className)}>
-      <span className="flex h-16 w-16 shrink-0 overflow-hidden rounded-full border border-border bg-ink/5 text-ink-soft">
+    <div className={cn("flex items-center gap-4 rounded-2xl border border-border bg-surface p-4 shadow-md", className)}>
+      <span className="relative flex h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 border-signal-blue/30 bg-tint-blue text-signal-blue shadow-sm">
         {photoUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={photoUrl} alt={`${name}'s photo`} className="h-full w-full object-cover" />
         ) : (
-          <UserRound size={30} className="m-auto" strokeWidth={1.6} />
+          <UserRound size={40} className="m-auto" strokeWidth={1.5} />
+        )}
+        {verified && (
+          <span className="absolute bottom-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-meter-green text-white shadow-sm">
+            <BadgeCheck size={13} strokeWidth={3} />
+          </span>
         )}
       </span>
+
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <p className="truncate font-display text-base font-semibold text-ink">{name}</p>
-          <StarRating value={rating} readOnly size={12} />
-          <span className="text-xs text-ink-soft">{rating.toFixed(1)}</span>
+          <p className="truncate font-display text-base font-bold text-ink">{name}</p>
         </div>
-        {verified && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs font-medium text-meter-green-text">
-            <BadgeCheck size={13} strokeWidth={2} /> Verified driver
-          </p>
-        )}
-        <p className="mt-0.5 truncate text-xs text-ink-soft">
-          {vehicleLabel} · {plateNumber}
-        </p>
+        <div className="mt-1 flex items-center gap-1.5">
+          <StarRating value={rating} readOnly size={13} />
+          <span className="font-meter text-xs font-bold text-ink">{rating.toFixed(1)}</span>
+          {verified && (
+            <span className="text-[11px] font-semibold text-meter-green-text">
+              · Verified Driver
+            </span>
+          )}
+        </div>
+        <div className="mt-1.5 flex items-center gap-2">
+          <span className="rounded bg-ink/5 px-2 py-0.5 font-meter text-xs font-bold tracking-wider text-ink border border-border">
+            {plateNumber}
+          </span>
+          <span className="text-xs text-ink-soft">{vehicleLabel}</span>
+        </div>
       </div>
+
       {etaLabel && (
-        <div className="shrink-0 text-right">
-          <p className="font-meter text-sm font-semibold tabular-nums text-ink">{etaLabel}</p>
-          <p className="text-[11px] text-ink-soft">away</p>
+        <div className="shrink-0 rounded-xl bg-meter-green/10 px-3 py-2 text-center border border-meter-green/20">
+          <p className="font-meter text-sm font-bold tabular-nums text-meter-green-text">{etaLabel}</p>
+          <p className="text-[9px] font-bold uppercase tracking-wider text-meter-green-text">Away</p>
         </div>
       )}
     </div>

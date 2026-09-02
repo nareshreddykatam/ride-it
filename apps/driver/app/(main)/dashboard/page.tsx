@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
-import { OnlineToggle, MeterValue, Skeleton, StatusPill, Button, WalletIcon, RideIcon } from "@ride-it/ui";
+import { OnlineToggle, MeterValue, Skeleton, StatCard, StatusPill, Button, WalletIcon, RideIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
@@ -310,23 +310,19 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* Compact single-line "today" strip — three quick facts, not three
-          more equal-weight cards. Grounded on a tinted surface so it reads
-          as a distinct info band rather than text floating on bare white. */}
-      <div className="mt-6 flex items-center justify-center gap-2.5 rounded-lg bg-tint-blue/50 px-4 py-3.5 text-sm text-ink-soft">
-        <span className="flex items-center gap-1.5 font-medium text-ink">
-          <RideIcon size={14} className="text-signal-blue" aria-hidden="true" />
-          {earningsToday.rides} rides
-        </span>
-        <span aria-hidden="true">·</span>
-        <span className="flex items-center gap-1.5 font-medium text-ink">
-          <WalletIcon size={14} className="text-marigold-text" aria-hidden="true" />₹{walletBalance}
-        </span>
-        <span aria-hidden="true">·</span>
-        <span className="flex items-center gap-1.5 font-medium text-ink">
-          <Star size={14} className="fill-marigold text-marigold" aria-hidden="true" />
-          {(profile?.rating ?? 5).toFixed(1)}
-        </span>
+      {/* Operational bento grid — today's trips, wallet, and rating as
+          distinct scannable facts, each with its own icon/tone, instead of
+          one run-together text line. Same real values as before. */}
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <StatCard label="Trips today" value={String(earningsToday.rides)} icon={RideIcon} tone="blue" />
+        <StatCard label="Wallet balance" value={`₹${walletBalance}`} icon={WalletIcon} tone="marigold" />
+        <StatCard
+          label="Rating"
+          value={(profile?.rating ?? 5).toFixed(1)}
+          icon={Star}
+          tone="green"
+          className="col-span-2"
+        />
       </div>
 
       {pendingOffer && (

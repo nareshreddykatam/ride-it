@@ -2,8 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ShieldAlert } from "lucide-react";
-import { Card, CardHeader, CardTitle, DriverIcon, HomeIcon, LiveStatBand, MeterValue, PaymentIcon, RideIcon, Skeleton, StatusPill } from "@ride-it/ui";
+import { ArrowRight, ShieldAlert, Users } from "lucide-react";
+import { Card, CardHeader, CardTitle, DriverIcon, HomeIcon, LiveStatBand, MeterValue, PaymentIcon, RideIcon, SafetyIcon, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { getAdminOverviewStats, type AdminOverviewStats } from "@ride-it/data";
@@ -88,8 +88,11 @@ export default function OverviewPage() {
         <LiveStatBand className="mt-6" items={LIVE_ITEMS} />
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card tone="elevated" accent="marigold">
+      {/* Operational bento: revenue gets the wide cell (it's the number
+          leadership actually reads first), complaints + quick jump-offs
+          fill the narrow column — dense but each cell answers one question. */}
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Card tone="elevated" accent="marigold" className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Revenue</CardTitle>
             <StatusPill tone="info">This month</StatusPill>
@@ -130,6 +133,32 @@ export default function OverviewPage() {
           <Link href="/passengers" className="mt-3 inline-block text-xs font-medium text-signal-blue">
             View passengers →
           </Link>
+        </Card>
+
+        <Card tone="outline" className="lg:col-span-2">
+          <CardTitle className="mb-1">Quick operations</CardTitle>
+          <div className="mt-2 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            {[
+              { href: "/rides", label: "Live rides", icon: RideIcon, tone: "text-signal-blue bg-tint-blue" },
+              { href: "/drivers", label: "Drivers", icon: DriverIcon, tone: "text-meter-green-text bg-meter-green/10" },
+              { href: "/support", label: "Support queue", icon: Users, tone: "text-marigold-text bg-tint-marigold" },
+              { href: "/safety", label: "Safety", icon: SafetyIcon, tone: "text-alert-red-text bg-alert-red/10" },
+            ].map((action) => (
+              <Link
+                key={action.href}
+                href={action.href}
+                className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3 transition-all hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-sm"
+              >
+                <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${action.tone}`}>
+                  <action.icon size={16} aria-hidden="true" />
+                </span>
+                <span className="flex items-center gap-1 text-xs font-semibold text-ink">
+                  {action.label}
+                  <ArrowRight size={12} className="text-ink-soft" aria-hidden="true" />
+                </span>
+              </Link>
+            ))}
+          </div>
         </Card>
       </div>
     </div>

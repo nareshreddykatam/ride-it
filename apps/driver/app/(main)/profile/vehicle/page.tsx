@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button, Input, Skeleton, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getActiveVehicle, upsertActiveVehicle, getDriverProfile, type DriverProfileRow } from "@ride-it/data";
+import { getActiveVehicle, upsertActiveVehicle, getDriverProfile, errorMessage, type DriverProfileRow } from "@ride-it/data";
 
 const VEHICLE_TYPE_OPTIONS: { value: "bike" | "scooty" | "auto" | "car"; label: string }[] = [
   { value: "bike", label: "Bike" },
@@ -79,7 +79,7 @@ export default function DriverVehiclePage() {
       });
       router.push("/profile");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save your vehicle. Check the registration number and try again.");
+      setError(errorMessage(e) ?? "Couldn't save your vehicle. Check the registration number and try again.");
     } finally {
       setSaving(false);
     }

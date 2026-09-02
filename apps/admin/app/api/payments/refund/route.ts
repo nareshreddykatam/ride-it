@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSupabaseServerClient } from "@ride-it/supabase/server";
-import { recordRidePaymentRefund } from "@ride-it/data";
+import { recordRidePaymentRefund, errorMessage } from "@ride-it/data";
 import { getPaymentProvider, isPaymentGatewayConfigured } from "@ride-it/payments";
 
 /**
@@ -65,6 +65,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ status: recorded.status, refundId: refund.providerRefundId });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : "Refund failed" }, { status: 400 });
+    return NextResponse.json({ error: errorMessage(e) ?? "Refund failed" }, { status: 400 });
   }
 }

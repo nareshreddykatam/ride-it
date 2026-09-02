@@ -2,6 +2,8 @@ import Link from "next/link";
 import {
   AutoIcon,
   BikeIcon,
+  ScootyIcon,
+  CarIcon,
   Button,
   DriverIcon,
   LocationIcon,
@@ -9,6 +11,7 @@ import {
   SafetyIcon,
 } from "@ride-it/ui";
 import { FareLineHero } from "../components/fare-line-hero";
+import { HeroVehicleCluster } from "../components/hero-vehicle-cluster";
 
 const STEPS = [
   {
@@ -49,7 +52,8 @@ export default function MarketingHomePage() {
           brand-blue field, not a floating icon or a gradient/blur wash.
           The fare-comparison proof card is pulled up over the section
           boundary so the page doesn't read as flatly stacked blocks. */}
-      <section className="bg-ink-blue">
+      <section className="relative overflow-hidden bg-ink-blue">
+        <HeroVehicleCluster />
         <div className="mx-auto max-w-6xl px-6 pb-28 pt-16 sm:pb-36 sm:pt-24 lg:pt-28">
           <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/90">
             <span className="h-1.5 w-1.5 rounded-full bg-marigold" aria-hidden="true" />
@@ -129,14 +133,22 @@ export default function MarketingHomePage() {
                     <h3 className="mt-1 font-display text-lg font-medium text-ink">{step.title}</h3>
                     <p className="mt-1.5 max-w-md text-sm text-ink-soft">{step.body}</p>
                     {step.showVehicles && (
-                      <span className="mt-3 inline-flex items-center gap-3 text-ink-soft">
+                      <span className="mt-3 flex flex-wrap items-center gap-3 text-ink-soft">
                         <span className="inline-flex items-center gap-1 text-xs">
-                          <AutoIcon size={15} className="text-marigold-text" aria-hidden="true" />
+                          <AutoIcon size={16} className="text-marigold-text" aria-hidden="true" />
                           Auto
                         </span>
                         <span className="inline-flex items-center gap-1 text-xs">
-                          <BikeIcon size={15} className="text-violet-text" aria-hidden="true" />
+                          <BikeIcon size={16} className="text-violet-text" aria-hidden="true" />
                           Bike
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs">
+                          <ScootyIcon size={16} className="text-rose-text" aria-hidden="true" />
+                          Scooty
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-xs">
+                          <CarIcon size={16} className="text-cyan-text" aria-hidden="true" />
+                          Car
                         </span>
                       </span>
                     )}

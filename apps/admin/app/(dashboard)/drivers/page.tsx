@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { Button, DriverIcon, Input, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { listDriversAdmin, type AdminDriverListRow } from "@ride-it/data";
+import { listDriversAdmin, errorMessage, type AdminDriverListRow } from "@ride-it/data";
 import { DataTable, type Column } from "../../../components/data-table";
 
 const STATUS_TONE = {
@@ -114,7 +114,7 @@ export default function DriversPage() {
         setDrivers(rows);
         setHasMore(more);
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load drivers."))
+      .catch((e) => setError(errorMessage(e) ?? "Couldn't load drivers."))
       .finally(() => setLoading(false));
   }, [supabase, user, search, status, page]);
 

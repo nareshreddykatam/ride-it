@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { motion } from "framer-motion";
-import { Check, ChevronRight } from "lucide-react";
+import { Check } from "lucide-react";
 import { cn } from "../lib/cn";
 import { MeterValue } from "./meter-value";
 import { VEHICLE_VISUALS, type VehicleKind } from "../icons/vehicle-icons";
@@ -13,6 +13,8 @@ export interface VehicleCardProps {
   label?: string;
   /** Secondary line under the label in "hero" size only, e.g. "Auto Rickshaw" */
   sublabel?: string;
+  /** e.g. "3 seats" — "hero" size only, general vehicle-class capacity, not per-ride data */
+  capacityLabel?: string;
   fare: string;
   etaLabel: string;
   selected?: boolean;
@@ -41,6 +43,7 @@ export function VehicleCard({
   type,
   label,
   sublabel,
+  capacityLabel,
   fare,
   etaLabel,
   selected,
@@ -64,40 +67,56 @@ export function VehicleCard({
         className={cn("w-full text-left disabled:cursor-not-allowed disabled:opacity-50", className)}
       >
         <div
-          style={{ borderColor: selected ? visual.colorVar : "var(--border)" }}
+          style={{
+            borderColor: selected ? visual.colorVar : "var(--border)",
+            backgroundColor: selected ? `color-mix(in srgb, ${visual.colorVar} 6%, var(--surface))` : "var(--surface)",
+            boxShadow: selected
+              ? `0 10px 24px -6px color-mix(in srgb, ${visual.colorVar} 40%, transparent)`
+              : "var(--shadow-sm)",
+          }}
           className={cn(
-            "flex items-center gap-3 rounded-lg border bg-surface p-3.5 shadow-sm transition-colors",
-            selected && "border-[1.5px]"
+            "flex items-center gap-4 rounded-xl border p-4 transition-all duration-200",
+            selected ? "border-2 scale-[1.01]" : "hover:border-ink/20"
           )}
         >
           <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-            style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+            className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl transition-colors shadow-sm"
+            style={{
+              backgroundColor: selected ? visual.colorVar : visual.tintVar,
+              color: selected ? "white" : visual.colorVar,
+            }}
           >
-            <Icon size={24} strokeWidth={1.8} />
+            <Icon size={38} />
           </span>
 
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <p className="font-display text-sm font-semibold text-ink">{label ?? visual.label}</p>
-              {recommended && <span className="text-[11px] font-medium text-meter-green-text">· Recommended</span>}
+              <p className="font-display text-base font-semibold text-ink">{label ?? visual.label}</p>
+              {recommended && (
+                <span className="rounded-full bg-meter-green/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-meter-green-text">
+                  Recommended
+                </span>
+              )}
             </div>
-            {sublabel && <p className="text-xs text-ink-soft">{sublabel}</p>}
-            <p className="text-xs text-ink-soft">{etaLabel}</p>
+            {(sublabel ?? visual.sublabel) && (
+              <p className="text-xs text-ink-soft">{sublabel ?? visual.sublabel}</p>
+            )}
+            <p className="text-xs font-medium text-ink-soft">
+              {(capacityLabel ?? visual.capacity) && <>{capacityLabel ?? visual.capacity} · </>}
+              {etaLabel}
+            </p>
           </div>
 
-          <div className="flex shrink-0 items-center gap-2">
-            <MeterValue value={fare} size="sm" />
-            {selected ? (
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <MeterValue value={fare} size="md" />
+            {selected && (
               <span
-                className="flex h-5 w-5 items-center justify-center rounded-full"
+                className="flex h-5 w-5 items-center justify-center rounded-full shadow-sm"
                 style={{ backgroundColor: visual.colorVar }}
                 aria-hidden="true"
               >
                 <Check size={12} strokeWidth={3} className="text-white" />
               </span>
-            ) : (
-              <ChevronRight size={16} className="text-ink-soft" aria-hidden="true" />
             )}
           </div>
         </div>
@@ -130,13 +149,13 @@ export function VehicleCard({
       >
         <div className="flex items-center gap-3">
           <span
-            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-lg transition-transform"
+            className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-xl transition-transform shadow-sm"
             style={{
-              backgroundColor: selected ? visual.colorVar : "color-mix(in srgb, var(--ink) 6%, transparent)",
-              color: selected ? "white" : "var(--ink-soft)",
+              backgroundColor: selected ? visual.colorVar : visual.tintVar,
+              color: selected ? "white" : visual.colorVar,
             }}
           >
-            <Icon size={26} strokeWidth={1.7} />
+            <Icon size={28} />
           </span>
           <div>
             <p className="font-display text-sm font-semibold text-ink">{label ?? visual.label}</p>

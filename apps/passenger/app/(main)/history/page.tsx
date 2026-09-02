@@ -2,11 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Card, EmptyState, SkeletonRow, StatusPill, VEHICLE_VISUALS } from "@ride-it/ui";
+import { RideIcon, StatusPill, VEHICLE_VISUALS, EmptyState, SkeletonRow } from "@ride-it/ui";
+import { ChevronRight, Clock } from "lucide-react";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { listPassengerRides, type RideRow } from "@ride-it/data";
-import { Clock } from "lucide-react";
 
 const COMPLETED_STATUSES = new Set(["ride_completed", "rated"]);
 
@@ -37,11 +37,39 @@ export default function HistoryPage() {
     };
   }, [supabase, user]);
 
+  // Real, derived-from-actual-rides totals only — no separate "stats" data
+  // source, and cancelled rides never count toward spend.
+  const completedRides = rides.filter((r) => r.status !== "cancelled");
+  const totalSpent = completedRides.reduce((sum, r) => sum + (r.total_fare ?? 0), 0);
+
   return (
     <main className="flex-1 px-6 py-8">
-      <h1 className="font-display text-2xl font-semibold text-ink">Ride history</h1>
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-tint-blue text-signal-blue">
+          <RideIcon size={20} aria-hidden="true" />
+        </span>
+        <div>
+          <h1 className="font-display text-2xl font-bold text-ink">Ride history</h1>
+          <p className="text-sm text-ink-soft">Every trip you&apos;ve taken with RideIT.</p>
+        </div>
+      </div>
 
-      <div className="mt-4 flex flex-col gap-3">
+      {/* Summary strip — only real totals derived from the rides already
+          loaded below, never a separate/estimated stats call. */}
+      {!loading && rides.length > 0 && (
+        <div className="mt-5 grid grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <p className="font-meter text-2xl font-bold tabular-nums text-ink">{rides.length}</p>
+            <p className="mt-0.5 text-xs font-medium text-ink-soft">Total rides</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface p-4 shadow-sm">
+            <p className="font-meter text-2xl font-bold tabular-nums text-ink">₹{totalSpent.toFixed(0)}</p>
+            <p className="mt-0.5 text-xs font-medium text-ink-soft">Total spent</p>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-5 flex flex-col gap-3">
         {loading &&
           Array.from({ length: 3 }).map((_, i) => <SkeletonRow key={i} />)}
 
@@ -49,7 +77,7 @@ export default function HistoryPage() {
           <EmptyState
             icon={<Clock size={20} />}
             title="No rides yet"
-            description="Your completed and cancelled rides will show up here."
+            description="Book your first RideIT trip and it'll show up here."
           />
         )}
 
@@ -57,36 +85,34 @@ export default function HistoryPage() {
           rides.map((ride) => {
             const visual = VEHICLE_VISUALS[ride.vehicle_type];
             const VehicleIcon = visual.icon;
+            const cancelled = ride.status === "cancelled";
             return (
               <Link key={ride.id} href={`/history/${ride.id}`}>
-                <Card tone="elevated" interactive>
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg"
-                      style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
-                    >
-                      <VehicleIcon size={20} strokeWidth={1.7} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm text-ink">
-                        {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
-                      </p>
-                      <p className="text-xs text-ink-soft">
-                        {formatDate(ride.requested_at)} · {visual.label}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="font-meter text-sm text-ink">₹{ride.total_fare}</p>
-                      <StatusPill
-                        tone={ride.status === "cancelled" ? "alert" : "online"}
-                        dot={false}
-                        className="mt-1"
-                      >
-                        {statusLabel(ride.status)}
-                      </StatusPill>
-                    </div>
+                <div className="flex items-center gap-3.5 rounded-2xl border border-border bg-surface p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-md active:translate-y-0">
+                  <span
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl"
+                    style={{ backgroundColor: visual.tintVar, color: visual.colorVar }}
+                  >
+                    <VehicleIcon size={26} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-ink">
+                      {ride.pickup_address ?? "Pickup"} → {ride.drop_address ?? "Drop"}
+                    </p>
+                    <p className="mt-0.5 text-xs text-ink-soft">
+                      {formatDate(ride.requested_at)} · {visual.label}
+                    </p>
                   </div>
-                </Card>
+                  <div className="shrink-0 text-right">
+                    <p className="font-meter text-sm font-bold text-ink">
+                      {cancelled ? "—" : `₹${ride.total_fare}`}
+                    </p>
+                    <StatusPill tone={cancelled ? "alert" : "online"} dot={false} className="mt-1">
+                      {statusLabel(ride.status)}
+                    </StatusPill>
+                  </div>
+                  <ChevronRight size={16} className="shrink-0 text-ink-soft" aria-hidden="true" />
+                </div>
               </Link>
             );
           })}

@@ -4,161 +4,287 @@ import * as React from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@ride-it/ui";
 
-/**
- * Moved from apps/passenger/components/mock-map.tsx (Phase 1) — same
- * component, not duplicated. Now the shared, explicit development
- * fallback for all three apps (Passenger already used it; Driver's
- * Navigation screen and Admin's Ride Detail previously had no map at all,
- * just a "next build pass" placeholder — see RideMap.tsx, which renders
- * this automatically when Google Maps isn't configured).
- */
 export interface MockMapProps {
   variant?: "static" | "route" | "searching" | "live";
   className?: string;
   /** 0-1 progress along the route, used by the "live" variant to place the vehicle marker */
   progress?: number;
+  vehicleAccent?: string;
 }
 
-// Fixed pseudo-random block layout so the map looks the same on every render
-// (deterministic — avoids hydration mismatches from Math.random()).
-const BLOCKS = [
-  { x: 20, y: 30, w: 55, h: 40 },
-  { x: 95, y: 20, w: 40, h: 60 },
-  { x: 160, y: 40, w: 60, h: 35 },
-  { x: 240, y: 25, w: 45, h: 50 },
-  { x: 20, y: 100, w: 65, h: 45 },
-  { x: 110, y: 110, w: 50, h: 40 },
-  { x: 180, y: 105, w: 70, h: 50 },
-  { x: 270, y: 100, w: 40, h: 45 },
-  { x: 30, y: 180, w: 60, h: 40 },
-  { x: 115, y: 185, w: 55, h: 35 },
-  { x: 195, y: 175, w: 65, h: 45 },
-  { x: 15, y: 250, w: 50, h: 35 },
-  { x: 100, y: 245, w: 60, h: 40 },
-  { x: 190, y: 240, w: 55, h: 45 },
-  { x: 260, y: 250, w: 40, h: 30 },
+// Urban block grid with realistic city layout and waterways (representing Krishna River/Canals in Vijayawada)
+const CITY_BLOCKS = [
+  { x: 15, y: 20, w: 60, h: 42, rx: 6 },
+  { x: 90, y: 15, w: 55, h: 50, rx: 6 },
+  { x: 160, y: 25, w: 65, h: 40, rx: 6 },
+  { x: 240, y: 15, w: 65, h: 50, rx: 6 },
+  { x: 15, y: 80, w: 70, h: 48, rx: 6 },
+  { x: 100, y: 85, w: 55, h: 45, rx: 6 },
+  { x: 175, y: 80, w: 75, h: 50, rx: 6 },
+  { x: 265, y: 85, w: 45, h: 45, rx: 6 },
+  { x: 20, y: 150, w: 65, h: 45, rx: 6 },
+  { x: 105, y: 155, w: 60, h: 40, rx: 6 },
+  { x: 185, y: 148, w: 70, h: 50, rx: 6 },
+  { x: 10, y: 220, w: 55, h: 45, rx: 6 },
+  { x: 80, y: 215, w: 75, h: 48, rx: 6 },
+  { x: 175, y: 218, w: 60, h: 48, rx: 6 },
+  { x: 250, y: 220, w: 58, h: 44, rx: 6 },
+  { x: 20, y: 285, w: 85, h: 25, rx: 4 },
+  { x: 125, y: 285, w: 90, h: 25, rx: 4 },
+  { x: 235, y: 285, w: 75, h: 25, rx: 4 },
 ];
 
-const PICKUP = { x: 70, y: 210 };
-const DROP = { x: 260, y: 60 };
-const ROUTE_PATH = "M70,210 C110,190 90,150 130,130 C170,110 150,90 190,80 C220,70 235,65 260,60";
+const PICKUP = { x: 65, y: 240 };
+const DROP = { x: 265, y: 55 };
+const ROUTE_PATH = "M65,240 C105,215 95,175 140,150 C180,125 160,95 205,80 C235,70 245,65 265,55";
 
-function RoadGrid() {
+function MapEnvironment() {
   return (
     <>
-      <rect width="320" height="320" fill="#eef3fb" />
-      {BLOCKS.map((b, i) => (
-        <rect key={i} x={b.x} y={b.y} width={b.w} height={b.h} rx={6} fill="#dde6f5" />
+      {/* Background Asphalt Canvas */}
+      <rect width="320" height="320" fill="#0c1628" />
+
+      {/* Subtle river / waterway curve */}
+      <path
+        d="M -10,310 C 80,290 140,305 220,295 C 280,285 310,300 340,295 L 340,340 L -10,340 Z"
+        fill="#081e3a"
+        opacity="0.75"
+      />
+
+      {/* Urban Building / Block Parcels */}
+      {CITY_BLOCKS.map((b, i) => (
+        <rect
+          key={i}
+          x={b.x}
+          y={b.y}
+          width={b.w}
+          height={b.h}
+          rx={b.rx}
+          fill="#13233c"
+          stroke="#1b3050"
+          strokeWidth="0.8"
+        />
       ))}
-      {[0, 90, 170, 250, 310].map((y, i) => (
-        <rect key={`h${i}`} x={0} y={y} width={320} height={y === 0 || y === 310 ? 10 : 14} fill="#f8fafd" />
+
+      {/* Secondary Streets */}
+      {[0, 70, 140, 205, 275].map((y, i) => (
+        <rect key={`sh_${i}`} x={0} y={y} width={320} height={7} fill="#182c49" />
       ))}
-      {[10, 95, 175, 255].map((x, i) => (
-        <rect key={`v${i}`} x={x} y={0} width={12} height={320} fill="#f8fafd" />
+      {[0, 80, 165, 245].map((x, i) => (
+        <rect key={`sv_${i}`} x={x} y={0} width={7} height={320} fill="#182c49" />
       ))}
+
+      {/* Major Arterial Roads / Expressways */}
+      <path d="M 0,142 L 320,142" stroke="#223b63" strokeWidth="12" fill="none" />
+      <path d="M 0,142 L 320,142" stroke="#2f4e82" strokeWidth="1" strokeDasharray="6,6" fill="none" />
+
+      <path d="M 167,0 L 167,320" stroke="#223b63" strokeWidth="12" fill="none" />
+      <path d="M 167,0 L 167,320" stroke="#2f4e82" strokeWidth="1" strokeDasharray="6,6" fill="none" />
+
+      {/* Curved Avenue */}
+      <path
+        d="M 10,290 Q 140,240 310,90"
+        stroke="#1a3256"
+        strokeWidth="10"
+        fill="none"
+        strokeLinecap="round"
+      />
     </>
   );
 }
 
-function PinMarker({ x, y, color, delay = 0 }: { x: number; y: number; color: string; delay?: number }) {
+function PinBeacon({
+  x,
+  y,
+  color,
+  label,
+  delay = 0,
+}: {
+  x: number;
+  y: number;
+  color: string;
+  label?: string;
+  delay?: number;
+}) {
   return (
     <motion.g
-      initial={{ y: y - 12, opacity: 0 }}
+      initial={{ y: y - 16, opacity: 0 }}
       animate={{ y, opacity: 1 }}
-      transition={{ type: "spring", damping: 12, delay }}
+      transition={{ type: "spring", damping: 14, stiffness: 220, delay }}
     >
-      <path d={`M${x},${y} c0,-14 -11,-14 -11,-26 a11,11 0 1 1 22,0 c0,12 -11,12 -11,26 z`} fill={color} />
-      <circle cx={x} cy={y - 26} r={4} fill="white" />
+      {/* Pulse wave halo */}
+      <circle cx={x} cy={y} r={16} fill={color} opacity="0.25">
+        <animate attributeName="r" values="8;22;8" dur="2.4s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.4;0;0.4" dur="2.4s" repeatCount="indefinite" />
+      </circle>
+
+      {/* Pin Shadow */}
+      <ellipse cx={x} cy={y + 1} rx="5" ry="2.5" fill="#000000" opacity="0.5" />
+
+      {/* Teardrop Pin */}
+      <path
+        d={`M${x},${y} c0,-11 -9,-11 -9,-20 a9,9 0 1 1 18,0 c0,9 -9,9 -9,20 z`}
+        fill={color}
+        stroke="#ffffff"
+        strokeWidth="1.5"
+      />
+      <circle cx={x} cy={y - 20} r="3.2" fill="#ffffff" />
+
+      {label && (
+        <text
+          x={x}
+          y={y - 32}
+          textAnchor="middle"
+          fill="#ffffff"
+          fontSize="9"
+          fontWeight="600"
+          fontFamily="sans-serif"
+          className="drop-shadow-md"
+        >
+          {label}
+        </text>
+      )}
     </motion.g>
   );
 }
 
-export function MockMap({ variant = "static", className, progress = 0.4 }: MockMapProps) {
-  const routeLength = 260;
+export function MockMap({
+  variant = "static",
+  className,
+  progress = 0.4,
+  vehicleAccent = "var(--marigold)",
+}: MockMapProps) {
+  const routeLength = 320;
   const reduceMotion = useReducedMotion();
 
   return (
-    <div className={cn("relative w-full overflow-hidden rounded-lg border border-border", className)}>
+    <div
+      className={cn(
+        "relative w-full overflow-hidden rounded-xl border border-white/10 bg-[#0c1628] shadow-inner",
+        className
+      )}
+    >
       <svg viewBox="0 0 320 320" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
-        <RoadGrid />
+        <MapEnvironment />
 
+        {/* Route Line with dynamic glowing trail */}
         {(variant === "route" || variant === "live") && (
-          <motion.path
-            d={ROUTE_PATH}
-            fill="none"
-            stroke="var(--signal-blue)"
-            strokeWidth={4}
-            strokeLinecap="round"
-            strokeDasharray={routeLength}
-            initial={reduceMotion ? { strokeDashoffset: 0 } : { strokeDashoffset: routeLength }}
-            animate={{ strokeDashoffset: 0 }}
-            transition={reduceMotion ? { duration: 0 } : { duration: 1, ease: "easeOut" }}
-          />
+          <>
+            {/* Route Glow Underlay */}
+            <path
+              d={ROUTE_PATH}
+              fill="none"
+              stroke="#1e6fef"
+              strokeWidth={10}
+              strokeOpacity={0.3}
+              strokeLinecap="round"
+            />
+            {/* Main Polyline */}
+            <motion.path
+              d={ROUTE_PATH}
+              fill="none"
+              stroke="#1e6fef"
+              strokeWidth={4.5}
+              strokeLinecap="round"
+              strokeDasharray={routeLength}
+              initial={reduceMotion ? { strokeDashoffset: 0 } : { strokeDashoffset: routeLength }}
+              animate={{ strokeDashoffset: 0 }}
+              transition={reduceMotion ? { duration: 0 } : { duration: 1.2, ease: "easeOut" }}
+            />
+            {/* Luminous Core Dash */}
+            <motion.path
+              d={ROUTE_PATH}
+              fill="none"
+              stroke="#93c5fd"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeDasharray="8, 12"
+              animate={reduceMotion ? undefined : { strokeDashoffset: [0, -40] }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+            />
+          </>
         )}
 
-        {variant === "searching" &&
-          (reduceMotion ? (
-            <g>
-              <circle cx={160} cy={160} r={50} fill="none" stroke="var(--signal-blue)" strokeWidth={2} opacity={0.3} />
-              <circle cx={160} cy={160} r={8} fill="var(--signal-blue)" />
-            </g>
-          ) : (
-            <g>
-              {[0, 0.6, 1.2].map((delay) => (
+        {/* Searching Radar Scanner */}
+        {variant === "searching" && (
+          <g>
+            {!reduceMotion ? (
+              [0, 0.7, 1.4].map((delay) => (
                 <motion.circle
                   key={delay}
                   cx={160}
                   cy={160}
-                  r={10}
+                  r={12}
                   fill="none"
-                  stroke="var(--signal-blue)"
+                  stroke={vehicleAccent}
                   strokeWidth={2}
-                  initial={{ r: 10, opacity: 0.8 }}
-                  animate={{ r: 90, opacity: 0 }}
-                  transition={{ duration: 2, repeat: Infinity, delay, ease: "easeOut" }}
+                  initial={{ r: 12, opacity: 0.8 }}
+                  animate={{ r: 100, opacity: 0 }}
+                  transition={{ duration: 2.4, repeat: Infinity, delay, ease: "easeOut" }}
                 />
-              ))}
-              <circle cx={160} cy={160} r={8} fill="var(--signal-blue)" />
-            </g>
-          ))}
+              ))
+            ) : (
+              <circle cx={160} cy={160} r={60} fill="none" stroke={vehicleAccent} strokeWidth={2} opacity={0.4} />
+            )}
+            <circle cx={160} cy={160} r={28} fill="#14244d" stroke={vehicleAccent} strokeWidth={2} />
+            <circle cx={160} cy={160} r={9} fill={vehicleAccent} />
+          </g>
+        )}
 
+        {/* Pickup & Destination Beacon Pins */}
         {(variant === "route" || variant === "live" || variant === "searching") && (
           <>
-            <PinMarker x={PICKUP.x} y={PICKUP.y} color="var(--meter-green)" />
-            {variant !== "searching" && <PinMarker x={DROP.x} y={DROP.y} color="var(--alert-red)" delay={0.15} />}
+            <PinBeacon x={PICKUP.x} y={PICKUP.y} color="#1c9b6b" label="Pickup" />
+            {variant !== "searching" && <PinBeacon x={DROP.x} y={DROP.y} color="#d6493b" label="Drop" delay={0.2} />}
           </>
         )}
 
-        {variant === "static" &&
-          (reduceMotion ? (
-            <g>
-              <circle cx={160} cy={160} r={7} fill="var(--signal-blue)" fillOpacity={0.25} />
-              <circle cx={160} cy={160} r={4} fill="var(--signal-blue)" />
-            </g>
-          ) : (
-            <motion.g animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity }}>
-              <circle cx={160} cy={160} r={7} fill="var(--signal-blue)" fillOpacity={0.25} />
-              <circle cx={160} cy={160} r={4} fill="var(--signal-blue)" />
-            </motion.g>
-          ))}
+        {/* Static Map GPS Pulse Dot */}
+        {variant === "static" && (
+          <g>
+            {!reduceMotion && (
+              <motion.circle
+                cx={160}
+                cy={160}
+                r={10}
+                fill="none"
+                stroke="#1e6fef"
+                strokeWidth={2}
+                initial={{ r: 10, opacity: 0.8 }}
+                animate={{ r: 42, opacity: 0 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeOut" }}
+              />
+            )}
+            <circle cx={160} cy={160} r={14} fill="#1e6fef" fillOpacity={0.25} />
+            <circle cx={160} cy={160} r={7} fill="#1e6fef" stroke="#ffffff" strokeWidth="2" />
+          </g>
+        )}
 
+        {/* Moving Live Driver Marker along Route */}
         {variant === "live" && (
           <motion.g
             initial={{ offsetDistance: "0%" }}
-            animate={{ offsetDistance: `${progress * 100}%` }}
-            transition={{ duration: 0.8, ease: "easeInOut" }}
+            animate={{ offsetDistance: `${Math.min(1, Math.max(0, progress)) * 100}%` }}
+            transition={{ duration: 0.9, ease: "easeInOut" }}
             style={{ offsetPath: `path('${ROUTE_PATH}')`, offsetRotate: "auto" }}
           >
-            <circle r={7} fill="var(--ink-blue)" stroke="white" strokeWidth={2} />
+            {/* Driver Pulse Halo */}
+            <circle r={18} fill="#f5a623" opacity="0.3">
+              <animate attributeName="r" values="10;22;10" dur="1.8s" repeatCount="indefinite" />
+              <animate attributeName="opacity" values="0.4;0;0.4" dur="1.8s" repeatCount="indefinite" />
+            </circle>
+            {/* Vehicle Disc */}
+            <circle r={12} fill="#0b1b36" stroke="#f5a623" strokeWidth={2.5} />
+            {/* Inner Heading Dot */}
+            <circle cx={3} cy={0} r={3.5} fill="#f5a623" />
           </motion.g>
         )}
       </svg>
 
-      {/* Phase 9: strengthened from "Mock map preview" — must never be
-          mistaken for real GPS data per the explicit privacy/honesty
-          requirement. */}
-      <span className="pointer-events-none absolute bottom-2 right-2 rounded bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-ink-soft shadow-sm">
-        Demo map — not live GPS
+      {/* Map Badge */}
+      <span className="pointer-events-none absolute bottom-2.5 right-2.5 flex items-center gap-1.5 rounded-full border border-white/10 bg-[#0c1628]/90 px-2.5 py-1 text-[10px] font-medium text-white/75 shadow-md backdrop-blur-sm">
+        <span className="h-1.5 w-1.5 rounded-full bg-meter-green" aria-hidden="true" />
+        RideIT Live Spatial Context
       </span>
     </div>
   );

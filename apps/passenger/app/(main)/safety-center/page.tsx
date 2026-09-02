@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Flag, Phone, ShieldAlert, Users } from "lucide-react";
-import { BottomSheet, Button, Card, EmptyState, Select, StatusPill, SafetyIcon } from "@ride-it/ui";
+import { BottomSheet, Button, EmptyState, Select, StatusPill, SafetyIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -89,76 +89,80 @@ export default function SafetyCenterPage() {
           <ChevronLeft size={20} />
         </Link>
         <div className="flex items-center gap-2.5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-alert-red/10 text-alert-red-text">
-            <SafetyIcon size={18} aria-hidden="true" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-alert-red/10 text-alert-red-text">
+            <SafetyIcon size={20} aria-hidden="true" />
           </span>
-          <h1 className="font-display text-2xl font-semibold text-ink">Safety Center</h1>
+          <h1 className="font-display text-2xl font-bold text-ink">Safety Center</h1>
         </div>
       </div>
-      <p className="mt-1 pl-11 text-sm text-ink-soft">
+      <p className="mt-1 pl-[52px] text-sm text-ink-soft">
         Manage emergency contacts, review past reports, and reach us if something felt wrong on a ride.
       </p>
 
-      <div className="mt-5 flex flex-col gap-3">
-        <Link href="/trusted-contacts">
-          <Card interactive className="flex items-center justify-between gap-3">
+      {/* Emergency action is the primary action on this screen — placed
+          first and visually distinct (solid fill, not another list row)
+          so it's never buried under secondary settings-style rows. */}
+      {emergencyNumber && (
+        <a href={`tel:${emergencyNumber}`} className="mt-5 block">
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-alert-red p-4 text-white shadow-md transition-transform active:scale-[0.99]">
             <span className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tint-violet text-violet-text">
-                <Users size={18} aria-hidden="true" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
+                <Phone size={20} aria-hidden="true" />
               </span>
               <span>
-                <span className="block text-sm font-medium text-ink">Trusted contacts</span>
+                <span className="block text-sm font-bold">Call emergency services</span>
+                <span className="block text-xs text-white/80">{emergencyNumber} — India&apos;s national emergency number</span>
+              </span>
+            </span>
+            <ChevronRight size={18} className="shrink-0" aria-hidden="true" />
+          </div>
+        </a>
+      )}
+
+      <div className="mt-3 flex flex-col gap-3">
+        <Link href="/trusted-contacts">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-md active:translate-y-0">
+            <span className="flex items-center gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-tint-violet text-violet-text">
+                <Users size={20} aria-hidden="true" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-ink">Trusted contacts</span>
                 <span className="block text-xs text-ink-soft">People you can share a ride with, or reach in an emergency</span>
               </span>
             </span>
             <ChevronRight size={16} className="shrink-0 text-ink-soft" aria-hidden="true" />
-          </Card>
+          </div>
         </Link>
 
         <button type="button" onClick={openReport} className="w-full text-left">
-          <Card interactive className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-ink/20 hover:shadow-md active:translate-y-0">
             <span className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tint-marigold text-marigold-text">
-                <Flag size={18} aria-hidden="true" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-tint-marigold text-marigold-text">
+                <Flag size={20} aria-hidden="true" />
               </span>
               <span>
-                <span className="block text-sm font-medium text-ink">Report an issue</span>
+                <span className="block text-sm font-semibold text-ink">Report an issue</span>
                 <span className="block text-xs text-ink-soft">Unsafe driving, harassment, or anything else from a past ride</span>
               </span>
             </span>
             <ChevronRight size={16} className="shrink-0 text-ink-soft" aria-hidden="true" />
-          </Card>
+          </div>
         </button>
-
-        {emergencyNumber && (
-          <a href={`tel:${emergencyNumber}`}>
-            <Card interactive className="flex items-center justify-between gap-3" accent="red">
-              <span className="flex items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-alert-red/10 text-alert-red-text">
-                  <Phone size={18} aria-hidden="true" />
-                </span>
-                <span>
-                  <span className="block text-sm font-medium text-ink">Call emergency services</span>
-                  <span className="block text-xs text-ink-soft">{emergencyNumber} — India's national emergency number</span>
-                </span>
-              </span>
-            </Card>
-          </a>
-        )}
       </div>
 
       {events.length > 0 && (
         <>
-          <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Your SOS history</p>
+          <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-ink-soft">Your SOS history</p>
           <div className="flex flex-col gap-2">
             {events.map((e) => (
-              <Card key={e.id} className="flex items-center justify-between gap-3 py-3">
+              <div key={e.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
                 <span className="flex items-center gap-2.5">
                   <ShieldAlert size={16} className="shrink-0 text-alert-red" aria-hidden="true" />
                   <span className="text-xs text-ink-soft">{formatDateTime(e.created_at)}</span>
                 </span>
                 <StatusPill tone={SAFETY_EVENT_TONE[e.status] ?? "info"}>{e.status}</StatusPill>
-              </Card>
+              </div>
             ))}
           </div>
         </>
@@ -166,16 +170,16 @@ export default function SafetyCenterPage() {
 
       {!loading && reports.length > 0 && (
         <>
-          <p className="mb-2 mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">Your reports</p>
+          <p className="mb-2 mt-6 px-1 text-xs font-bold uppercase tracking-wider text-ink-soft">Your reports</p>
           <div className="flex flex-col gap-2">
             {reports.map((r) => (
-              <Card key={r.id} className="py-3">
+              <div key={r.id} className="rounded-xl border border-border bg-surface px-4 py-3 shadow-sm">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-ink">{r.subject}</p>
+                  <p className="text-sm font-semibold text-ink">{r.subject}</p>
                   <StatusPill tone={r.status === "resolved" || r.status === "closed" ? "online" : "pending"}>{r.status}</StatusPill>
                 </div>
                 <p className="mt-0.5 text-xs text-ink-soft">{formatDateTime(r.created_at)}</p>
-              </Card>
+              </div>
             ))}
           </div>
         </>
