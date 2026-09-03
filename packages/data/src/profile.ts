@@ -78,6 +78,19 @@ export function isPassengerProfileComplete(profile: Pick<PassengerProfileRow, "f
   );
 }
 
+/**
+ * Creates this identity's public.passengers (+ passenger_ride_pins) row if
+ * it doesn't already exist — the missing piece for a same-email cross-role
+ * user (an existing driver who is now becoming a passenger too): see
+ * drivers.ts's ensureDriverProfile() for the full explanation; this is its
+ * passenger-side mirror. Safe/idempotent to call every time passenger
+ * onboarding starts.
+ */
+export async function ensurePassengerProfile(supabase: SupabaseClient): Promise<void> {
+  const { error } = await supabase.rpc("ensure_passenger_profile");
+  if (error) throw error;
+}
+
 export interface UpdatePassengerProfileInput {
   fullName?: string;
   phone?: string;

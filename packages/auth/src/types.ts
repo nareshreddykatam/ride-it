@@ -8,8 +8,13 @@ export type AppRole = "passenger" | "driver" | "admin";
  */
 export interface AuthProfile {
   id: string;
+  /** The role this identity originally signed up under. NOT the capability gate for passenger/driver app access — see isPassenger/isDriver. */
   role: AppRole;
   fullName: string | null;
   email: string | null;
   phone: string | null;
+  /** Whether a public.passengers row exists for this identity — the real passenger-app capability signal (one Auth identity can be both). */
+  isPassenger: boolean;
+  /** Whether a public.drivers row exists for this identity — the real driver-app capability signal (one Auth identity can be both). */
+  isDriver: boolean;
 }

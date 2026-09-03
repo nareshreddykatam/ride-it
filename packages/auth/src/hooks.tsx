@@ -3,28 +3,46 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "./context";
-import type { AppRole } from "./types";
+import type { AppRole, AuthProfile } from "./types";
 
 /**
- * Redirects client-side if the signed-in user's role doesn't match. This is
- * a secondary safety net — the primary enforcement is server-side in each
- * app's middleware.ts (see ./middleware.ts), which runs before any page
- * renders. This hook mainly covers client-side navigations where
- * middleware already ran once for the initial request but auth state
- * later changes (e.g. a manual sign-out in another tab).
+ * "Does this identity have the capability this app requires?" — admin
+ * stays a strict role match (a privileged, non-combinable capability);
+ * passenger/driver are read from row existence (profile.isPassenger/
+ * isDriver), so the SAME Auth identity can hold either or both without
+ * users.role (a single, original-signup-role field) ever being the gate.
+ * Mirrors the exact same distinction packages/auth/src/middleware.ts's
+ * createAuthMiddleware makes server-side — keep both in sync.
+ */
+function hasRoleCapability(profile: AuthProfile | null, role: AppRole): boolean {
+  if (!profile) return false;
+  if (role === "admin") return profile.role === "admin";
+  if (role === "passenger") return profile.isPassenger;
+  return profile.isDriver;
+}
+
+/**
+ * Redirects client-side if the signed-in user lacks this app's capability.
+ * This is a secondary safety net — the primary enforcement is server-side
+ * in each app's middleware.ts (see ./middleware.ts), which runs before any
+ * page renders and already sends a capability-less passenger/driver to
+ * onboarding rather than here. This hook mainly covers client-side
+ * navigations where middleware already ran once for the initial request
+ * but auth state later changes (e.g. a manual sign-out in another tab).
  */
 export function useRequireRole(role: AppRole, redirectTo = "/login") {
   const { user, profile, loading } = useAuth();
   const router = useRouter();
+  const authorized = hasRoleCapability(profile, role);
 
   React.useEffect(() => {
     if (loading) return;
-    if (!user || !profile || profile.role !== role) {
+    if (!user || !authorized) {
       router.replace(redirectTo);
     }
-  }, [loading, user, profile, role, redirectTo, router]);
+  }, [loading, user, authorized, redirectTo, router]);
 
-  return { profile, loading, isAuthorized: !loading && !!profile && profile.role === role };
+  return { profile, loading, isAuthorized: !loading && !!user && authorized };
 }
 
 /**

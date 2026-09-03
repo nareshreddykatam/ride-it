@@ -8,6 +8,7 @@ import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getDriverProfile,
+  ensureDriverProfile,
   updateDriverPersonalInfo,
   isDriverPersonalInfoComplete,
   getActiveVehicle,
@@ -105,6 +106,10 @@ export default function DriverOnboardingPage() {
     setSaving(true);
     setError(null);
     try {
+      // Same-email cross-role: a returning-as-driver passenger has no
+      // public.drivers row yet. Idempotent no-op for a direct driver
+      // signup, whose row already exists from handle_new_auth_user().
+      await ensureDriverProfile(supabase);
       await updateDriverPersonalInfo(supabase, user.id, {
         fullName: fullName.trim(),
         email: email.trim().toLowerCase(),

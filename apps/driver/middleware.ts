@@ -5,6 +5,11 @@ export const middleware = createAuthMiddleware({
   publicPaths: ["/", "/login", "/verify", "/api/e2e/login"],
   loginPath: "/login",
   authenticatedHomePath: "/dashboard",
+  // Capability, not a strict role match — see createAuthMiddleware's own
+  // comment. Lets a passenger-only Auth identity reach /onboarding here to
+  // pick up driver capability too, instead of being signed out.
+  capabilityTable: "drivers",
+  onboardingPath: "/onboarding",
 });
 
 export const config = {

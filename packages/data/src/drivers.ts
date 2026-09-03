@@ -108,6 +108,21 @@ export interface UpdateDriverPersonalInfoInput {
   gender?: GenderRow;
 }
 
+/**
+ * Creates this identity's public.drivers (+ wallets) row if it doesn't
+ * already exist — the missing piece for a same-email cross-role user (an
+ * existing passenger who is now becoming a driver too): handle_new_auth_user()
+ * only ever runs once, at original signup, and never re-fires for a
+ * returning Auth identity. Safe/idempotent to call every time driver
+ * onboarding starts (ensure_driver_profile() no-ops via ON CONFLICT for a
+ * direct driver signup, whose row already exists from that trigger).
+ * Never touches verification_status — authentication is not approval.
+ */
+export async function ensureDriverProfile(supabase: SupabaseClient): Promise<void> {
+  const { error } = await supabase.rpc("ensure_driver_profile");
+  if (error) throw error;
+}
+
 export async function updateDriverPersonalInfo(
   supabase: SupabaseClient,
   driverId: string,

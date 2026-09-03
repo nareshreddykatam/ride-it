@@ -8,6 +8,7 @@ import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getPassengerProfile,
+  ensurePassengerProfile,
   updatePassengerProfile,
   isPassengerProfileComplete,
   redeemReferralCode,
@@ -83,6 +84,10 @@ export default function PassengerOnboardingPage() {
     setSaving(true);
     setError(null);
     try {
+      // Same-email cross-role: a returning-as-passenger driver has no
+      // public.passengers row yet. Idempotent no-op for a direct passenger
+      // signup, whose row already exists from handle_new_auth_user().
+      await ensurePassengerProfile(supabase);
       await updatePassengerProfile(supabase, user.id, {
         fullName: fullName.trim(),
         phone: phone.trim(),

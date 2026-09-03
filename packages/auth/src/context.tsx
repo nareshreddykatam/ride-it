@@ -29,14 +29,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadProfile = React.useCallback(
     async (userId: string) => {
-      const { data, error: profileError } = await supabase
-        .from("users")
-        .select("id, role, full_name, email, phone")
-        .eq("id", userId)
-        .maybeSingle();
+      // Three parallel PK-lookup queries rather than an embed: passengers/
+      // drivers each have several ambiguous FK relationships to users (see
+      // packages/data/src/profile.ts's PROFILE_COLUMNS comment on the exact
+      // PGRST201 this ran into before), so a bare embed here would be
+      // fragile. Capability is read straight from row existence — the
+      // same signal isPassengerProfileComplete/RequireRole ultimately act
+      // on — never from users.role, which stays whatever role this
+      // identity originally signed up under and is no longer the gate for
+      // passenger/driver app access (see hooks.tsx's hasRoleCapability).
+      const [usersResult, passengerResult, driverResult] = await Promise.all([
+        supabase.from("users").select("id, role, full_name, email, phone").eq("id", userId).maybeSingle(),
+        supabase.from("passengers").select("id").eq("id", userId).maybeSingle(),
+        supabase.from("drivers").select("id").eq("id", userId).maybeSingle(),
+      ]);
 
-      if (profileError) {
-        setError(profileError.message);
+      if (usersResult.error) {
+        setError(usersResult.error.message);
         setProfile(null);
         return;
       }
@@ -45,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // @ride-it/supabase/types.ts's placeholder-Database-type comment.
       // (A per-property `as` cast doesn't compile when the base type is
       // `never`, which is what the placeholder Database type produces.)
-      const row = data as unknown as {
+      const row = usersResult.data as unknown as {
         id: string;
         role: AuthProfile["role"];
         full_name: string | null;
@@ -61,6 +70,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               fullName: row.full_name,
               email: row.email,
               phone: row.phone,
+              // A transient error here (network blip, etc.) fails closed to
+              // "no capability" rather than throwing — the same outcome as
+              // a genuinely-missing row, which just re-shows onboarding
+              // rather than granting access on a guess.
+              isPassenger: !!passengerResult.data,
+              isDriver: !!driverResult.data,
             }
           : null
       );

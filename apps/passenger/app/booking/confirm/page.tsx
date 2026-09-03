@@ -7,10 +7,9 @@ import { motion } from "framer-motion";
 import { RefreshCw, Route, Clock3, Pencil, X, Navigation, Search, Map as MapIcon } from "lucide-react";
 import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS, BottomSheet } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
-import { computeFareEstimate, type FareRate } from "@ride-it/utils";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { createRide, startMatching, getActivePricingRules, getSurgeStatus } from "@ride-it/data";
+import { createRide, startMatching, getFareQuote, type FareQuote } from "@ride-it/data";
 import { RideMap, getCurrentPositionOnce, fetchGeocode, fetchEta, decodePolyline, type LatLng } from "@ride-it/maps";
 
 // Fallback ONLY when real geolocation/geocoding is unavailable (permission
@@ -37,10 +36,6 @@ function ConfirmBookingPageContent() {
 
   const destination = params.get("destination") ?? "your destination";
   const vehicleType = (params.get("vehicleType") as VehicleType | null) ?? VehicleType.AUTO;
-  const initialFare = params.get("fare") ?? "0";
-  const initialBaseFare = Number(params.get("baseFare") ?? "0");
-  const initialDistanceFare = Number(params.get("distanceFare") ?? "0");
-  const initialSurgeMultiplier = Number(params.get("surgeMultiplier") ?? "1");
   const initialUsedRealRoute = params.get("usedRealRoute") === "true";
   const initialDistanceKm = Number(params.get("distanceKm") ?? "0");
   const etaMinutes = params.get("etaMinutes") ?? "5";
@@ -67,20 +62,13 @@ function ConfirmBookingPageContent() {
   const [booking, setBooking] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [editSheetOpen, setEditSheetOpen] = React.useState(false);
-  // Live route/distance/fare — seeded from the previous screen's estimate,
-  // then recomputed (Part 7) via the SAME existing fetchEta() +
-  // computeFareEstimate() the Booking screen already uses, whenever the
-  // real resolved pickup differs from whatever pickup that estimate
-  // assumed. No second fare system — this reuses both functions verbatim.
+  // Live route/distance — seeded from the previous screen's estimate, then
+  // recomputed (Part 7) via the same fetchEta() the Booking screen already
+  // uses, whenever the real resolved pickup/drop differs from whatever
+  // pickup that estimate assumed.
   const [liveDistanceKm, setLiveDistanceKm] = React.useState(initialDistanceKm);
   const [liveRoutePolyline, setLiveRoutePolyline] = React.useState<LatLng[] | undefined>(initialRoutePolyline);
-  const [liveFare, setLiveFare] = React.useState({
-    baseFare: initialBaseFare,
-    distanceFare: initialDistanceFare,
-    totalFare: Number(initialFare),
-    surgeMultiplier: initialSurgeMultiplier,
-  });
-  const [staleEstimate, setStaleEstimate] = React.useState(false);
+  const [staleRoute, setStaleRoute] = React.useState(false);
   // Whether liveDistanceKm currently reflects a real, calculated route
   // (Google Routes) rather than the Booking screen's honest fallback
   // guess — drives the "estimate is approximate" framing below. Only
@@ -89,31 +77,22 @@ function ConfirmBookingPageContent() {
   // whatever distance/flag we already have rather than un-flagging a
   // genuinely-real distance as approximate.
   const [usedRealRoute, setUsedRealRoute] = React.useState(initialUsedRealRoute);
-  // The real, admin-configured rate for THIS ride's vehicle type — same
-  // source as the Booking screen (getActivePricingRules/getSurgeStatus),
-  // fetched once here so the recompute effect below never falls back to
-  // the FARE_RATES placeholder. Undefined while loading; null if this
-  // vehicle type genuinely has no active pricing rule right now.
-  const [realRate, setRealRate] = React.useState<FareRate | null | undefined>(undefined);
 
-  React.useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        const dbType = vehicleTypeToDb(vehicleType);
-        const [rules, surge] = await Promise.all([getActivePricingRules(supabase), getSurgeStatus(supabase)]);
-        if (!active) return;
-        const rule = rules.find((r) => r.vehicle_type === dbType);
-        const surgeRow = surge.find((s) => s.vehicle_type === dbType);
-        setRealRate(rule ? { baseFare: rule.base_fare, perKm: rule.per_km_rate, surgeMultiplier: surgeRow?.vehicle_multiplier ?? 1 } : null);
-      } catch {
-        if (active) setRealRate(null);
-      }
-    })();
-    return () => {
-      active = false;
-    };
-  }, [supabase, vehicleType]);
+  // The server-authoritative pre-ride quote (get_fare_quote(), the exact
+  // same calculation compute_ride_fare() applies at ride creation — see
+  // packages/data/src/pricing.ts). No client-computed fare exists on this
+  // screen at all: `quote` is null until the server responds, and nothing
+  // is ever rendered as a fare before that. `quoteRequestId` guards against
+  // a race — if the passenger changes pickup/drop/vehicle again before an
+  // in-flight quote returns, that stale response is discarded rather than
+  // overwriting a newer one (only the response matching the CURRENT
+  // request id is ever applied).
+  const [quote, setQuote] = React.useState<FareQuote | null>(null);
+  const [quoteLoading, setQuoteLoading] = React.useState(true);
+  const [quoteError, setQuoteError] = React.useState(false);
+  const [quoteRetryNonce, setQuoteRetryNonce] = React.useState(0);
+  const quoteRequestIdRef = React.useRef(0);
+
   const visual = VEHICLE_VISUALS[vehicleTypeToDb(vehicleType)];
   const VehicleIcon = visual.icon;
 
@@ -174,33 +153,57 @@ function ConfirmBookingPageContent() {
   // rather than reset to zero or silently left claiming a distance that
   // no longer matches the current pickup.
   React.useEffect(() => {
-    if (resolvingLocations || realRate === undefined) return;
+    if (resolvingLocations) return;
     let active = true;
     (async () => {
       const eta = await fetchEta(pickup, drop, vehicleTypeToDb(vehicleType));
       if (!active) return;
       if (eta) {
-        const newDistanceKm = Math.max(0.1, eta.distanceMeters / 1000);
-        setLiveDistanceKm(newDistanceKm);
+        setLiveDistanceKm(Math.max(0.1, eta.distanceMeters / 1000));
         if (eta.encodedPolyline) setLiveRoutePolyline(decodePolyline(eta.encodedPolyline));
-        const estimate = computeFareEstimate(vehicleType, newDistanceKm, Number(etaMinutes), realRate ?? undefined);
-        setLiveFare({
-          baseFare: estimate.baseFare,
-          distanceFare: estimate.distanceFare,
-          totalFare: estimate.totalFare,
-          surgeMultiplier: estimate.surgeMultiplier,
-        });
-        setStaleEstimate(false);
+        setStaleRoute(false);
         setUsedRealRoute(true);
       } else {
-        setStaleEstimate(true);
+        setStaleRoute(true);
       }
     })();
     return () => {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvingLocations, pickup.lat, pickup.lng, drop.lat, drop.lng, vehicleType, realRate]);
+  }, [resolvingLocations, pickup.lat, pickup.lng, drop.lat, drop.lng, vehicleType]);
+
+  // The server-authoritative quote — re-fetched whenever pickup, drop,
+  // vehicle type, or the resolved distance changes (Part 7's "quote
+  // refresh" requirement), plus the manual Retry action. quoteRequestIdRef
+  // is the race guard: only the response matching the id issued for THIS
+  // effect run is ever applied, so a slow earlier request can never
+  // overwrite a faster later one.
+  React.useEffect(() => {
+    if (resolvingLocations) return;
+    const requestId = ++quoteRequestIdRef.current;
+    setQuoteLoading(true);
+    setQuoteError(false);
+    (async () => {
+      try {
+        const result = await getFareQuote(supabase, {
+          vehicleType: vehicleTypeToDb(vehicleType),
+          pickup,
+          drop,
+          distanceKm: liveDistanceKm,
+        });
+        if (quoteRequestIdRef.current !== requestId) return; // superseded by a newer request
+        setQuote(result);
+        setQuoteLoading(false);
+      } catch {
+        if (quoteRequestIdRef.current !== requestId) return;
+        setQuote(null);
+        setQuoteLoading(false);
+        setQuoteError(true);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvingLocations, pickup.lat, pickup.lng, drop.lat, drop.lng, vehicleType, liveDistanceKm, quoteRetryNonce]);
 
   function openEditPickup() {
     setEditSheetOpen(true);
@@ -231,16 +234,24 @@ function ConfirmBookingPageContent() {
   }
 
   async function handleConfirmBooking() {
-    if (!user) return;
+    // Belt-and-suspenders: the button is already disabled without a valid
+    // quote, but handleConfirmBooking never trusts that alone — the server
+    // remains authoritative regardless (compute_ride_fare() recalculates
+    // and overwrites base_fare/distance_fare/total_fare/surge_multiplier
+    // unconditionally at insert time; see that trigger), this guard just
+    // avoids sending a request the server would reject anyway.
+    if (!user || !quote) return;
     setBooking(true);
     setError(null);
     try {
-      // Part 9: pickup/drop/pickupAddress/distanceKm/baseFare/distanceFare
-      // all come from THIS screen's own live state — the exact same
-      // coordinates and estimate currently rendered below, never the
-      // frozen values the Booking screen originally passed via URL
-      // params. createRide()'s own haversine floor (packages/data/src/
-      // rides.ts) remains the server-side backstop regardless.
+      // Part 9: pickup/drop/pickupAddress/distanceKm all come from THIS
+      // screen's own live state — the exact same coordinates currently
+      // quoted below, never the frozen values the Booking screen
+      // originally passed via URL params. createRide()'s own haversine
+      // floor (packages/data/src/rides.ts) remains the server-side
+      // backstop regardless, and the server recomputes/overwrites the
+      // fare fields unconditionally — baseFare/distanceFare below are
+      // informational only, never trusted as the ride's actual price.
       const ride = await createRide(supabase, {
         passengerId: user.id,
         vehicleType: vehicleTypeToDb(vehicleType),
@@ -249,8 +260,8 @@ function ConfirmBookingPageContent() {
         drop,
         dropAddress: destination,
         distanceKm: liveDistanceKm,
-        baseFare: liveFare.baseFare,
-        distanceFare: liveFare.distanceFare,
+        baseFare: quote.baseFare,
+        distanceFare: quote.distanceFare,
       });
       // Real matching starts here — see @ride-it/data/matching.ts. The
       // Matching screen's own heartbeat (advanceMatching) takes over from
@@ -383,53 +394,73 @@ function ConfirmBookingPageContent() {
             </span>
           </div>
 
-          {/* Fare Transparency Breakdown — an ESTIMATE, recomputed (Part 7)
-              from the currently-resolved pickup/drop via the same
-              computeFareEstimate() the Booking screen uses. The server's
-              own compute_ride_fare() trigger remains the sole
-              authoritative fare once the ride is actually created. */}
-          <div className="mt-3.5 rounded-2xl border border-marigold/30 bg-tint-marigold/60 p-5 shadow-sm">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Fare estimate</p>
-            <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
-              <span>Base Fare</span>
-              <span className="font-meter font-semibold tabular-nums text-ink">₹{liveFare.baseFare.toFixed(2)}</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
-              <span>Distance Fare ({liveDistanceKm.toFixed(2)} km)</span>
-              <span className="font-meter font-semibold tabular-nums text-ink">₹{liveFare.distanceFare.toFixed(2)}</span>
-            </div>
-            <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
-              <span>Surge</span>
-              {liveFare.surgeMultiplier > 1 ? (
-                <span className="font-meter font-bold tabular-nums text-marigold-text">{liveFare.surgeMultiplier}x applied</span>
-              ) : (
-                <span className="font-meter font-bold tabular-nums text-meter-green-text">₹0.00 (Zero Surge)</span>
-              )}
-            </div>
-            {realRate === null && (
-              <p className="mt-2 text-[11px] text-alert-red">
-                Couldn&apos;t confirm current pricing for this vehicle — the amount below may be outdated.
-              </p>
-            )}
-
-            <div className="my-3 h-px bg-ink/10" />
-
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Estimated Total</p>
-                <p className="text-xs text-ink-soft">Cash or Direct UPI to Driver</p>
+          {/* Fare Transparency Breakdown — the SERVER-authoritative quote
+              (get_fare_quote(), Part 7 refactor), re-fetched whenever
+              pickup/drop/vehicle/distance change. Never a client-computed
+              number: while quoteLoading is true, or after a quoteError,
+              no fare figure is rendered at all — only the loading/error
+              state below. compute_ride_fare() remains the sole
+              authoritative calculation once the ride is actually created
+              (get_fare_quote() calls the exact same SQL function). */}
+          {quoteLoading || resolvingLocations ? (
+            <div className="mt-3.5 rounded-2xl border border-marigold/30 bg-tint-marigold/60 p-5 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Fare estimate</p>
+              <div className="mt-3 flex items-center gap-2 text-sm font-medium text-ink-soft">
+                <RefreshCw size={14} className="animate-spin" />
+                Calculating fare…
               </div>
-              <MeterValue value={`₹${liveFare.totalFare}`} size="lg" />
             </div>
-          </div>
-          {staleEstimate && !resolvingLocations && (
+          ) : quoteError || !quote ? (
+            <div className="mt-3.5 rounded-2xl border border-alert-red/30 bg-alert-red/5 p-5 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Fare estimate</p>
+              <p className="mt-2 text-sm font-medium text-alert-red">Unable to calculate fare</p>
+              <button
+                type="button"
+                onClick={() => setQuoteRetryNonce((n) => n + 1)}
+                className="mt-3 rounded-full bg-alert-red/10 px-3 py-1.5 text-xs font-semibold text-alert-red transition-colors hover:bg-alert-red/20"
+              >
+                Retry
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3.5 rounded-2xl border border-marigold/30 bg-tint-marigold/60 p-5 shadow-sm">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Fare estimate</p>
+              <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
+                <span>Base Fare</span>
+                <span className="font-meter font-semibold tabular-nums text-ink">₹{quote.baseFare.toFixed(2)}</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
+                <span>Distance Fare ({liveDistanceKm.toFixed(2)} km)</span>
+                <span className="font-meter font-semibold tabular-nums text-ink">₹{quote.distanceFare.toFixed(2)}</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-xs font-medium text-ink-soft">
+                <span>Surge</span>
+                {quote.surgeMultiplier > 1 ? (
+                  <span className="font-meter font-bold tabular-nums text-marigold-text">{quote.surgeMultiplier}x applied</span>
+                ) : (
+                  <span className="font-meter font-bold tabular-nums text-meter-green-text">₹0.00 (Zero Surge)</span>
+                )}
+              </div>
+
+              <div className="my-3 h-px bg-ink/10" />
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Estimated Total</p>
+                  <p className="text-xs text-ink-soft">Cash or Direct UPI to Driver</p>
+                </div>
+                <MeterValue value={`₹${quote.totalFare}`} size="lg" />
+              </div>
+            </div>
+          )}
+          {staleRoute && !resolvingLocations && (
             <p className="mt-2 text-xs text-ink-soft">
-              Couldn&apos;t refresh the route just now — this estimate is for your previous pickup point.
+              Couldn&apos;t refresh the route just now — this quote is for your previous pickup point.
             </p>
           )}
           <p className="mt-2 text-center text-xs text-ink-soft">
-            Final fare is calculated by Ridora from your ride&apos;s actual distance when it&apos;s completed
-            {!usedRealRoute && " — this estimate uses an approximate distance and may differ"}.
+            This is an estimate — your fare is calculated and locked by Ridora the moment you confirm your ride
+            {!usedRealRoute && ", using an approximate distance right now, so it may differ"}.
           </p>
 
           <p className="mt-3.5 text-center text-xs text-ink-soft">
@@ -444,14 +475,16 @@ function ConfirmBookingPageContent() {
         <Button
           className="w-full h-12 text-base font-display font-bold shadow-brand transition-transform active:scale-[0.99]"
           size="lg"
-          disabled={booking || resolvingLocations || realRate === null}
+          disabled={booking || resolvingLocations || quoteLoading || quoteError || !quote}
           onClick={handleConfirmBooking}
         >
           {booking
             ? "Connecting to nearby drivers…"
-            : realRate === null
-              ? "Fare unavailable — try again"
-              : `Confirm & Find ${VEHICLE_TYPE_LABELS_DB[dbType]}`}
+            : quoteLoading || resolvingLocations
+              ? "Calculating fare…"
+              : quoteError || !quote
+                ? "Fare unavailable — try again"
+                : `Confirm & Find ${VEHICLE_TYPE_LABELS_DB[dbType]}`}
         </Button>
       </div>
 
