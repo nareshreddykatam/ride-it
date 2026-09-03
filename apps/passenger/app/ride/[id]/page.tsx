@@ -6,32 +6,27 @@ import { useParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   AlertTriangle,
-  Banknote,
   CheckCircle2,
-  CreditCard,
   MapPinOff,
   Phone,
   MessageCircle,
   Share2,
   ShieldAlert,
-  Smartphone,
   Users,
   Flag,
   X,
 } from "lucide-react";
-import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, cn, VEHICLE_VISUALS, SafetyIcon } from "@ride-it/ui";
+import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, VEHICLE_VISUALS, SafetyIcon } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getRide,
   cancelActiveRide,
   subscribeToRide,
   getMyRidePin,
-  selectRidePaymentMethod,
   getMatchedDriverContact,
   PASSENGER_CANCELLATION_REASONS,
   formatCancellationReason,
   type RideRow,
-  type PaymentMethodRow,
   type MatchedDriverContact,
 } from "@ride-it/data";
 import { getDriverProfile, type DriverProfileRow } from "@ride-it/data";
@@ -50,9 +45,14 @@ const STEPS: { status: RideRow["status"]; label: string }[] = [
 function stepIndexForStatus(status: RideRow["status"]): number {
   const i = STEPS.findIndex((s) => s.status === status);
   if (i >= 0) return i;
-  if (["ride_completed", "payment", "rated"].includes(status)) return STEPS.length - 1;
+  if (["destination_reached", "payment_collected", "ride_completed", "payment", "rated"].includes(status)) return STEPS.length - 1;
   return 0;
 }
+
+const END_OF_RIDE_LABEL: Partial<Record<RideRow["status"], string>> = {
+  destination_reached: "Driver has reached your destination",
+  payment_collected: "Payment collected",
+};
 
 function isStale(updatedAt: string | null): boolean {
   if (!updatedAt) return true;
@@ -79,8 +79,6 @@ export default function RideStatusPage() {
   const [cancelNote, setCancelNote] = React.useState("");
   const [ridePin, setRidePin] = React.useState<string | null>(null);
   const [ridePinChecked, setRidePinChecked] = React.useState(false);
-  const [selectingPayment, setSelectingPayment] = React.useState(false);
-  const [paymentSelectError, setPaymentSelectError] = React.useState<string | null>(null);
   const navigatedRef = React.useRef(false);
 
   // Safety sheet state
@@ -238,21 +236,6 @@ export default function RideStatusPage() {
     }
   }
 
-  async function handleSelectPaymentMethod(method: PaymentMethodRow) {
-    setSelectingPayment(true);
-    setPaymentSelectError(null);
-    try {
-      const updated = await selectRidePaymentMethod(supabase, params.id, method);
-      setRide(updated);
-    } catch (e) {
-      // Server-authoritative rejection (e.g. driver doesn't actually
-      // accept this method) — surfaced honestly, not silently retried.
-      setPaymentSelectError(e instanceof Error ? e.message : "Couldn't set payment method. Try again.");
-    } finally {
-      setSelectingPayment(false);
-    }
-  }
-
   function openSafety() {
     setSafetyView("menu");
     setSafetyOpen(true);
@@ -365,7 +348,7 @@ export default function RideStatusPage() {
           <ShieldAlert size={13} /> Safety
         </button>
         <StatusPill tone="online" className="shadow-md">
-          {STEPS[stepIndex]?.label ?? "In progress"}
+          {END_OF_RIDE_LABEL[status] ?? STEPS[stepIndex]?.label ?? "In progress"}
         </StatusPill>
       </div>
 
@@ -489,39 +472,25 @@ export default function RideStatusPage() {
             </Card>
           )}
 
-          {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
+          {/* Destination reached / payment collection — purely informational.
+              The passenger never chooses or confirms a payment method or
+              amount here; the driver does, server-side (see
+              driver_select_payment_method / driver_confirm_payment_received). */}
+          {(status === "destination_reached" || status === "payment_collected") && (
             <Card className="mt-4">
               <p className="text-sm font-medium text-ink">
-                {ride?.payment_method ? "Payment method" : "Choose how you'll pay"}
+                {status === "payment_collected" ? "Payment collected" : "Final fare"}
               </p>
-              <p className="mt-0.5 text-xs text-ink-soft">Only methods your driver accepts are shown.</p>
-              <div className="mt-3 flex gap-2">
-                {(
-                  [
-                    { value: "cash" as const, label: "Cash", icon: Banknote, offered: driver.accepts_cash },
-                    { value: "driver_upi" as const, label: "Driver UPI", icon: Smartphone, offered: driver.accepts_driver_upi && driver.upi_verified },
-                    { value: "online" as const, label: "Ridora Online", icon: CreditCard, offered: driver.accepts_online },
-                  ] as const
-                )
-                  .filter((m) => m.offered)
-                  .map(({ value, label, icon: Icon }) => {
-                    const active = ride?.payment_method === value;
-                    return (
-                      <button key={value} disabled={selectingPayment} onClick={() => handleSelectPaymentMethod(value)} className="flex-1">
-                        <div
-                          className={cn(
-                            "flex flex-col items-center gap-1.5 rounded-lg border bg-surface py-4",
-                            active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
-                          )}
-                        >
-                          <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />
-                          <span className="text-xs text-ink">{label}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xs text-ink-soft">Total</span>
+                <MeterValue value={`₹${ride?.total_fare ?? 0}`} size="md" />
               </div>
-              {paymentSelectError && <p className="mt-2 text-xs text-alert-red">{paymentSelectError}</p>}
+              {ride?.payment_method && (
+                <p className="mt-2 text-xs text-ink-soft">
+                  {status === "payment_collected" ? "Paid via" : "Your driver selected"}{" "}
+                  {ride.payment_method === "driver_upi" ? "Driver UPI" : "Cash"}.
+                </p>
+              )}
             </Card>
           )}
 

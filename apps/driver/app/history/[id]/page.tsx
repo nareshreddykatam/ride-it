@@ -95,7 +95,11 @@ export default function DriverRideReceiptPage() {
                 <p className="text-xs text-ink-soft">{formatDateTime(ride.requested_at)}</p>
               </div>
               <StatusPill tone={ride.status === "cancelled" ? "alert" : "online"} dot={false}>
-                {ride.status === "cancelled" ? "Cancelled" : ride.status === "ride_started" ? "In progress" : "Completed"}
+                {ride.status === "cancelled"
+                  ? "Cancelled"
+                  : ["ride_started", "destination_reached", "payment_collected"].includes(ride.status)
+                    ? "In progress"
+                    : "Completed"}
               </StatusPill>
             </div>
           </Card>

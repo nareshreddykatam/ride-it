@@ -15,6 +15,8 @@ const STATUS_TONE: Record<string, "pending" | "info" | "online" | "offline" | "a
   driver_arriving: "info",
   otp_verified: "info",
   ride_started: "info",
+  destination_reached: "info",
+  payment_collected: "info",
   ride_completed: "online",
   payment: "online",
   cancelled: "alert",

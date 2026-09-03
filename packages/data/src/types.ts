@@ -20,10 +20,18 @@ export type RideStatusRow =
   | "accepted"
   | "driver_arriving"
   | "ride_started"
+  | "destination_reached"
+  | "payment_collected"
   | "ride_completed"
   | "payment"
   | "rated"
   | "cancelled";
+// "destination_reached" / "payment_collected" (migration 20260902100000):
+// the driver-controlled end-of-ride sequence, between ride_started and
+// ride_completed — see 20260902100100's header comment for the full
+// state machine. Distinct from the pre-existing "payment" value, which
+// is untouched and still unused (see that migration for why it wasn't
+// reused).
 // Note: the underlying DB enum (ride_status_enum) still technically
 // contains 'otp_verified' as a legacy value — dropping an enum value is a
 // more invasive operation than this phase's scope warrants (see Phase 10
@@ -60,6 +68,7 @@ export interface RideRow {
   cancelled_by: CancelledByRow | null;
   cancellation_reason: string | null;
   requested_at: string;
+  destination_reached_at: string | null;
   completed_at: string | null;
   cancelled_at: string | null;
   created_at: string;

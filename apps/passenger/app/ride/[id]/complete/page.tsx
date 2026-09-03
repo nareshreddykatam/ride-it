@@ -3,21 +3,14 @@
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Banknote, CheckCircle2, CreditCard, Smartphone } from "lucide-react";
-import { Button, Card, MeterValue, Skeleton, StatusPill, cn } from "@ride-it/ui";
-import { PaymentMethod } from "@ride-it/types";
+import { CheckCircle2, CreditCard } from "lucide-react";
+import { Button, Card, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getRide, setRidePaymentMethod, confirmDirectPayment, getMatchedDriverUpi, type RideRow } from "@ride-it/data";
+import { getRide, passengerSelectOnlinePaymentMethod, getMatchedDriverUpi, type RideRow } from "@ride-it/data";
 import { createPendingRidePayment, attachRidePaymentOrder, getRidePayment, subscribeToPayment, type PaymentRow } from "@ride-it/data";
 import { openRazorpayCheckout } from "@ride-it/payments/client-checkout";
 import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi";
-
-const METHODS: { value: PaymentMethod; label: string; icon: typeof Banknote }[] = [
-  { value: PaymentMethod.CASH, label: "Cash", icon: Banknote },
-  { value: PaymentMethod.DRIVER_UPI, label: "Driver UPI", icon: Smartphone },
-  { value: PaymentMethod.ONLINE, label: "Ridora Online", icon: CreditCard },
-];
 
 type OnlineState = "idle" | "creating" | "awaiting_checkout" | "verifying" | "captured" | "failed" | "unavailable";
 
@@ -28,8 +21,6 @@ export default function RideCompletePage() {
   const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
   const [ride, setRide] = React.useState<RideRow | null>(null);
   const [loading, setLoading] = React.useState(true);
-  const [method, setMethod] = React.useState<PaymentMethod>(PaymentMethod.CASH);
-  const [confirming, setConfirming] = React.useState(false);
   const [onlineState, setOnlineState] = React.useState<OnlineState>("idle");
   const [onlineError, setOnlineError] = React.useState<string | null>(null);
   const [payment, setPayment] = React.useState<PaymentRow | null>(null);
@@ -43,15 +34,6 @@ export default function RideCompletePage() {
       .then((r) => {
         if (!active) return;
         setRide(r);
-        // Phase E: the passenger may have already chosen a method on the
-        // active-ride screen (post-acceptance) via
-        // selectRidePaymentMethod() — honor that as the pre-selected
-        // default here rather than always defaulting to Cash. They can
-        // still change it on this screen; this only changes the starting
-        // selection, not the ability to switch.
-        if (r?.payment_method === "driver_upi") setMethod(PaymentMethod.DRIVER_UPI);
-        else if (r?.payment_method === "online") setMethod(PaymentMethod.ONLINE);
-        else if (r?.payment_method === "cash") setMethod(PaymentMethod.CASH);
       })
       .finally(() => active && setLoading(false));
     return () => {
@@ -75,15 +57,19 @@ export default function RideCompletePage() {
     });
   }, [supabase, payment, router, params.id]);
 
-  // Driver UPI QR — generated client-side from the matched driver's
-  // registered UPI id (get_matched_driver_upi(), scoped server-side to
-  // this passenger's own fare-final ride — never a client-supplied
-  // driver id) and this ride's own already-authoritative total_fare. No
-  // uploaded QR image involved; a upi://pay URI has nothing secret in it
-  // (it's exactly what the driver's own printed QR would encode), so
-  // there's no reason to mint it server-side.
+  // Driver UPI QR — legacy/edge-case fallback only. Normally the driver
+  // already confirmed a driver_upi payment (driver_confirm_payment_received)
+  // before the ride ever reached completion, so payment_status is already
+  // 'paid' by the time this screen loads and this effect never fires. Kept
+  // so a ride that somehow completed with payment_method='driver_upi'
+  // still pending (e.g. one already in flight when this flow shipped)
+  // still shows a working QR instead of nothing. Generated client-side
+  // from the matched driver's registered UPI id (get_matched_driver_upi(),
+  // scoped server-side to this passenger's own fare-final ride — never a
+  // client-supplied driver id) and this ride's own already-authoritative
+  // total_fare.
   React.useEffect(() => {
-    if (method !== PaymentMethod.DRIVER_UPI || !ride) return;
+    if (!ride || ride.payment_method !== "driver_upi" || ride.payment_status === "paid") return;
     let active = true;
     setQrLoading(true);
     getMatchedDriverUpi(supabase, params.id)
@@ -113,30 +99,14 @@ export default function RideCompletePage() {
     return () => {
       active = false;
     };
-  }, [method, params.id, ride, supabase]);
-
-  async function handleCashOrUpiConfirm(selected: PaymentMethod) {
-    setConfirming(true);
-    try {
-      // confirmDirectPayment() is the sole path that marks
-      // payment_status='paid' for cash/driver_upi — complete_ride() no
-      // longer auto-confirms payment at ride-completion time (see the
-      // fix_ride_completion_premature_paid migration). Ride completion
-      // and payment completion are separate events; this explicit
-      // passenger action is what actually records the payment.
-      await confirmDirectPayment(supabase, params.id, selected === PaymentMethod.CASH ? "cash" : "driver_upi");
-      router.push(`/ride/${params.id}/rate`);
-    } catch {
-      setConfirming(false);
-    }
-  }
+  }, [params.id, ride, supabase]);
 
   async function handlePayOnline() {
     if (!ride || !user) return;
     setOnlineError(null);
     setOnlineState("creating");
     try {
-      await setRidePaymentMethod(supabase, params.id, { paymentMethod: "online" });
+      await passengerSelectOnlinePaymentMethod(supabase, params.id);
 
       const createRes = await fetch("/api/payments/create-order", {
         method: "POST",
@@ -201,6 +171,15 @@ export default function RideCompletePage() {
     }
   }
 
+  const alreadyPaid = ride?.payment_status === "paid";
+  // True only for the rare legacy/edge case: a ride completed with a
+  // driver-collected method chosen but never confirmed (e.g. one already
+  // in flight when this driver-confirms flow shipped). In the normal
+  // case the driver already confirmed payment before the ride could even
+  // reach ride_completed, so alreadyPaid is already true by the time this
+  // screen loads.
+  const awaitingDriverConfirmation = !alreadyPaid && (ride?.payment_method === "cash" || ride?.payment_method === "driver_upi");
+
   return (
     <main className="flex flex-1 flex-col px-6 py-8">
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -261,47 +240,62 @@ export default function RideCompletePage() {
           )}
         </Card>
 
-        <p className="mt-6 text-sm font-medium text-ink">Pay with</p>
-        <div className="mt-2 flex gap-2" role="radiogroup" aria-label="Payment method">
-          {METHODS.map(({ value, label, icon: Icon }) => {
-            const active = method === value;
-            return (
-              <button
-                key={value}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => {
-                  setMethod(value);
-                  setOnlineState("idle");
-                  setOnlineError(null);
-                }}
-                className="flex-1"
-              >
-                <div
-                  className={cn(
-                    "flex flex-col items-center gap-1.5 rounded-lg border bg-surface py-4",
-                    active ? "border-2 border-signal-blue bg-tint-blue" : "border-border"
-                  )}
-                >
-                  <Icon size={20} className={active ? "text-signal-blue" : "text-ink-soft"} />
-                  <span className="text-xs text-ink">{label}</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {/* Payment is informational here — the passenger never chooses or
+            confirms how a cash/UPI payment was collected; the driver
+            already did, server-side, before this ride could even reach
+            ride_completed (see driver_select_payment_method /
+            driver_confirm_payment_received). The one remaining passenger
+            action is paying online themselves, when no driver-collected
+            payment was ever recorded. */}
+        {alreadyPaid && (
+          <Card className="mt-4 border-meter-green bg-meter-green/5">
+            <StatusPill tone="online">Payment collected</StatusPill>
+            <p className="mt-2 text-xs text-ink-soft">
+              Paid via {ride?.payment_method === "driver_upi" ? "Driver UPI" : ride?.payment_method === "online" ? "Ridora Online" : "Cash"}.
+            </p>
+          </Card>
+        )}
 
-        {method === PaymentMethod.ONLINE && (
-          <div className="mt-4">
+        {awaitingDriverConfirmation && (
+          <Card className="mt-4">
+            <p className="text-sm text-ink">
+              Your driver will confirm receiving your {ride?.payment_method === "driver_upi" ? "Driver UPI" : "cash"} payment.
+            </p>
+            {ride?.payment_method === "driver_upi" && (
+              <div className="mt-3 text-center">
+                {qrLoading ? (
+                  <Skeleton className="mx-auto h-48 w-48" />
+                ) : qrDataUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element -- a client-generated data: URL, not a static asset */}
+                    <img src={qrDataUrl} alt="Scan to pay your driver via UPI" className="mx-auto h-48 w-48 rounded-lg object-contain" />
+                    <p className="mt-2 text-xs text-ink-soft">UPI ID: {driverUpi?.upiId}</p>
+                  </>
+                ) : (
+                  <p className="text-xs text-ink-soft">Couldn&apos;t load payment details.</p>
+                )}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {!alreadyPaid && !awaitingDriverConfirmation && (
+          <>
+            <p className="mt-6 text-sm font-medium text-ink">Pay online</p>
+            <p className="mt-1 text-xs text-ink-soft">No driver-collected payment was recorded for this ride.</p>
+            <div className="mt-3 flex items-center gap-3 rounded-lg border border-border bg-surface p-4">
+              <CreditCard size={20} className="text-signal-blue" />
+              <span className="text-sm text-ink">Ridora Online</span>
+            </div>
+
             {onlineState === "unavailable" && (
-              <Card className="border-marigold bg-marigold/5">
+              <Card className="mt-4 border-marigold bg-marigold/5">
                 <p className="text-sm text-ink">Ridora Online payment isn&apos;t available right now.</p>
-                <p className="mt-1 text-xs text-ink-soft">{onlineError ?? "Please choose Cash or Driver UPI instead."}</p>
+                <p className="mt-1 text-xs text-ink-soft">{onlineError ?? "Please contact support."}</p>
               </Card>
             )}
-            {(onlineState === "verifying") && (
-              <Card>
+            {onlineState === "verifying" && (
+              <Card className="mt-4">
                 <div className="flex items-center gap-2">
                   <StatusPill tone="pending">Verification pending</StatusPill>
                 </div>
@@ -311,55 +305,23 @@ export default function RideCompletePage() {
               </Card>
             )}
             {onlineState === "captured" && (
-              <Card className="border-meter-green bg-meter-green/5">
+              <Card className="mt-4 border-meter-green bg-meter-green/5">
                 <StatusPill tone="online">Payment successful</StatusPill>
                 <p className="mt-2 text-xs text-ink-soft">Redirecting…</p>
               </Card>
             )}
             {onlineState === "failed" && (
-              <Card className="border-alert-red bg-alert-red/5">
+              <Card className="mt-4 border-alert-red bg-alert-red/5">
                 <StatusPill tone="alert">Payment failed</StatusPill>
                 <p className="mt-2 text-xs text-ink-soft">{onlineError ?? "You can try again."}</p>
               </Card>
             )}
-          </div>
-        )}
-
-        {method === PaymentMethod.DRIVER_UPI && (
-          <div className="mt-4">
-            <Card className="text-center">
-              {qrLoading ? (
-                <Skeleton className="mx-auto h-48 w-48" />
-              ) : qrDataUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- a client-generated data: URL, not a static asset
-                <img src={qrDataUrl} alt="Scan to pay your driver via UPI" className="mx-auto h-48 w-48 rounded-lg object-contain" />
-              ) : driverUpi && !driverUpi.upiId ? (
-                <p className="text-sm text-ink-soft">UPI payment unavailable — use Cash instead.</p>
-              ) : driverUpi && !driverUpi.acceptsDriverUpi ? (
-                <p className="text-sm text-ink-soft">Your driver isn&apos;t accepting Driver UPI right now — use Cash instead.</p>
-              ) : (
-                <p className="text-sm text-ink-soft">Couldn&apos;t load payment details — use Cash instead.</p>
-              )}
-              {qrDataUrl && (
-                <>
-                  <p className="mt-3 text-sm font-medium text-ink">Scan the driver&apos;s QR code to pay ₹{ride?.total_fare}</p>
-                  <p className="mt-1 text-xs text-ink-soft">
-                    UPI ID: {driverUpi?.upiId} {driverUpi?.driverName ? `· ${driverUpi.driverName}` : ""}
-                  </p>
-                </>
-              )}
-              <StatusPill tone="pending" className="mt-3">Payment pending</StatusPill>
-              <p className="mt-1.5 text-xs text-ink-soft">
-                Ridora can&apos;t automatically verify a Driver UPI payment. Tapping &quot;Confirm&quot; below records that you and your
-                driver have completed this payment between yourselves — it isn&apos;t proof of transfer.
-              </p>
-            </Card>
-          </div>
+          </>
         )}
       </motion.div>
 
-      <div className="mt-auto pt-8">
-        {method === PaymentMethod.ONLINE ? (
+      {!alreadyPaid && !awaitingDriverConfirmation && (
+        <div className="mt-auto pt-8">
           <Button
             className="w-full"
             disabled={["creating", "awaiting_checkout", "verifying", "captured"].includes(onlineState)}
@@ -377,12 +339,16 @@ export default function RideCompletePage() {
                       ? "Try again"
                       : "Pay online"}
           </Button>
-        ) : (
-          <Button className="w-full" disabled={confirming} onClick={() => handleCashOrUpiConfirm(method)}>
-            {confirming ? "Confirming…" : method === PaymentMethod.CASH ? "Confirm cash payment" : "Confirm Driver UPI payment"}
+        </div>
+      )}
+
+      {(alreadyPaid || awaitingDriverConfirmation) && (
+        <div className="mt-auto pt-8">
+          <Button className="w-full" onClick={() => router.push(`/ride/${params.id}/rate`)}>
+            Continue
           </Button>
-        )}
-      </div>
+        </div>
+      )}
     </main>
   );
 }

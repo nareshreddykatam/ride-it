@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RideRow, VehicleTypeRow, PaymentMethodRow } from "./types";
 
 const RIDE_COLUMNS =
-  "id, passenger_id, driver_id, vehicle_id, city_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, discount_amount, total_fare, surge_multiplier, currency, payment_method, payment_status, passenger_rating, driver_rating, cancelled_by, cancellation_reason, requested_at, completed_at, cancelled_at, created_at";
+  "id, passenger_id, driver_id, vehicle_id, city_id, vehicle_type, status, pickup_address, drop_address, distance_km, base_fare, distance_fare, discount_amount, total_fare, surge_multiplier, currency, payment_method, payment_status, passenger_rating, driver_rating, cancelled_by, cancellation_reason, requested_at, destination_reached_at, completed_at, cancelled_at, created_at";
 
 export interface GeoPointInput {
   lat: number;
@@ -239,7 +239,55 @@ export async function verifyRidePinAndStart(
   return ride?.id ? ride : null;
 }
 
-/** Now an RPC (complete_ride, Phase 10) — notifies both passenger and driver as part of the same atomic transition. */
+/**
+ * Driver confirms arrival at the destination — the sole path from
+ * ride_started to destination_reached (migration 20260902100000/100100).
+ * Also notifies the passenger server-side, same reasoning as
+ * markDriverArriving() above.
+ */
+export async function driverMarkArrivedAtDestination(supabase: SupabaseClient, rideId: string): Promise<RideRow> {
+  const { data, error } = await supabase.rpc("driver_mark_arrived_at_destination", { p_ride_id: rideId });
+  if (error) throw error;
+  return data as unknown as RideRow;
+}
+
+/**
+ * Driver-owned payment method selection, only valid once the ride is
+ * destination_reached — validated server-side against the calling
+ * driver's own accepts_cash/accepts_driver_upi+upi_verified settings.
+ * Supersedes selectRidePaymentMethod() below for this flow; that function
+ * now throws (its RPC's EXECUTE grant was revoked from authenticated) and
+ * is kept only as a historical reference to the old passenger-selects
+ * model.
+ */
+export async function driverSelectPaymentMethod(
+  supabase: SupabaseClient,
+  rideId: string,
+  method: "cash" | "driver_upi"
+): Promise<RideRow> {
+  const { data, error } = await supabase.rpc("driver_select_payment_method", { p_ride_id: rideId, p_method: method });
+  if (error) throw error;
+  return data as unknown as RideRow;
+}
+
+/**
+ * Driver confirms they actually received the cash/UPI payment — the sole
+ * path from destination_reached to payment_collected. Idempotent
+ * server-side: a duplicate call after the first succeeded returns the
+ * same row rather than erroring, so this is always safe to retry.
+ */
+export async function driverConfirmPaymentReceived(supabase: SupabaseClient, rideId: string): Promise<RideRow> {
+  const { data, error } = await supabase.rpc("driver_confirm_payment_received", { p_ride_id: rideId });
+  if (error) throw error;
+  return data as unknown as RideRow;
+}
+
+/**
+ * Now an RPC (complete_ride, Phase 10, extended 20260902100100) — notifies
+ * both passenger and driver as part of the same atomic transition.
+ * Accepts a ride from either ride_started (legacy/online-payment path) or
+ * payment_collected (new driver-confirmed cash/driver_upi path).
+ */
 export async function completeRide(supabase: SupabaseClient, rideId: string): Promise<RideRow> {
   const { data, error } = await supabase.rpc("complete_ride", { p_ride_id: rideId });
   if (error) throw error;
@@ -326,10 +374,12 @@ export async function cancelRideByDriver(
 }
 
 /**
- * Marks the ride's chosen payment method. Deliberately does NOT process an
- * actual payment or change payment_status beyond what the DB default
- * already is — real payment processing is out of scope for this phase (see
- * Phase 5 review doc).
+ * SUPERSEDED (20260902100100): payment_method is now a protected column
+ * (protect_ride_financial_columns), so this raw client .update() would
+ * fail server-side. Use passengerSelectOnlinePaymentMethod() for the one
+ * remaining passenger-side case (choosing to pay online, post-completion)
+ * or driverSelectPaymentMethod() for the driver-collected cash/UPI flow.
+ * Kept only as a historical reference — no call site should use this.
  */
 export interface UpdateRidePaymentInput {
   paymentMethod: PaymentMethodRow;
@@ -352,16 +402,11 @@ export async function setRidePaymentMethod(
 }
 
 /**
- * Passenger chooses a payment method for an ACTIVE ride (accepted /
- * driver_arriving / ride_started), validated server-side against the
- * assigned driver's actual accepted methods via
- * select_ride_payment_method() (migration
- * 20260821090300_ride_payment_method_selection) — the RPC throws if the
- * driver hasn't opted into the requested method, so a passenger can never
- * select something unavailable regardless of what the client believes.
- * Supersedes setRidePaymentMethod() above for the new post-acceptance
- * flow; that function is kept for the existing post-completion path,
- * unchanged.
+ * SUPERSEDED (20260902100100): payment-method selection is now a
+ * driver-owned action (see driverSelectPaymentMethod above) — this RPC's
+ * EXECUTE grant was revoked from authenticated, so calling this now always
+ * throws. Kept only as a historical reference to the old passenger-selects
+ * model; no call site should use this.
  */
 export async function selectRidePaymentMethod(
   supabase: SupabaseClient,
@@ -369,6 +414,18 @@ export async function selectRidePaymentMethod(
   method: PaymentMethodRow
 ): Promise<RideRow> {
   const { data, error } = await supabase.rpc("select_ride_payment_method", { p_ride_id: rideId, p_method: method });
+  if (error) throw error;
+  return data as unknown as RideRow;
+}
+
+/**
+ * The passenger's one remaining legitimate payment_method write: choosing
+ * to pay online themselves via Razorpay, post-completion. Replaces the
+ * previous raw setRidePaymentMethod() call for this one case now that
+ * payment_method is a protected column.
+ */
+export async function passengerSelectOnlinePaymentMethod(supabase: SupabaseClient, rideId: string): Promise<RideRow> {
+  const { data, error } = await supabase.rpc("passenger_select_online_payment_method", { p_ride_id: rideId });
   if (error) throw error;
   return data as unknown as RideRow;
 }

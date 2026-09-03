@@ -13,6 +13,9 @@ import {
   getRide,
   markDriverArriving,
   verifyRidePinAndStart,
+  driverMarkArrivedAtDestination,
+  driverSelectPaymentMethod,
+  driverConfirmPaymentReceived,
   completeRide,
   getRideTracking,
   updateDriverLocation,
@@ -34,8 +37,42 @@ import {
 import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, type GeolocationErrorReason } from "@ride-it/maps";
 import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi";
 
-type Phase = "TO_PICKUP" | "VERIFY_PIN" | "TO_DROP" | "SUMMARY" | "CANCELLED_BY_PASSENGER" | "CANCELLED_BY_DRIVER";
+// ARRIVED / PAYMENT_RECEIVED are new (Part 2 of the driver-controlled
+// end-of-ride flow): the driver used to go straight from TO_DROP to
+// SUMMARY via a single "Complete ride" tap, with payment confirmed
+// separately (and passenger-side) afterward. Now arrival, payment
+// collection, and completion are three distinct, driver-confirmed,
+// server-authoritative steps — see packages/data/src/rides.ts's new
+// driverMarkArrivedAtDestination/driverSelectPaymentMethod/
+// driverConfirmPaymentReceived and the ride_completion_flow migrations.
+type Phase =
+  | "TO_PICKUP"
+  | "VERIFY_PIN"
+  | "TO_DROP"
+  | "ARRIVED"
+  | "PAYMENT_RECEIVED"
+  | "SUMMARY"
+  | "CANCELLED_BY_PASSENGER"
+  | "CANCELLED_BY_DRIVER";
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "report";
+
+/** Maps a freshly-loaded/reloaded ride's server status to the phase this screen should resume at — so a driver who backgrounds or reloads mid-flow doesn't lose their place (server state is authoritative either way; this is purely which screen to show). */
+function phaseForRideStatus(status: RideRow["status"]): Phase | null {
+  switch (status) {
+    case "ride_started":
+      return "TO_DROP";
+    case "destination_reached":
+      return "ARRIVED";
+    case "payment_collected":
+      return "PAYMENT_RECEIVED";
+    case "ride_completed":
+    case "payment":
+    case "rated":
+      return "SUMMARY";
+    default:
+      return null; // accepted/driver_arriving/otp_verified/cancelled — let the existing phase stand
+  }
+}
 
 const LOCATION_ERROR_MESSAGE: Record<GeolocationErrorReason, string> = {
   permission_denied: "Location permission required for live tracking.",
@@ -77,6 +114,14 @@ function NavigationPageContent() {
   const [driverProfile, setDriverProfile] = React.useState<DriverProfileRow | null>(null);
   const [qrUrl, setQrUrl] = React.useState<string | null>(null);
   const [qrLoading, setQrLoading] = React.useState(false);
+  const [confirmingArrival, setConfirmingArrival] = React.useState(false);
+  const [arrivalError, setArrivalError] = React.useState<string | null>(null);
+  const [selectingMethod, setSelectingMethod] = React.useState(false);
+  const [methodError, setMethodError] = React.useState<string | null>(null);
+  const [confirmingPayment, setConfirmingPayment] = React.useState(false);
+  const [paymentError, setPaymentError] = React.useState<string | null>(null);
+  const [completingRide, setCompletingRide] = React.useState(false);
+  const [completeError, setCompleteError] = React.useState<string | null>(null);
   // Set right before this driver's own cancel RPC call resolves, so the
   // realtime subscription below (which will also receive that same write)
   // doesn't mistake the driver's own cancellation for a passenger-side one.
@@ -101,7 +146,8 @@ function NavigationPageContent() {
   // it client-side is not a security shortcut — it's the same thing a
   // server-generated QR would encode.
   React.useEffect(() => {
-    if (phase !== "SUMMARY" || !user || !ride) return;
+    const showsQr = phase === "ARRIVED" || phase === "PAYMENT_RECEIVED" || phase === "SUMMARY";
+    if (!showsQr || ride?.payment_method !== "driver_upi" || !user || !ride) return;
     let active = true;
     getDriverProfile(supabase, user.id)
       .then(async (profile) => {
@@ -152,7 +198,13 @@ function NavigationPageContent() {
   React.useEffect(() => {
     if (!rideId) return;
     getRide(supabase, rideId)
-      .then(setRide)
+      .then((r) => {
+        setRide(r);
+        if (r) {
+          const resumed = phaseForRideStatus(r.status);
+          if (resumed) setPhase(resumed);
+        }
+      })
       .finally(() => setLoading(false));
     getRideTracking(supabase, rideId)
       .then(setTracking)
@@ -279,11 +331,68 @@ function NavigationPageContent() {
     }
   }
 
+  // Reached-destination confirmation — the sole gate between "driving
+  // there" and seeing the final fare/payment collection UI. Phase only
+  // advances after the server confirms the transition; a failed request
+  // leaves the driver exactly where they were, with the error surfaced,
+  // never a silent/optimistic advance (Part 12's explicit requirement).
+  async function handleConfirmArrival() {
+    if (!rideId) return;
+    setConfirmingArrival(true);
+    setArrivalError(null);
+    try {
+      const updated = await driverMarkArrivedAtDestination(supabase, rideId);
+      setRide(updated);
+      setPhase("ARRIVED");
+    } catch (e) {
+      setArrivalError(e instanceof Error ? e.message : "Couldn't confirm arrival. Try again.");
+    } finally {
+      setConfirmingArrival(false);
+    }
+  }
+
+  async function handleSelectMethod(method: "cash" | "driver_upi") {
+    if (!rideId) return;
+    setSelectingMethod(true);
+    setMethodError(null);
+    try {
+      const updated = await driverSelectPaymentMethod(supabase, rideId, method);
+      setRide(updated);
+    } catch (e) {
+      setMethodError(e instanceof Error ? e.message : "Couldn't set payment method. Try again.");
+    } finally {
+      setSelectingMethod(false);
+    }
+  }
+
+  async function handleConfirmPaymentReceived() {
+    if (!rideId) return;
+    setConfirmingPayment(true);
+    setPaymentError(null);
+    try {
+      const updated = await driverConfirmPaymentReceived(supabase, rideId);
+      setRide(updated);
+      setPhase("PAYMENT_RECEIVED");
+    } catch (e) {
+      setPaymentError(e instanceof Error ? e.message : "Couldn't confirm payment received. Try again.");
+    } finally {
+      setConfirmingPayment(false);
+    }
+  }
+
   async function handleCompleteRide() {
     if (!rideId) return;
-    const updated = await completeRide(supabase, rideId);
-    setRide(updated);
-    setPhase("SUMMARY"); // stops the location watcher via the effect above
+    setCompletingRide(true);
+    setCompleteError(null);
+    try {
+      const updated = await completeRide(supabase, rideId);
+      setRide(updated);
+      setPhase("SUMMARY"); // stops the location watcher via the effect above
+    } catch (e) {
+      setCompleteError(e instanceof Error ? e.message : "Couldn't complete the ride. Try again.");
+    } finally {
+      setCompletingRide(false);
+    }
   }
 
   const sosPositionRef = React.useRef<{ lat: number; lng: number } | null>(null);
@@ -411,6 +520,8 @@ function NavigationPageContent() {
             {phase === "TO_PICKUP" && "Heading to pickup"}
             {phase === "VERIFY_PIN" && "Enter Ride PIN"}
             {phase === "TO_DROP" && "Ride in progress"}
+            {phase === "ARRIVED" && "Reached destination"}
+            {phase === "PAYMENT_RECEIVED" && "Payment received"}
             {phase === "SUMMARY" && "Completed"}
           </StatusPill>
         </div>
@@ -477,9 +588,127 @@ function NavigationPageContent() {
       {phase === "TO_DROP" && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-auto flex flex-col gap-3 pt-8">
           <SlideToAction label="Slide to start navigation" onComplete={handleStartNavigation} disabled={!tracking?.drop} />
-          <Button className="w-full" onClick={handleCompleteRide}>
-            Complete ride
-          </Button>
+          <SlideToAction
+            label={confirmingArrival ? "Confirming…" : "Slide to confirm arrival"}
+            onComplete={handleConfirmArrival}
+            disabled={confirmingArrival}
+          />
+          {arrivalError && <p className="text-center text-xs text-alert-red">{arrivalError}</p>}
+        </motion.div>
+      )}
+
+      {phase === "ARRIVED" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-auto flex flex-col gap-3 pt-8">
+          <p className="text-center text-xs font-semibold uppercase tracking-wide text-ink-soft">Reached destination</p>
+
+          {/* Final fare — read directly from the ride's own server-authoritative
+              base_fare/distance_fare/surge_multiplier/total_fare, exactly as
+              stored. Never recomputed or overridden here. */}
+          <Card className="text-left">
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Final fare</p>
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Base fare</span>
+              <span className="font-meter text-ink">₹{ride?.base_fare ?? 0}</span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Distance</span>
+              <span className="font-meter text-ink">₹{ride?.distance_fare ?? 0}</span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Surge</span>
+              <span className="font-meter text-ink">
+                {ride && ride.surge_multiplier > 1 ? `${ride.surge_multiplier}x applied` : "₹0"}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-border pt-3">
+              <span className="text-sm font-medium text-ink">Total</span>
+              <MeterValue value={`₹${ride?.total_fare ?? 0}`} size="md" />
+            </div>
+          </Card>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Payment method</p>
+            <div className="mt-2 grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                disabled={selectingMethod}
+                onClick={() => handleSelectMethod("cash")}
+                className={`rounded-xl border py-3.5 text-center text-sm font-semibold transition-colors disabled:opacity-50 ${
+                  ride?.payment_method === "cash" ? "border-2 border-signal-blue bg-tint-blue text-signal-blue" : "border-border text-ink"
+                }`}
+              >
+                Cash
+              </button>
+              <button
+                type="button"
+                disabled={selectingMethod}
+                onClick={() => handleSelectMethod("driver_upi")}
+                className={`rounded-xl border py-3.5 text-center text-sm font-semibold transition-colors disabled:opacity-50 ${
+                  ride?.payment_method === "driver_upi" ? "border-2 border-signal-blue bg-tint-blue text-signal-blue" : "border-border text-ink"
+                }`}
+              >
+                Driver UPI
+              </button>
+            </div>
+            {methodError && <p className="mt-2 text-xs text-alert-red">{methodError}</p>}
+          </div>
+
+          {ride?.payment_method === "cash" && (
+            <Card className="text-center">
+              <p className="text-sm font-medium text-ink">Collect ₹{ride?.total_fare ?? 0} in cash from passenger.</p>
+            </Card>
+          )}
+
+          {ride?.payment_method === "driver_upi" && (
+            <Card className="text-center">
+              {qrLoading ? (
+                <Skeleton className="mx-auto h-48 w-48" />
+              ) : qrUrl ? (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- a client-generated data: URL, not a static asset */}
+                  <img src={qrUrl} alt="Your UPI payment QR code" className="mx-auto h-48 w-48 rounded-lg object-contain" />
+                  <p className="mt-2 text-sm font-medium text-ink">Ask passenger to scan this QR to pay ₹{ride?.total_fare ?? 0}</p>
+                </>
+              ) : driverProfile && !driverProfile.upi_id ? (
+                <p className="text-sm text-ink-soft">Driver UPI is not configured — add a UPI ID in Payment settings, or accept Cash.</p>
+              ) : driverProfile && !driverProfile.accepts_driver_upi ? (
+                <p className="text-sm text-ink-soft">You&apos;ve turned off Driver UPI in Payment settings — accept Cash instead.</p>
+              ) : (
+                <p className="text-sm text-ink-soft">Couldn&apos;t load your payment details — try Cash instead.</p>
+              )}
+            </Card>
+          )}
+
+          <SlideToAction
+            label={confirmingPayment ? "Confirming…" : "Slide to confirm payment received"}
+            onComplete={handleConfirmPaymentReceived}
+            disabled={confirmingPayment || !ride?.payment_method}
+          />
+          {paymentError && <p className="text-center text-xs text-alert-red">{paymentError}</p>}
+        </motion.div>
+      )}
+
+      {phase === "PAYMENT_RECEIVED" && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-auto flex flex-col gap-4 pt-8 text-center">
+          <div>
+            <motion.span
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 300, damping: 22 }}
+              className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-meter-green/10 text-meter-green"
+            >
+              <CheckCircle2 size={22} strokeWidth={1.8} />
+            </motion.span>
+            <p className="mt-3 font-display text-lg font-semibold text-ink">Payment received</p>
+            <MeterValue value={`₹${ride?.total_fare ?? 0}`} size="lg" className="mt-1 items-center" />
+            <p className="mt-1 text-xs text-ink-soft">{ride?.payment_method === "cash" ? "Cash" : "Driver UPI"}</p>
+          </div>
+          <SlideToAction
+            label={completingRide ? "Completing…" : "Slide to complete ride"}
+            onComplete={handleCompleteRide}
+            disabled={completingRide}
+          />
+          {completeError && <p className="text-xs text-alert-red">{completeError}</p>}
         </motion.div>
       )}
 
@@ -490,44 +719,40 @@ function NavigationPageContent() {
               for this ride — never recalculated or overridden here. */}
           <MeterValue value={`₹${ride?.total_fare ?? 0}`} label="Final fare" size="lg" className="items-center" />
 
-          {ride?.payment_method === "driver_upi" && (
-            <Card className="mt-5 text-left">
-              <p className="text-xs font-semibold uppercase tracking-wide text-ink-soft">Payment</p>
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-ink-soft">Payable amount</span>
-                <span className="font-meter font-semibold text-ink">₹{ride?.total_fare ?? 0}</span>
-              </div>
+          <Card className="mt-5 text-left">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Payment method</span>
+              <span className="font-medium text-ink">
+                {ride?.payment_method === "driver_upi" ? "Driver UPI" : ride?.payment_method === "cash" ? "Cash" : "Not recorded"}
+              </span>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Payment status</span>
+              <StatusPill tone={ride?.payment_status === "paid" ? "online" : "pending"} dot={false}>
+                {ride?.payment_status === "paid" ? "Paid" : "Pending"}
+              </StatusPill>
+            </div>
+          </Card>
+
+          {/* Legacy safety net only: a ride that somehow reached SUMMARY
+              without going through the ARRIVED/PAYMENT_RECEIVED steps above
+              (e.g. an in-flight ride from before this flow existed) still
+              gets a working driver_upi QR here, unchanged from before. */}
+          {ride?.payment_method === "driver_upi" && ride?.payment_status !== "paid" && (
+            <Card className="mt-3 text-center">
               {qrLoading ? (
-                <Skeleton className="mx-auto mt-3 h-56 w-56" />
+                <Skeleton className="mx-auto h-48 w-48" />
               ) : qrUrl ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element -- a client-generated data: URL, not a static asset */}
-                  <img src={qrUrl} alt="Your UPI payment QR code" className="mx-auto mt-3 h-56 w-56 rounded-lg object-contain" />
-                  <p className="mt-2 text-center text-sm font-medium text-ink">Ask passenger to scan this QR to pay ₹{ride?.total_fare ?? 0}</p>
+                  <img src={qrUrl} alt="Your UPI payment QR code" className="mx-auto h-48 w-48 rounded-lg object-contain" />
+                  <p className="mt-2 text-sm font-medium text-ink">Ask passenger to scan this QR to pay ₹{ride?.total_fare ?? 0}</p>
                 </>
-              ) : driverProfile && !driverProfile.upi_id ? (
-                <p className="mt-2 text-center text-xs text-ink-soft">
-                  No UPI ID on file — add one in Payment settings, or accept Cash for this ride.
-                </p>
-              ) : driverProfile && !driverProfile.accepts_driver_upi ? (
-                <p className="mt-2 text-center text-xs text-ink-soft">
-                  You&apos;ve turned off Driver UPI in Payment settings — accept Cash for this ride instead.
-                </p>
               ) : (
-                <p className="mt-2 text-center text-xs text-ink-soft">Couldn&apos;t load your payment details.</p>
+                <p className="text-sm text-ink-soft">Couldn&apos;t load your payment details.</p>
               )}
-              <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-xs">
-                <span className="text-ink-soft">UPI ID</span>
-                <span className="text-ink">{driverProfile?.upi_id ?? "Not set"}</span>
-              </div>
-              <div className="mt-1.5 flex items-center justify-between text-xs">
-                <span className="text-ink-soft">Payment status</span>
-                <StatusPill tone={ride?.payment_status === "paid" ? "online" : "pending"} dot={false}>
-                  {ride?.payment_status === "paid" ? "Paid" : "Pending"}
-                </StatusPill>
-              </div>
               <p className="mt-2 text-[11px] text-ink-soft">
-                Ridora can&apos;t automatically verify a Driver UPI payment — this only updates once the passenger confirms on their side.
+                Ridora can&apos;t automatically verify a Driver UPI payment made outside the confirm-payment step above.
               </p>
             </Card>
           )}
