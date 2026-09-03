@@ -10,7 +10,6 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@ride-it/api-client": "workspace:*",
     "@ride-it/auth": "workspace:*",
     "@ride-it/data": "workspace:*",
     "@ride-it/maps": "workspace:*",
@@ -18,7 +17,6 @@
     "@ride-it/supabase": "workspace:*",
     "@ride-it/types": "workspace:*",
     "@ride-it/ui": "workspace:*",
-    "@ride-it/utils": "workspace:*",
     "@tanstack/react-table": "^8.17.0",
     "framer-motion": "^11.2.0",
     "lucide-react": "^0.383.0",

@@ -145,13 +145,12 @@ function ConfirmBookingPageContent() {
 
   // Part 7: whenever the REAL resolved pickup (or drop) changes — the
   // initial GPS/override resolution, a "Refresh GPS", or an Edit-pickup
-  // action — recompute distance/route/fare from the current pair via the
-  // existing fetchEta()/computeFareEstimate() pair, replacing the frozen
-  // estimate carried over from the Booking screen. fetchEta() already
-  // returns null (never throws) if Routes isn't configured/reachable; on
-  // that honest failure the last-known-good live estimate is kept as-is
-  // rather than reset to zero or silently left claiming a distance that
-  // no longer matches the current pickup.
+  // action — recompute the real distance via fetchEta(); the quote effect
+  // below then re-fetches the server fare for that new distance. fetchEta()
+  // already returns null (never throws) if Routes isn't configured/
+  // reachable; on that honest failure the last-known-good route is kept
+  // as-is rather than reset to zero or silently left claiming a distance
+  // that no longer matches the current pickup.
   React.useEffect(() => {
     if (resolvingLocations) return;
     let active = true;

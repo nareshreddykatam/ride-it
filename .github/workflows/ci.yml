@@ -32,7 +32,7 @@ jobs:
   # supabase/local-test-harness/supabase-compat-shim.sql for exactly what
   # it does and doesn't approximate) against a genuine Postgres+PostGIS
   # service container. Same real-execution validation performed manually
-  # in Phase 12 — see PHASE_12_REAL_ENVIRONMENT_INTEGRATION_REVIEW.md for
+  # in Phase 12 — see docs/archive/PHASE_12_REAL_ENVIRONMENT_INTEGRATION_REVIEW.md for
   # what this does and doesn't prove versus a live Supabase project (no
   # GoTrue, no PostgREST, no real Realtime server — schema/RLS/trigger/
   # constraint correctness only, verified for real, not the full stack).

@@ -17,7 +17,6 @@
     "@capacitor/geolocation": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
     "@capacitor/push-notifications": "^6.0.0",
-    "@ride-it/api-client": "workspace:*",
     "@ride-it/auth": "workspace:*",
     "@ride-it/data": "workspace:*",
     "@ride-it/maps": "workspace:*",

@@ -2,7 +2,7 @@ import QRCode from "qrcode";
 
 /**
  * Direct driver UPI QR — distinct from and never mixed with the Razorpay
- * ("RideIt Online") flow elsewhere in this package. This module only ever
+ * ("Ridora Online") flow elsewhere in this package. This module only ever
  * builds a standard UPI deep link and renders it as a QR image; it never
  * talks to a payment gateway and never confirms a payment. Both driver
  * and passenger apps generate the identical QR from the identical inputs
