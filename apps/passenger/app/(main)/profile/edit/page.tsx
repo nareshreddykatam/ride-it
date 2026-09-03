@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getPassengerProfile, updatePassengerProfile, type GenderRow } from "@ride-it/data";
+import { getPassengerProfile, updatePassengerProfile, errorMessage, type GenderRow } from "@ride-it/data";
 
 const GENDER_OPTIONS: { value: GenderRow; label: string }[] = [
   { value: "female", label: "Female" },
@@ -63,7 +63,7 @@ export default function EditPassengerProfilePage() {
       });
       router.push("/profile");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save your details. Please try again.");
+      setError(errorMessage(e) ?? "Couldn't save your details. Please try again.");
     } finally {
       setSaving(false);
     }

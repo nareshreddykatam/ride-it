@@ -13,6 +13,7 @@ import {
   redeemReferralCode,
   getStoredReferralCode,
   clearStoredReferralCode,
+  errorMessage,
   type GenderRow,
 } from "@ride-it/data";
 
@@ -109,7 +110,7 @@ export default function PassengerOnboardingPage() {
         setError("Couldn't save your details. Please try again.");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save your details. Please try again.");
+      setError(errorMessage(e) ?? "Couldn't save your details. Please try again.");
     } finally {
       setSaving(false);
     }

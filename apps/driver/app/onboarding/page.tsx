@@ -15,6 +15,7 @@ import {
   redeemReferralCode,
   getStoredReferralCode,
   clearStoredReferralCode,
+  errorMessage,
   type GenderRow,
 } from "@ride-it/data";
 
@@ -112,7 +113,7 @@ export default function DriverOnboardingPage() {
       });
       setStep("vehicle");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save your details. Please try again.");
+      setError(errorMessage(e) ?? "Couldn't save your details. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -151,7 +152,7 @@ export default function DriverOnboardingPage() {
         setError("Couldn't save your details. Please try again.");
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Couldn't save your vehicle. Check the registration number and try again.");
+      setError(errorMessage(e) ?? "Couldn't save your vehicle. Check the registration number and try again.");
     } finally {
       setSaving(false);
     }

@@ -101,7 +101,24 @@ export async function updatePassengerProfile(
 
   if (Object.keys(userUpdates).length > 0) {
     const { error } = await supabase.from("users").update(userUpdates).eq("id", passengerId);
-    if (error) throw error;
+    if (error) {
+      // 23505 = unique_violation. users_phone_unique_idx is the one a
+      // passenger can realistically hit here — e.g. they already have a
+      // second, separate Ridora account (created earlier via the other
+      // identifier, before that account was ever linked to this one) that
+      // already claims this phone number. The raw Postgres message
+      // ("duplicate key value violates unique constraint ...") is
+      // meaningless to a passenger and unhelpful even to a developer
+      // reading it in the UI — surfaced as a clear, actionable message
+      // instead. Every other error (RLS denial, connectivity, etc.) is
+      // rethrown as-is; nothing else is guessed at or hidden.
+      if (error.code === "23505" && error.message.includes("users_phone_unique_idx")) {
+        throw new Error(
+          "That mobile number is already linked to a different Ridora account. Use a different number, or sign in with that number instead."
+        );
+      }
+      throw error;
+    }
   }
   if (input.defaultPaymentMethod !== undefined) {
     const { error } = await supabase
