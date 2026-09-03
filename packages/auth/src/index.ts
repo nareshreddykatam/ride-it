@@ -9,4 +9,5 @@ export * from "./hooks";
 export * from "./phone-otp";
 export * from "./email-otp";
 export * from "./identifier";
+export * from "./identity-linking";
 export * from "./admin-auth";
