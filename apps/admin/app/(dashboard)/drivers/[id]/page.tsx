@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Star } from "lucide-react";
-import { Button, Card, CardHeader, CardTitle, ConfirmDialog, LiveStatBand, PaymentIcon, RideIcon, Skeleton, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
+import { Button, Card, CardHeader, CardTitle, ConfirmDialog, Dialog, LiveStatBand, PaymentIcon, RideIcon, Select, Skeleton, StatusPill, VEHICLE_VISUALS, WalletIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -14,19 +14,225 @@ import {
   setDriverUpiVerified,
   setDriverQrStatus,
   getDriverQrSignedUrl,
-  getDriverActiveSubscriptionAdmin,
+  getDriverSubscriptionDetailAdmin,
+  listSubscriptionPlans,
+  adminGrantDriverSubscription,
   getDriverEarningsSummaryAdmin,
   listReviewsReceived,
   getActiveVehicle,
+  errorMessage,
   type DriverProfileRow,
   type DriverDocumentRow,
   type DocumentType,
-  type AdminDriverSubscriptionSummary,
+  type AdminDriverSubscriptionDetail,
+  type SubscriptionPlanDefinition,
+  type SubscriptionPlanCode,
   type AdminDriverEarningsSummary,
   type RatingRow,
   type VehicleRow,
 } from "@ride-it/data";
 import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
+
+const PLAN_LABEL: Record<SubscriptionPlanCode, string> = {
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  yearly: "Yearly",
+};
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * Admin grant/extend subscription — Admin Console feature. Talks to
+ * admin_grant_driver_subscription() (20260903103000_admin_subscription_grants.sql)
+ * exclusively; never writes to public.subscriptions directly. The dialog
+ * only ever sends { driverId, plan, reason } — amount, start date, expiry,
+ * and grant-vs-extend are all decided server-side, so nothing typed or
+ * chosen here can influence what actually gets charged/stored beyond
+ * which plan and why.
+ */
+function SubscriptionCard({
+  driverId,
+  driverName,
+  subscription,
+  onGranted,
+}: {
+  driverId: string;
+  driverName: string;
+  subscription: AdminDriverSubscriptionDetail | null;
+  onGranted: () => void;
+}) {
+  const { user } = useAuth();
+  const supabase = React.useMemo(() => getSupabaseBrowserClient(), []);
+  const [plans, setPlans] = React.useState<SubscriptionPlanDefinition[]>([]);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [selectedPlan, setSelectedPlan] = React.useState<SubscriptionPlanCode>("monthly");
+  const [reason, setReason] = React.useState("");
+  const [submitting, setSubmitting] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [successUntil, setSuccessUntil] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!dialogOpen || plans.length > 0) return;
+    listSubscriptionPlans(supabase)
+      .then((rows) => {
+        setPlans(rows);
+        const firstPlan = rows[0];
+        if (firstPlan && !rows.some((p) => p.plan === selectedPlan)) setSelectedPlan(firstPlan.plan);
+      })
+      .catch((e) => setError(errorMessage(e) ?? "Couldn't load subscription plans."));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dialogOpen, supabase]);
+
+  const isExtend = subscription?.isCurrentlyActive ?? false;
+  const activePlanDef = plans.find((p) => p.plan === selectedPlan);
+
+  function openDialog() {
+    setError(null);
+    setReason("");
+    setDialogOpen(true);
+  }
+
+  async function handleConfirm() {
+    if (!user) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await adminGrantDriverSubscription(supabase, driverId, selectedPlan, reason);
+      setDialogOpen(false);
+      setSuccessUntil(result.expiresAt);
+      onGranted();
+    } catch (e) {
+      // Real Postgres errors from admin_grant_driver_subscription() surface
+      // here verbatim (e.g. "Only an admin can grant subscriptions",
+      // "Driver not found", "Invalid or inactive plan: X") — no generic
+      // "something went wrong" swallowing a real authorization/validation
+      // failure.
+      setError(errorMessage(e) ?? "Couldn't grant this subscription. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const statusTone = !subscription
+    ? "pending"
+    : subscription.isCurrentlyActive
+      ? "verified"
+      : "alert";
+  const statusLabel = !subscription ? "None" : subscription.isCurrentlyActive ? "Active" : "Expired";
+
+  return (
+    <>
+      <Card className="mt-2" accent="violet">
+        <CardHeader>
+          <CardTitle>Subscription</CardTitle>
+          <StatusPill tone={statusTone}>{statusLabel}</StatusPill>
+        </CardHeader>
+
+        {subscription ? (
+          <div className="flex flex-col gap-1.5 text-sm">
+            <p>
+              <span className="text-ink-soft">Plan:</span> {PLAN_LABEL[subscription.plan]}
+            </p>
+            <p>
+              <span className="text-ink-soft">Started:</span> {formatDate(subscription.startsAt)}
+            </p>
+            <p>
+              <span className="text-ink-soft">Expires:</span> {formatDate(subscription.expiresAt)}
+            </p>
+            {subscription.grantedByAdminName && (
+              <p>
+                <span className="text-ink-soft">Granted by:</span> {subscription.grantedByAdminName}
+              </p>
+            )}
+            {subscription.grantReason && (
+              <p>
+                <span className="text-ink-soft">Reason:</span> {subscription.grantReason}
+              </p>
+            )}
+          </div>
+        ) : (
+          <p className="text-sm text-ink-soft">This driver has never had a subscription.</p>
+        )}
+
+        {successUntil && (
+          <p className="mt-3 text-xs font-medium text-meter-green-text">
+            Subscription granted successfully. Active until {formatDate(successUntil)}.
+          </p>
+        )}
+
+        <Button size="sm" className="mt-3" onClick={openDialog}>
+          {isExtend ? "Extend subscription" : "Grant subscription"}
+        </Button>
+      </Card>
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => !submitting && setDialogOpen(open)}
+        dismissible={!submitting}
+        aria-label={isExtend ? "Extend subscription" : "Grant subscription"}
+      >
+        <h2 className="font-display text-base font-medium text-ink">
+          {isExtend ? `Extend ${driverName}'s subscription?` : `Grant ${driverName} a subscription?`}
+        </h2>
+        <p className="mt-1.5 text-sm text-ink-soft">
+          {isExtend
+            ? "The new duration is added to the current expiry date — no time already granted is lost."
+            : "This creates an active subscription immediately."}
+        </p>
+
+        <div className="mt-4">
+          <Select
+            label="Plan"
+            value={selectedPlan}
+            onChange={(e) => setSelectedPlan(e.target.value as SubscriptionPlanCode)}
+            disabled={submitting || plans.length === 0}
+          >
+            {plans.length === 0 && <option>Loading plans…</option>}
+            {plans.map((p) => (
+              <option key={p.plan} value={p.plan}>
+                {PLAN_LABEL[p.plan]} — {p.durationDays} days — ₹{p.amount}
+              </option>
+            ))}
+          </Select>
+          {activePlanDef && (
+            <p className="mt-1.5 text-xs text-ink-soft">
+              Duration: {activePlanDef.durationDays} days · Amount: ₹{activePlanDef.amount} (server-calculated, not client-editable)
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <label htmlFor="grant-reason" className="mb-1.5 block text-sm font-medium text-ink">
+            Reason (optional)
+          </label>
+          <textarea
+            id="grant-reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="e.g. Promotional grant, goodwill gesture, manually reconciled payment"
+            rows={2}
+            disabled={submitting}
+            className="w-full resize-none rounded-lg border border-border bg-surface p-3 text-sm text-ink outline-none focus:border-signal-blue"
+          />
+        </div>
+
+        {error && <p className="mt-3 text-sm text-alert-red">{error}</p>}
+
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="outline" size="md" onClick={() => setDialogOpen(false)} disabled={submitting}>
+            Cancel
+          </Button>
+          <Button size="md" loading={submitting} disabled={plans.length === 0} onClick={handleConfirm}>
+            {isExtend ? "Confirm extend" : "Confirm grant"}
+          </Button>
+        </div>
+      </Dialog>
+    </>
+  );
+}
 
 const GENDER_LABEL: Record<string, string> = {
   male: "Male",
@@ -296,7 +502,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
   const [profile, setProfile] = React.useState<DriverProfileRow | null>(null);
   const [vehicle, setVehicle] = React.useState<VehicleRow | null>(null);
   const [documents, setDocuments] = React.useState<DriverDocumentRow[]>([]);
-  const [subscription, setSubscription] = React.useState<AdminDriverSubscriptionSummary | null>(null);
+  const [subscription, setSubscription] = React.useState<AdminDriverSubscriptionDetail | null>(null);
   const [earnings, setEarnings] = React.useState<AdminDriverEarningsSummary | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [notes, setNotes] = React.useState("");
@@ -310,7 +516,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       getDriverProfile(supabase, params.id),
       getActiveVehicle(supabase, params.id),
       listDriverDocuments(supabase, params.id),
-      getDriverActiveSubscriptionAdmin(supabase, params.id),
+      getDriverSubscriptionDetailAdmin(supabase, params.id),
       getDriverEarningsSummaryAdmin(supabase, params.id),
       listReviewsReceived(supabase, params.id, 10),
     ]);
@@ -407,7 +613,12 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
         eyebrow="Driver snapshot"
         items={[
           { label: "Rating", value: profile.rating > 0 ? profile.rating.toFixed(1) : "—", icon: Star, tone: "marigold" },
-          { label: "Subscription", value: subscription ? subscription.plan : "None", icon: PaymentIcon, tone: "violet" },
+          {
+            label: "Subscription",
+            value: subscription ? (subscription.isCurrentlyActive ? PLAN_LABEL[subscription.plan] : "Expired") : "None",
+            icon: PaymentIcon,
+            tone: "violet",
+          },
           { label: "Completed rides", value: String(earnings?.totalRides ?? 0), icon: RideIcon, tone: "blue" },
           { label: "Total earnings", value: `₹${earnings?.totalEarnings ?? 0}`, icon: WalletIcon, tone: "green" },
         ]}
@@ -489,6 +700,12 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       </div>
 
       <p className="mt-8 text-xs font-semibold uppercase tracking-wider text-ink-soft">Payments &amp; earnings</p>
+      <SubscriptionCard
+        driverId={params.id}
+        driverName={profile.full_name ?? "this driver"}
+        subscription={subscription}
+        onGranted={refresh}
+      />
       <Card className="mt-2" accent="green">
         <CardHeader>
           <CardTitle>Driver UPI</CardTitle>

@@ -395,6 +395,196 @@ export async function getDriverActiveSubscriptionAdmin(
   return data as unknown as AdminDriverSubscriptionSummary | null;
 }
 
+// ---------------------------------------------------------------------------
+// Admin subscription grant/extend (Admin Console feature — see
+// 20260903103000_admin_subscription_grants.sql). Deliberately separate
+// from the driver-paid purchase flow (create_pending_subscription_payment/
+// mark_subscription_payment_captured, packages/data/src/drivers.ts) — an
+// admin grant involves no Razorpay payment, so it never touches
+// subscription_payments.
+// ---------------------------------------------------------------------------
+
+export type SubscriptionPlanCode = "daily" | "weekly" | "monthly" | "yearly";
+
+export interface SubscriptionPlanDefinition {
+  plan: SubscriptionPlanCode;
+  amount: number;
+  durationDays: number;
+}
+
+/**
+ * Source-of-truth plan list for the Admin grant/extend picker — reads the
+ * same subscription_plans table create_pending_subscription_payment()
+ * looks up server-side (readable by any authenticated session per
+ * subscription_plans_select_authenticated). Display only: the amount an
+ * admin grant actually charges is still re-derived server-side inside
+ * admin_grant_driver_subscription(), never trusted from this list.
+ */
+export async function listSubscriptionPlans(supabase: SupabaseClient): Promise<SubscriptionPlanDefinition[]> {
+  const { data, error } = await supabase
+    .from("subscription_plans")
+    .select("plan, amount, duration_days")
+    .eq("is_active", true)
+    .order("duration_days", { ascending: true });
+  if (error) throw error;
+  return (data as unknown as { plan: SubscriptionPlanCode; amount: number; duration_days: number }[]).map((row) => ({
+    plan: row.plan,
+    amount: Number(row.amount),
+    durationDays: row.duration_days,
+  }));
+}
+
+export interface AdminDriverSubscriptionDetail {
+  id: string;
+  plan: SubscriptionPlanCode;
+  status: "active" | "grace_period" | "expired" | "cancelled";
+  amount: number;
+  startsAt: string;
+  expiresAt: string;
+  grantedByAdminName: string | null;
+  grantReason: string | null;
+  /** True only if status is genuinely 'active' AND not yet past expiresAt — a stale 'active' row the expiry sweep hasn't caught yet reads as inactive here, same rule the grant RPC itself uses server-side. Display only; never used to gate anything server-authoritative. */
+  isCurrentlyActive: boolean;
+}
+
+/**
+ * The driver's current subscription, for the Admin driver-detail screen —
+ * unlike getDriverActiveSubscriptionAdmin above, this also surfaces
+ * "Expired"/"None" states and who granted the current one.
+ *
+ * Prefers the row with status='active' (the DB enforces at most one via a
+ * partial unique index) over "most recently created" — found live during
+ * this feature's own testing that recency alone is wrong: create_pending_
+ * subscription_payment() (packages/data/src/drivers.ts's real Razorpay
+ * purchase flow) inserts an inert, already-'expired' PLACEHOLDER
+ * subscriptions row (expires_at = starts_at + 1 second) the moment
+ * checkout starts, before payment is ever confirmed. If that checkout is
+ * abandoned, this placeholder ends up as the most-recently-created row
+ * for the driver, and sorting by created_at surfaces it instead of a
+ * genuinely active subscription created earlier. Only when no active row
+ * exists does this fall back to the most recent row overall, so an
+ * actually-expired/cancelled driver's history still displays.
+ *
+ * Two queries rather than an embed: subscriptions has no direct FK
+ * relationship ambiguity here, but resolving the granting admin's name is
+ * a separate, tiny lookup so a driver with no admin-granted subscription
+ * never pays for it.
+ */
+export async function getDriverSubscriptionDetailAdmin(
+  supabase: SupabaseClient,
+  driverId: string
+): Promise<AdminDriverSubscriptionDetail | null> {
+  const SUBSCRIPTION_DETAIL_COLUMNS = "id, plan, status, amount, starts_at, expires_at, granted_by, grant_reason";
+
+  const { data: activeRow, error: activeError } = await supabase
+    .from("subscriptions")
+    .select(SUBSCRIPTION_DETAIL_COLUMNS)
+    .eq("driver_id", driverId)
+    .eq("status", "active")
+    .maybeSingle();
+  if (activeError) throw activeError;
+
+  let data = activeRow;
+  if (!data) {
+    const { data: latestRow, error: latestError } = await supabase
+      .from("subscriptions")
+      .select(SUBSCRIPTION_DETAIL_COLUMNS)
+      .eq("driver_id", driverId)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (latestError) throw latestError;
+    data = latestRow;
+  }
+  if (!data) return null;
+
+  const row = data as unknown as {
+    id: string;
+    plan: SubscriptionPlanCode;
+    status: AdminDriverSubscriptionDetail["status"];
+    amount: number;
+    starts_at: string;
+    expires_at: string;
+    granted_by: string | null;
+    grant_reason: string | null;
+  };
+
+  let grantedByAdminName: string | null = null;
+  if (row.granted_by) {
+    const { data: admin } = await supabase.from("users").select("full_name").eq("id", row.granted_by).maybeSingle();
+    grantedByAdminName = (admin as unknown as { full_name: string | null } | null)?.full_name ?? null;
+  }
+
+  return {
+    id: row.id,
+    plan: row.plan,
+    status: row.status,
+    amount: Number(row.amount),
+    startsAt: row.starts_at,
+    expiresAt: row.expires_at,
+    grantedByAdminName,
+    grantReason: row.grant_reason,
+    isCurrentlyActive: row.status === "active" && new Date(row.expires_at).getTime() > Date.now(),
+  };
+}
+
+export interface AdminGrantSubscriptionResult {
+  subscriptionId: string;
+  plan: SubscriptionPlanCode;
+  status: string;
+  startsAt: string;
+  expiresAt: string;
+  amount: number;
+  action: "grant" | "extend";
+  previousExpiresAt: string | null;
+}
+
+/**
+ * Grants a new subscription, or extends the driver's current active one —
+ * decided server-side, never by the caller. The client sends only which
+ * driver, which plan, and an optional reason; amount/duration/start/expiry
+ * are computed inside admin_grant_driver_subscription() from
+ * subscription_plans and the driver's actual current subscription row.
+ * Throws with a real Postgres error (e.g. 42501 if the caller isn't an
+ * admin, P0002 if driverId doesn't belong to a real driver) — callers
+ * should surface error.message, not assume success.
+ */
+export async function adminGrantDriverSubscription(
+  supabase: SupabaseClient,
+  driverId: string,
+  plan: SubscriptionPlanCode,
+  reason?: string
+): Promise<AdminGrantSubscriptionResult> {
+  const { data, error } = await supabase
+    .rpc("admin_grant_driver_subscription", {
+      p_driver_id: driverId,
+      p_plan: plan,
+      p_reason: reason?.trim() ? reason.trim() : null,
+    })
+    .single();
+  if (error) throw error;
+  const row = data as unknown as {
+    subscription_id: string;
+    plan: SubscriptionPlanCode;
+    status: string;
+    starts_at: string;
+    expires_at: string;
+    amount: number;
+    action: "grant" | "extend";
+    previous_expires_at: string | null;
+  };
+  return {
+    subscriptionId: row.subscription_id,
+    plan: row.plan,
+    status: row.status,
+    startsAt: row.starts_at,
+    expiresAt: row.expires_at,
+    amount: Number(row.amount),
+    action: row.action,
+    previousExpiresAt: row.previous_expires_at,
+  };
+}
+
 export interface AdminDriverEarningsSummary {
   totalRides: number;
   totalEarnings: number;
