@@ -103,6 +103,7 @@ export function isDriverPersonalInfoComplete(
 
 export interface UpdateDriverPersonalInfoInput {
   fullName?: string;
+  phone?: string;
   email?: string;
   dateOfBirth?: string;
   gender?: GenderRow;
@@ -130,13 +131,24 @@ export async function updateDriverPersonalInfo(
 ): Promise<void> {
   const updates: Record<string, unknown> = {};
   if (input.fullName !== undefined) updates.full_name = input.fullName;
+  if (input.phone !== undefined) updates.phone = input.phone;
   if (input.email !== undefined) updates.email = input.email;
   if (input.dateOfBirth !== undefined) updates.date_of_birth = input.dateOfBirth;
   if (input.gender !== undefined) updates.gender = input.gender;
   if (Object.keys(updates).length === 0) return;
 
   const { error } = await supabase.from("users").update(updates).eq("id", driverId);
-  if (error) throw error;
+  if (error) {
+    // Mirrors updatePassengerProfile's identical handling — same
+    // users_phone_unique_idx constraint, same realistic cause (a second,
+    // separate Ridora account already claims this number).
+    if (error.code === "23505" && error.message.includes("users_phone_unique_idx")) {
+      throw new Error(
+        "That mobile number is already linked to a different Ridora account. Use a different number, or sign in with that number instead."
+      );
+    }
+    throw error;
+  }
 }
 
 /**

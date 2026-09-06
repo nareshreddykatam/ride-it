@@ -112,6 +112,7 @@ export default function DriverOnboardingPage() {
       await ensureDriverProfile(supabase);
       await updateDriverPersonalInfo(supabase, user.id, {
         fullName: fullName.trim(),
+        phone: phone.trim(),
         email: email.trim().toLowerCase(),
         dateOfBirth,
         gender: gender as GenderRow,
