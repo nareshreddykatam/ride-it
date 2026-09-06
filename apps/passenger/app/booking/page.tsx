@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { RefreshCw } from "lucide-react";
-import { Button, VehicleCard } from "@ride-it/ui";
+import { Button, VehicleCard, PageLoader } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb } from "@ride-it/types";
 import { RideMap, getCurrentPositionOnce, fetchEta, decodePolyline, type LatLng } from "@ride-it/maps";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -53,6 +53,15 @@ function BookingPageContent() {
   const [distanceKm, setDistanceKm] = React.useState(FALLBACK_DISTANCE_KM);
   const [encodedPolyline, setEncodedPolyline] = React.useState<string | null>(null);
   const [usedRealRoute, setUsedRealRoute] = React.useState(false);
+  // Gates the quotes effect below until pickup+distance have both settled
+  // to their real, final values — without this, quotes fired once
+  // immediately (fallback pickup/distance), again the instant real GPS
+  // pickup landed, and again once the real route distance landed: up to
+  // 3 full rounds of 4-parallel-RPC fetches per page visit, each toggling
+  // quotesLoading back to true and visibly re-flashing every vehicle
+  // card's fare. Mirrors booking/confirm/page.tsx's resolvingLocations
+  // gate, which already avoids this same cascade correctly.
+  const [resolvingLocation, setResolvingLocation] = React.useState(true);
 
   // Server-authoritative quotes for all 4 vehicle types (get_fare_quote(),
   // the same calculation compute_ride_fare() applies at ride creation —
@@ -69,7 +78,7 @@ function BookingPageContent() {
   const quotesRequestIdRef = React.useRef(0);
 
   React.useEffect(() => {
-    if (!drop) return;
+    if (!drop || resolvingLocation) return;
     const requestId = ++quotesRequestIdRef.current;
     setQuotesLoading(true);
     setQuotesError(false);
@@ -96,7 +105,10 @@ function BookingPageContent() {
       setQuotesLoading(false);
       setQuotesError(!anySucceeded);
     })();
-  }, [supabase, pickup, drop, distanceKm]);
+    // pickup/drop compared by coordinate, not object identity — same
+    // reasoning as booking/confirm/page.tsx's identical effects.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, resolvingLocation, pickup.lat, pickup.lng, drop?.lat, drop?.lng, distanceKm]);
 
   // Resolve pickup once on mount, then — if a real destination coordinate
   // came from the Search screen's Places selection — one real Routes API
@@ -107,6 +119,7 @@ function BookingPageContent() {
   // real distance the moment it lands.
   React.useEffect(() => {
     let active = true;
+    setResolvingLocation(true);
     (async () => {
       const pos = await getCurrentPositionOnce();
       if (!active) return;
@@ -121,6 +134,7 @@ function BookingPageContent() {
           setUsedRealRoute(true);
         }
       }
+      if (active) setResolvingLocation(false);
     })();
     return () => {
       active = false;
@@ -239,7 +253,7 @@ function BookingPageContent() {
           )}
         </div>
 
-        {!drop || quotesLoading ? (
+        {!drop || resolvingLocation || quotesLoading ? (
           <div className="mt-3.5 flex items-center gap-2 rounded-xl border border-border/80 bg-surface/60 p-3.5 text-center text-xs text-ink-soft">
             <RefreshCw size={13} className="animate-spin" />
             Calculating fare…
@@ -257,7 +271,7 @@ function BookingPageContent() {
             const meta = VEHICLE_META[type];
             const active = selected === type;
             const surged = (quote?.surgeMultiplier ?? 1) > 1;
-            const fareLabel = quote ? `₹${quote.totalFare}` : !drop || quotesLoading ? "…" : "Unavailable";
+            const fareLabel = quote ? `₹${quote.totalFare}` : !drop || resolvingLocation || quotesLoading ? "…" : "Unavailable";
             return (
               <VehicleCard
                 key={type}
@@ -309,7 +323,7 @@ function BookingPageContent() {
 
 export default function BookingPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <BookingPageContent />
     </Suspense>
   );

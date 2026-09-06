@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ShieldCheck } from "lucide-react";
-import { Button } from "@ride-it/ui";
+import { Button, PageLoader } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { signInAdminWithPassword } from "@ride-it/auth";
 
@@ -130,7 +130,7 @@ function AdminLoginPageContent() {
 // useSearchParams() requires a Suspense boundary in the Next.js App Router.
 export default function AdminLoginPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <AdminLoginPageContent />
     </Suspense>
   );

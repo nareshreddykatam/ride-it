@@ -36,6 +36,24 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   // opacity:0 instead of animating in). A plain fade-out on exit avoids
   // that fragile path entirely while keeping the direction cue where it
   // reads clearest: the incoming page sliding in from the correct side.
+  //
+  // ROOT-CAUSE FIX (production-readiness audit): the above mitigation
+  // reduced but did not eliminate the bug — live-reproduced navigating
+  // /home -> /search: the entering page's own wrapper div rendered with
+  // the EXIT preset's values frozen onto it (opacity:0, y:-6, matching
+  // `exit` below exactly, not any valid `initial`/enter computation).
+  // Root cause is `mode="wait"`: it holds the entering child unmounted
+  // until AnimatePresence's onExitComplete fires for the previous child,
+  // and that completion callback is what desynced — an interrupted or
+  // superseded exit (e.g. two navigations in quick succession) can leave
+  // AnimatePresence's internal bookkeeping applying the wrong child's
+  // animation props. `mode="popLayout"` removes this dependency
+  // entirely: the entering child mounts immediately and animates in on
+  // its own, independent of whatever the exiting child's animation is
+  // doing (which is pulled out of layout flow via position:absolute so
+  // it doesn't visually displace the new content) — there is no
+  // completion callback for the enter animation to ever get out of sync
+  // with.
   const direction = React.useMemo(() => {
     if (prevPathRef.current === pathname) return 0;
     const currentDepth = flowDepth(pathname);
@@ -53,7 +71,7 @@ export function PageTransition({ children }: { children: React.ReactNode }) {
   const enterY = direction === 0 ? 10 : 0;
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="popLayout" initial={false}>
       <motion.div
         key={pathname}
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: enterX, y: enterY }}

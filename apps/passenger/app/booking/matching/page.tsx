@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, MatchingRadar, type VehicleKind } from "@ride-it/ui";
+import { Button, MatchingRadar, PageLoader, type VehicleKind } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { advanceMatching, cancelMatchingRide, subscribeToRide, getRide, getAppSettingValue } from "@ride-it/data";
 import { RideMap } from "@ride-it/maps";
@@ -181,7 +181,7 @@ function MatchingPageContent() {
 
 export default function MatchingPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <MatchingPageContent />
     </Suspense>
   );

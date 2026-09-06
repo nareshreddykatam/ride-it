@@ -7,6 +7,7 @@ export * from "./components/meter-value";
 export * from "./components/bottom-sheet";
 export * from "./components/star-rating";
 export * from "./components/skeleton";
+export * from "./components/page-loader";
 export * from "./components/empty-state";
 export * from "./components/input";
 export * from "./components/select";

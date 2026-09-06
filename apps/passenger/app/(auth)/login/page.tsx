@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { PageLoader } from "@ride-it/ui";
 import { isE2ETestModeEnabled } from "@ride-it/supabase/e2e";
 import { LoginForm } from "./login-form";
 import { E2ETestLoginButton } from "./e2e-test-login-button";
@@ -19,7 +20,7 @@ export default function LoginPage() {
   const e2eEnabled = isE2ETestModeEnabled();
 
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <LoginForm>
         {e2eEnabled && <E2ETestLoginButton role="passenger" homePath="/home" />}
       </LoginForm>

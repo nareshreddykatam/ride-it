@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { MapPin, GraduationCap, Clock, Search, ArrowRight, Map as MapIcon } from "lucide-react";
-import { EmptyState, SkeletonRow, PinGlyph, HomeIcon, OfficeIcon, FriendsIcon } from "@ride-it/ui";
+import { EmptyState, SkeletonRow, PinGlyph, HomeIcon, OfficeIcon, FriendsIcon, PageLoader } from "@ride-it/ui";
 import {
   RideMap,
   isGoogleMapsConfigured,
@@ -434,7 +434,7 @@ function SearchPageContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <SearchPageContent />
     </Suspense>
   );

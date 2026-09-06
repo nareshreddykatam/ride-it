@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button, MeterValue, OtpInput } from "@ride-it/ui";
+import { Button, MeterValue, OtpInput, PageLoader } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, verifyPhoneOtp, requestEmailOtp, verifyEmailOtp } from "@ride-it/auth";
 import { setRidePin, getMyRidePin, getPassengerProfile, isPassengerProfileComplete } from "@ride-it/data";
@@ -183,7 +183,7 @@ function VerifyPageContent() {
 // renders almost instantly and a loading flash would be worse than a brief blank.
 export default function VerifyPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <VerifyPageContent />
     </Suspense>
   );

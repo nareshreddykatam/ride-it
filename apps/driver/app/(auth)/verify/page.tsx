@@ -4,7 +4,7 @@ import * as React from "react";
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Button, OtpInput, SafetyIcon } from "@ride-it/ui";
+import { Button, OtpInput, SafetyIcon, PageLoader } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, verifyPhoneOtp, requestEmailOtp, verifyEmailOtp } from "@ride-it/auth";
 import { getDriverProfile, isDriverPersonalInfoComplete, getActiveVehicle } from "@ride-it/data";
@@ -125,7 +125,7 @@ function VerifyPageContent() {
 // useSearchParams() requires a Suspense boundary in the Next.js App Router.
 export default function VerifyPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <VerifyPageContent />
     </Suspense>
   );

@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { RefreshCw, Route, Clock3, Pencil, X, Navigation, Search, Map as MapIcon } from "lucide-react";
-import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS, BottomSheet } from "@ride-it/ui";
+import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS, BottomSheet, PageLoader } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
@@ -539,7 +539,7 @@ function ConfirmBookingPageContent() {
 
 export default function ConfirmBookingPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <ConfirmBookingPageContent />
     </Suspense>
   );

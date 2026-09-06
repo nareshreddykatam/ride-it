@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowRight, MapPin } from "lucide-react";
-import { Button, PinGlyph } from "@ride-it/ui";
+import { Button, PinGlyph, PageLoader } from "@ride-it/ui";
 import { RideMap, getCurrentPositionOnce, fetchReverseGeocode, type LatLng } from "@ride-it/maps";
 
 type Mode = "pickup" | "destination";
@@ -184,7 +184,7 @@ function MapSelectPageContent() {
 
 export default function MapSelectPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PageLoader />}>
       <MapSelectPageContent />
     </Suspense>
   );
