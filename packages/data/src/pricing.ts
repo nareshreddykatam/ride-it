@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { VehicleTypeRow } from "./types";
+import { haversineKm } from "./rides";
 
 export interface FareQuoteInput {
   vehicleType: VehicleTypeRow;
@@ -27,8 +28,20 @@ export interface FareQuote {
  * Throws if no active pricing rule exists for this vehicle type, or if
  * distanceKm is implausible for the given coordinates — callers must show
  * a real error state, never a fallback/guessed amount.
+ *
+ * distanceKm is floored against the real haversine distance between
+ * pickup/drop (+0.15km margin) before being sent, identical to
+ * createRide()'s own floor (rides.ts) — without this, a caller still
+ * holding an honest-but-approximate fallback distance (e.g. no routing
+ * API configured) would get a quote computed from that stale, too-short
+ * distance, while the ride actually created moments later is charged
+ * from the floored, larger one — a quote that silently doesn't match
+ * what's charged. This can only ever move distanceKm UP to what the
+ * server would accept for these exact coordinates, never down, so it
+ * can't be used to understate a fare.
  */
 export async function getFareQuote(supabase: SupabaseClient, input: FareQuoteInput): Promise<FareQuote> {
+  const distanceKm = Math.max(input.distanceKm, haversineKm(input.pickup, input.drop) + 0.15);
   const { data, error } = await supabase
     .rpc("get_fare_quote", {
       p_vehicle_type: input.vehicleType,
@@ -36,7 +49,7 @@ export async function getFareQuote(supabase: SupabaseClient, input: FareQuoteInp
       p_pickup_lng: input.pickup.lng,
       p_drop_lat: input.drop.lat,
       p_drop_lng: input.drop.lng,
-      p_distance_km: input.distanceKm,
+      p_distance_km: distanceKm,
       p_city_id: input.cityId ?? null,
     })
     .single();

@@ -21,7 +21,7 @@ function toWkt({ lat, lng }: GeoPointInput): string {
  * client can never submit a distance_km that the server is guaranteed to
  * reject as implausible for the coordinates being sent.
  */
-function haversineKm(a: GeoPointInput, b: GeoPointInput): number {
+export function haversineKm(a: GeoPointInput, b: GeoPointInput): number {
   const R = 6371; // Earth radius, km
   const dLat = ((b.lat - a.lat) * Math.PI) / 180;
   const dLng = ((b.lng - a.lng) * Math.PI) / 180;
