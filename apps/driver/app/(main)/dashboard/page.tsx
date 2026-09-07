@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
-import { OnlineToggle, MeterValue, Skeleton, StatCard, StatusPill, Button, WalletIcon, RideIcon } from "@ride-it/ui";
+import { OnlineToggle, MeterValue, Skeleton, StatCard, StatusPill, Button, Card, WalletIcon, RideIcon } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
@@ -24,8 +24,17 @@ import {
   type DriverProfileRow,
   type SubscriptionRow,
   type RideOfferRow,
+  type VehicleRow,
 } from "@ride-it/data";
 import { RideRequestSheet } from "../../../components/ride-request-sheet";
+
+const VERIFICATION_LABEL: Record<DriverProfileRow["verification_status"], string> = {
+  pending: "Pending review",
+  in_review: "In review",
+  approved: "Approved",
+  rejected: "Rejected",
+  suspended: "Suspended",
+};
 
 function daysUntil(iso: string): number {
   return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
@@ -49,6 +58,7 @@ export default function DashboardPage() {
 
   const [loading, setLoading] = React.useState(true);
   const [profile, setProfile] = React.useState<DriverProfileRow | null>(null);
+  const [activeVehicle, setActiveVehicle] = React.useState<VehicleRow | null>(null);
   const [subscription, setSubscription] = React.useState<SubscriptionRow | null>(null);
   const [earningsToday, setEarningsToday] = React.useState({ total: 0, rides: 0 });
   const [walletBalance, setWalletBalance] = React.useState(0);
@@ -58,8 +68,8 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = React.useState(false);
   const [selfLocation, setSelfLocation] = React.useState<LatLng | null>(null);
 
-  // Single profile fetch, reused both to populate the dashboard AND for
-  // the onboarding-completeness check below -- these used to be two
+  // Single profile fetch, reused both to populate the dashboard AND to
+  // compute the driver's lifecycle state below -- these used to be two
   // separate effects that each called getDriverProfile() independently,
   // firing two redundant, concurrent requests for the exact same row on
   // every Dashboard mount.
@@ -67,7 +77,7 @@ export default function DashboardPage() {
     if (!user) return;
     setLoadError(false);
     try {
-      const [driverProfile, activeVehicle, activeSub, earnings, wallet] = await Promise.all([
+      const [driverProfile, vehicle, activeSub, earnings, wallet] = await Promise.all([
         getDriverProfile(supabase, user.id),
         getActiveVehicle(supabase, user.id),
         getActiveSubscription(supabase, user.id),
@@ -75,20 +85,22 @@ export default function DashboardPage() {
         getWallet(supabase, user.id),
       ]);
       setProfile(driverProfile);
+      setActiveVehicle(vehicle);
       setSubscription(activeSub);
       setEarningsToday({ total: earnings.totalEarnings, rides: earnings.ridesCompleted });
       setWalletBalance(wallet?.balance ?? 0);
-      // Defensive re-check, same reasoning as Passenger Home: the verify
-      // screen's routing is the primary onboarding gate, this closes the
-      // gap for any path that reaches Dashboard directly with incomplete
-      // personal info or no active vehicle on file.
-      if (!driverProfile || !isDriverPersonalInfoComplete(driverProfile) || !activeVehicle) {
-        router.replace("/onboarding");
-      }
+      // No redirect here (Part 1/2 fix): Driver Home always renders for
+      // every driver state -- incomplete profile, pending/rejected
+      // verification, approved-no-subscription, or fully ready -- with an
+      // inline setup card explaining what's next (see the lifecycle banner
+      // below) instead of unconditionally bouncing to /onboarding. A driver
+      // whose vehicle was later deactivated/rejected, or who has one
+      // incomplete profile field, used to be silently force-redirected away
+      // from Home with no visibility into why on every single visit.
     } catch {
       setLoadError(true);
     }
-  }, [supabase, user, router]);
+  }, [supabase, user]);
 
   React.useEffect(() => {
     loadAll().finally(() => setLoading(false));
@@ -153,17 +165,21 @@ export default function DashboardPage() {
 
   async function handleToggleOnline() {
     if (!user || !profile) return;
-    if (!subscription && !profile.is_online) return; // can't go online without an active subscription
+    // Ride eligibility (Part 2/3): going online requires BOTH verification
+    // approval and an active subscription — two separate states, both
+    // enforced again server-side by enforce_driver_online_requires_
+    // subscription() (20260907 added the approval check there too).
+    if (!profile.is_online && (profile.verification_status !== "approved" || !subscription)) return;
     setTogglingOnline(true);
     try {
       const next = !profile.is_online;
       await setDriverOnlineStatus(supabase, user.id, next);
       setProfile({ ...profile, is_online: next });
     } catch {
-      // Server-side enforce_driver_online_requires_subscription (Phase
-      // 6.1) rejects this if the subscription check fails at the DB
-      // level too — surfacing nothing further here is acceptable since
-      // the button is already disabled in that case.
+      // Server-side enforce_driver_online_requires_subscription rejects
+      // this if the approval/subscription check fails at the DB level too
+      // — surfacing nothing further here is acceptable since the button is
+      // already disabled in that case.
     } finally {
       setTogglingOnline(false);
     }
@@ -204,6 +220,15 @@ export default function DashboardPage() {
     );
   }
 
+  // Driver lifecycle state (Part 2) — computed, never redirected on. Every
+  // driver sees Driver Home; this only decides which inline setup/status
+  // card renders below the earnings/online-toggle content that's always
+  // visible regardless of state.
+  const setupIncomplete = !profile || !isDriverPersonalInfoComplete(profile) || !activeVehicle;
+  const verificationPending = profile?.verification_status === "pending" || profile?.verification_status === "in_review";
+  const verificationBlocked = profile?.verification_status === "rejected" || profile?.verification_status === "suspended";
+  const verificationApproved = profile?.verification_status === "approved";
+
   return (
     <main className="flex-1 px-6 py-8">
       {/* Map — real spatial context for the dashboard (~30% of the mobile
@@ -237,23 +262,69 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Header: quiet greeting + subscription status, no card chrome. */}
+      {/* Header: quiet greeting + verification/subscription status, no card
+          chrome. Verification is shown whenever it isn't a plain "approved"
+          (Part 2/3 — verification and subscription are separate states,
+          both surfaced here rather than only subscription as before). */}
       <div className="mt-5 flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-ink-soft">
             {greeting()}, {firstName(profile?.full_name)}
           </p>
-          {subscription && (
+          {verificationApproved && subscription && (
             <p className="mt-0.5 text-xs text-ink-soft">
               {subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} plan · expires in{" "}
               {daysUntil(subscription.expires_at)} days
             </p>
           )}
         </div>
-        <StatusPill tone={subscription ? "verified" : "alert"} className="shrink-0">
-          {subscription ? "Active" : "Inactive"}
-        </StatusPill>
+        {!setupIncomplete && (
+          <StatusPill tone={verificationApproved ? (subscription ? "verified" : "alert") : "pending"} className="shrink-0">
+            {verificationApproved ? (subscription ? "Active" : "Inactive") : VERIFICATION_LABEL[profile!.verification_status]}
+          </StatusPill>
+        )}
       </div>
+
+      {/* Lifecycle setup/status card (Part 1/2/3) — exactly one of these
+          renders, in priority order: incomplete profile, then verification
+          pending/blocked, then (once approved) the existing subscription
+          CTA/expiry-warning cards below. Never a redirect: the rest of
+          Home (map, earnings, wallet, rating) still renders regardless. */}
+      {setupIncomplete && (
+        <Card className="mt-4" accent="marigold">
+          <p className="text-sm font-semibold text-ink">Complete your driver profile</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            Add your personal details and vehicle information to start driving with Ridora.
+          </p>
+          <Button size="sm" className="mt-3" onClick={() => router.push("/onboarding")}>
+            Complete setup
+          </Button>
+        </Card>
+      )}
+      {!setupIncomplete && verificationPending && (
+        <Card className="mt-4" accent="blue">
+          <p className="text-sm font-semibold text-ink">Verification pending</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            We're reviewing your documents. You can go online once an admin approves your account.
+          </p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => router.push("/documents")}>
+            View documents
+          </Button>
+        </Card>
+      )}
+      {!setupIncomplete && verificationBlocked && (
+        <Card className="mt-4" accent="red">
+          <p className="text-sm font-semibold text-alert-red">
+            {profile!.verification_status === "rejected" ? "Verification rejected" : "Account suspended"}
+          </p>
+          <p className="mt-1 text-xs text-ink-soft">
+            {profile!.verification_notes?.trim() || "Contact support for details."}
+          </p>
+          <Button size="sm" variant="outline" className="mt-3" onClick={() => router.push("/support")}>
+            Contact support
+          </Button>
+        </Card>
+      )}
 
       {/* HERO: today's earnings — the driver's #1 question, answered first
           and biggest. Deliberately bare (no card border/shadow) so scale
@@ -267,23 +338,28 @@ export default function DashboardPage() {
         />
       </div>
 
-      {/* Online control — the second focal point. */}
+      {/* Online control — the second focal point. Ride eligibility (Part
+          2/3) requires BOTH verification approval and an active
+          subscription — the subtitle names whichever is actually blocking
+          the driver, not just subscription as before. */}
       <OnlineToggle
         online={!!profile?.is_online}
-        disabled={togglingOnline || (!subscription && !profile?.is_online)}
+        disabled={togglingOnline || (!profile?.is_online && (!verificationApproved || !subscription))}
         loading={togglingOnline}
         subtitle={
-          !subscription
-            ? "Subscribe to start accepting rides"
-            : profile?.is_online
-              ? "Looking for rides nearby…"
-              : "Tap to start receiving ride requests"
+          !verificationApproved
+            ? "Complete verification to start accepting rides"
+            : !subscription
+              ? "Subscribe to start accepting rides"
+              : profile?.is_online
+                ? "Looking for rides nearby…"
+                : "Tap to start receiving ride requests"
         }
         onToggle={handleToggleOnline}
         className="mt-6"
       />
 
-      {!subscription && (
+      {verificationApproved && !subscription && (
         <Button
           variant="marigold"
           className="mt-3 w-full"
@@ -297,7 +373,7 @@ export default function DashboardPage() {
           days" quietly at all times; this is the escalated, hard-to-miss
           version for when it's genuinely close, so a driver can't lose
           ride eligibility with zero warning. */}
-      {subscription && daysUntil(subscription.expires_at) <= 3 && (
+      {verificationApproved && subscription && daysUntil(subscription.expires_at) <= 3 && (
         <button
           type="button"
           onClick={() => router.push("/subscription")}

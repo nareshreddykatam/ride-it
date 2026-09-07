@@ -27,6 +27,7 @@ import {
   type AdminDriverSubscriptionDetail,
   type SubscriptionPlanDefinition,
   type SubscriptionPlanCode,
+  type SubscriptionVehicleType,
   type AdminDriverEarningsSummary,
   type RatingRow,
   type VehicleRow,
@@ -56,11 +57,13 @@ function formatDate(iso: string): string {
 function SubscriptionCard({
   driverId,
   driverName,
+  vehicleType,
   subscription,
   onGranted,
 }: {
   driverId: string;
   driverName: string;
+  vehicleType: SubscriptionVehicleType;
   subscription: AdminDriverSubscriptionDetail | null;
   onGranted: () => void;
 }) {
@@ -76,7 +79,11 @@ function SubscriptionCard({
 
   React.useEffect(() => {
     if (!dialogOpen || plans.length > 0) return;
-    listSubscriptionPlans(supabase)
+    // Scoped to this driver's own vehicle type (Part 5) — a grant can only
+    // ever apply to the vehicle the driver is actually registered with;
+    // admin_grant_driver_subscription() enforces the same scoping
+    // server-side regardless of what this list shows.
+    listSubscriptionPlans(supabase, vehicleType)
       .then((rows) => {
         setPlans(rows);
         const firstPlan = rows[0];
@@ -84,7 +91,7 @@ function SubscriptionCard({
       })
       .catch((e) => setError(errorMessage(e) ?? "Couldn't load subscription plans."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dialogOpen, supabase]);
+  }, [dialogOpen, supabase, vehicleType]);
 
   const isExtend = subscription?.isCurrentlyActive ?? false;
   const activePlanDef = plans.find((p) => p.plan === selectedPlan);
@@ -181,6 +188,9 @@ function SubscriptionCard({
           {isExtend
             ? "The new duration is added to the current expiry date — no time already granted is lost."
             : "This creates an active subscription immediately."}
+        </p>
+        <p className="mt-1 text-xs font-medium uppercase tracking-wide text-ink-soft">
+          {VEHICLE_TYPE_LABELS_DB[vehicleType]} plans only — this driver's registered vehicle type
         </p>
 
         <div className="mt-4">
@@ -703,6 +713,7 @@ export default function DriverDetailPage({ params }: { params: { id: string } })
       <SubscriptionCard
         driverId={params.id}
         driverName={profile.full_name ?? "this driver"}
+        vehicleType={profile.vehicle_type}
         subscription={subscription}
         onGranted={refresh}
       />

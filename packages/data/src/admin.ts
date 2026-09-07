@@ -405,8 +405,10 @@ export async function getDriverActiveSubscriptionAdmin(
 // ---------------------------------------------------------------------------
 
 export type SubscriptionPlanCode = "daily" | "weekly" | "monthly" | "yearly";
+export type SubscriptionVehicleType = "bike" | "scooty" | "auto" | "car";
 
 export interface SubscriptionPlanDefinition {
+  vehicleType: SubscriptionVehicleType;
   plan: SubscriptionPlanCode;
   amount: number;
   durationDays: number;
@@ -419,15 +421,33 @@ export interface SubscriptionPlanDefinition {
  * subscription_plans_select_authenticated). Display only: the amount an
  * admin grant actually charges is still re-derived server-side inside
  * admin_grant_driver_subscription(), never trusted from this list.
+ *
+ * subscription_plans is vehicle-specific (20260907) — pass `vehicleType` to
+ * get only the plans applicable to one driver's vehicle (the Admin grant
+ * picker's normal use, since a grant can only ever apply to the target
+ * driver's own vehicle type); omit it to list every vehicle type's plans
+ * (the Admin pricing-config screen's use).
  */
-export async function listSubscriptionPlans(supabase: SupabaseClient): Promise<SubscriptionPlanDefinition[]> {
-  const { data, error } = await supabase
+export async function listSubscriptionPlans(
+  supabase: SupabaseClient,
+  vehicleType?: SubscriptionVehicleType
+): Promise<SubscriptionPlanDefinition[]> {
+  let query = supabase
     .from("subscription_plans")
-    .select("plan, amount, duration_days")
-    .eq("is_active", true)
-    .order("duration_days", { ascending: true });
+    .select("vehicle_type, plan, amount, duration_days")
+    .eq("is_active", true);
+  if (vehicleType) query = query.eq("vehicle_type", vehicleType);
+  const { data, error } = await query.order("vehicle_type", { ascending: true }).order("duration_days", { ascending: true });
   if (error) throw error;
-  return (data as unknown as { plan: SubscriptionPlanCode; amount: number; duration_days: number }[]).map((row) => ({
+  return (
+    data as unknown as {
+      vehicle_type: SubscriptionVehicleType;
+      plan: SubscriptionPlanCode;
+      amount: number;
+      duration_days: number;
+    }[]
+  ).map((row) => ({
+    vehicleType: row.vehicle_type,
     plan: row.plan,
     amount: Number(row.amount),
     durationDays: row.duration_days,
@@ -1113,28 +1133,36 @@ export async function addAdminRideNote(
 // ---------------------------------------------------------------------------
 
 export interface SubscriptionPlanRow {
+  vehicle_type: SubscriptionVehicleType;
   plan: "daily" | "weekly" | "monthly" | "yearly";
   amount: number;
   duration_days: number;
   is_active: boolean;
 }
 
+/** subscription_plans is vehicle-specific (20260907) — returns all 16 (vehicle_type, plan) rows for the Admin pricing-config screen. */
 export async function listSubscriptionPlansAdmin(supabase: SupabaseClient): Promise<SubscriptionPlanRow[]> {
   const { data, error } = await supabase
     .from("subscription_plans")
-    .select("plan, amount, duration_days, is_active")
+    .select("vehicle_type, plan, amount, duration_days, is_active")
+    .order("vehicle_type", { ascending: true })
     .order("duration_days", { ascending: true });
   if (error) throw error;
   return (data ?? []) as unknown as SubscriptionPlanRow[];
 }
 
-/** Secured by subscription_plans_all_admin RLS (Phase 6.1). */
+/** Secured by subscription_plans_all_admin RLS (Phase 6.1). Natural key is (vehicle_type, plan) since 20260907 — both are required to identify one price row. */
 export async function updateSubscriptionPlanAmount(
   supabase: SupabaseClient,
+  vehicleType: SubscriptionVehicleType,
   plan: SubscriptionPlanRow["plan"],
   amount: number
 ): Promise<void> {
-  const { error } = await supabase.from("subscription_plans").update({ amount }).eq("plan", plan);
+  const { error } = await supabase
+    .from("subscription_plans")
+    .update({ amount })
+    .eq("vehicle_type", vehicleType)
+    .eq("plan", plan);
   if (error) throw error;
 }
 
@@ -1167,17 +1195,25 @@ export async function listSubscriptionPaymentsAdmin(supabase: SupabaseClient, li
 }
 
 export interface SubscriptionPlanCounts {
+  vehicleType: string;
   plan: string;
   activeCount: number;
 }
 
+/** Keyed by (vehicle_type, plan) since 20260907 — the same plan tier can now have distinct counts per vehicle type. */
 export async function getActiveSubscriptionCountsByPlan(supabase: SupabaseClient): Promise<SubscriptionPlanCounts[]> {
-  const { data, error } = await supabase.from("subscriptions").select("plan").eq("status", "active");
+  const { data, error } = await supabase.from("subscriptions").select("vehicle_type, plan").eq("status", "active");
   if (error) throw error;
-  const rows = (data ?? []) as unknown as Array<{ plan: string }>;
+  const rows = (data ?? []) as unknown as Array<{ vehicle_type: string; plan: string }>;
   const counts = new Map<string, number>();
-  for (const r of rows) counts.set(r.plan, (counts.get(r.plan) ?? 0) + 1);
-  return Array.from(counts.entries()).map(([plan, activeCount]) => ({ plan, activeCount }));
+  for (const r of rows) {
+    const key = `${r.vehicle_type}:${r.plan}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([key, activeCount]) => {
+    const separatorIndex = key.indexOf(":");
+    return { vehicleType: key.slice(0, separatorIndex), plan: key.slice(separatorIndex + 1), activeCount };
+  });
 }
 
 // ---------------------------------------------------------------------------

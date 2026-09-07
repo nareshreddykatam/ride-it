@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import { Button, OtpInput, SafetyIcon, PageLoader } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { requestPhoneOtp, verifyPhoneOtp, requestEmailOtp, verifyEmailOtp } from "@ride-it/auth";
-import { getDriverProfile, isDriverPersonalInfoComplete, getActiveVehicle } from "@ride-it/data";
 
 const RESEND_SECONDS = 30;
 
@@ -42,19 +41,16 @@ function VerifyPageContent() {
         identifierType === "email"
           ? await verifyEmailOtp(supabase, identifierValue, code)
           : await verifyPhoneOtp(supabase, identifierValue, code);
-      // Driver PRD registration flow: Login -> Onboarding (personal info +
-      // vehicle) -> Documents -> Verification -> Subscription -> Dashboard.
-      // Onboarding is a one-time gate (Part 3): a driver whose personal
-      // info and active vehicle are both already on file skips straight to
-      // /documents, exactly as before this change for every returning,
-      // already-onboarded driver.
+      // Driver lifecycle fix: every driver, new or returning, lands on
+      // Driver Home after OTP — never auto-routed into onboarding or
+      // documents. Home itself (apps/driver/app/(main)/dashboard/page.tsx)
+      // computes the driver's actual state (incomplete profile / pending
+      // verification / rejected / approved-no-subscription / ready) and
+      // shows the right inline setup card there, with an explicit action to
+      // continue onboarding — rather than an unconditional redirect
+      // deciding that for every driver before Home is ever shown.
       if (!result.user) throw new Error("Verification succeeded but no user was returned.");
-      const [profile, vehicle] = await Promise.all([
-        getDriverProfile(supabase, result.user.id),
-        getActiveVehicle(supabase, result.user.id),
-      ]);
-      const needsOnboarding = !profile || !isDriverPersonalInfoComplete(profile) || !vehicle;
-      router.push(needsOnboarding ? "/onboarding" : "/documents");
+      router.push("/dashboard");
     } catch (e) {
       setError(true);
       setErrorMessage(e instanceof Error ? e.message : null);

@@ -8,7 +8,7 @@ import { Button, VehicleCard, PageLoader } from "@ride-it/ui";
 import { VehicleType, vehicleTypeToDb } from "@ride-it/types";
 import { RideMap, getCurrentPositionOnce, fetchEta, decodePolyline, type LatLng } from "@ride-it/maps";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { getFareQuote, type FareQuote } from "@ride-it/data";
+import { getFareQuote, haversineKm, type FareQuote } from "@ride-it/data";
 
 const VEHICLE_META: Record<VehicleType, { label: string; sublabel: string; capacity: string; etaMinutes: number }> = {
   [VehicleType.BIKE]: { label: "Bike", sublabel: "Motorcycle", capacity: "1 seat", etaMinutes: 3 },
@@ -23,11 +23,18 @@ const VEHICLE_META: Record<VehicleType, { label: string; sublabel: string; capac
 // recommendation regardless of the tapped state.
 const RECOMMENDED_TYPE = VehicleType.AUTO;
 
-// Used only when real pickup/destination coordinates aren't both
-// resolvable (no geolocation permission, or the passenger picked a
-// destination via the dev-only fallback list with no known coordinates)
-// — the same honest-degradation default this screen always had before
-// real distance existed.
+// Used only as the inert initial state before pickup+drop are both known
+// (the quotes effect never fires before then — see `if (!drop ...) return`
+// below) — never actually sent in a quote. Once drop exists, distanceKm is
+// always set from a real measurement: the Routes API distance when
+// available, or the real haversine straight-line distance between the
+// actual coordinates otherwise (see the route-resolution effect below).
+// Previously this constant itself was left in place whenever the Routes
+// API call failed — which, with GOOGLE_MAPS_ROUTES_API_KEY unconfigured,
+// is every single request in production — silently pricing every ride as
+// if it were exactly a 5km trip regardless of the real (often much
+// shorter) distance. A fixed number is never an honest stand-in for a
+// real per-ride distance used to calculate a real charge.
 const FALLBACK_DISTANCE_KM = 5;
 
 // get_fare_quote() needs a real pickup POINT (it's not just a distance
@@ -132,6 +139,14 @@ function BookingPageContent() {
           setDistanceKm(Math.max(0.1, eta.distanceMeters / 1000));
           setEncodedPolyline(eta.encodedPolyline);
           setUsedRealRoute(true);
+        } else {
+          // Routes API unavailable (no key configured, or a transient
+          // failure) — fall back to the real straight-line distance
+          // between the actual coordinates, never a fixed constant. This
+          // is the same floor createRide()/getFareQuote() apply
+          // server-side, computed here so the pre-ride estimate reflects
+          // a genuine (if approximate) distance instead of a fake one.
+          setDistanceKm(Math.max(0.1, haversineKm(effectivePickup, drop) + 0.15));
         }
       }
       if (active) setResolvingLocation(false);

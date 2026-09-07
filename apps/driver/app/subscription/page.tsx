@@ -6,20 +6,22 @@ import { motion } from "framer-motion";
 import { Button, Card, MeterValue, Skeleton, StatusPill } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { createPendingSubscriptionPayment, attachSubscriptionPaymentOrder, type SubscriptionRow } from "@ride-it/data";
+import {
+  createPendingSubscriptionPayment,
+  attachSubscriptionPaymentOrder,
+  listSubscriptionPlans,
+  getDriverProfile,
+  type SubscriptionRow,
+  type SubscriptionPlanDefinition,
+} from "@ride-it/data";
 import { openRazorpayCheckout } from "@ride-it/payments/client-checkout";
 
-// Pricing display mirrors subscription_plans (the real source of truth,
-// Phase 6.1) — shown here for the picker UI only; the actual amount
-// charged is always re-derived server-side by
-// create_pending_subscription_payment(), never trusted from these
-// constants.
-const PLANS: { plan: SubscriptionRow["plan"]; label: string; amount: number; perLabel: string; tag?: string }[] = [
-  { plan: "daily", label: "Daily", amount: 49, perLabel: "per day" },
-  { plan: "weekly", label: "Weekly", amount: 299, perLabel: "per week", tag: "Save 12%" },
-  { plan: "monthly", label: "Monthly", amount: 999, perLabel: "per month", tag: "Most popular" },
-  { plan: "yearly", label: "Yearly", amount: 9999, perLabel: "per year", tag: "Save 17%" },
-];
+const PLAN_META: Record<SubscriptionRow["plan"], { label: string; perLabel: string; tag?: string }> = {
+  daily: { label: "Daily", perLabel: "per day" },
+  weekly: { label: "Weekly", perLabel: "per week", tag: "Save 12%" },
+  monthly: { label: "Monthly", perLabel: "per month", tag: "Most popular" },
+  yearly: { label: "Yearly", perLabel: "per year", tag: "Save 17%" },
+};
 
 type PayState = "idle" | "creating" | "awaiting_checkout" | "verifying" | "captured" | "failed" | "unavailable";
 
@@ -30,6 +32,39 @@ export default function SubscriptionPage() {
   const [selected, setSelected] = React.useState<SubscriptionRow["plan"]>("monthly");
   const [payState, setPayState] = React.useState<PayState>("idle");
   const [error, setError] = React.useState<string | null>(null);
+  // Real prices for this driver's own vehicle type, read from
+  // subscription_plans (20260907: vehicle-specific) — never hardcoded
+  // frontend constants. Only plans for the vehicle type this driver is
+  // actually registered with are ever shown or purchasable here.
+  const [plans, setPlans] = React.useState<SubscriptionPlanDefinition[] | null>(null);
+  const [plansError, setPlansError] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!user) return;
+    let active = true;
+    getDriverProfile(supabase, user.id)
+      .then((profile) => {
+        if (!active || !profile) return null;
+        return listSubscriptionPlans(supabase, profile.vehicle_type);
+      })
+      .then((rows) => {
+        if (!active) return;
+        if (rows) {
+          setPlans(rows);
+          const firstPlan = rows[0];
+          if (firstPlan && !rows.some((p) => p.plan === selected)) setSelected(firstPlan.plan);
+        } else {
+          setPlansError(true);
+        }
+      })
+      .catch(() => {
+        if (active) setPlansError(true);
+      });
+    return () => {
+      active = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, user]);
 
   async function handlePurchase() {
     if (!user) return;
@@ -106,28 +141,40 @@ export default function SubscriptionPage() {
         </p>
 
         <div className="mt-6 flex flex-col gap-3">
-          {PLANS.map((p) => {
-            const active = selected === p.plan;
-            return (
-              <button key={p.plan} onClick={() => setSelected(p.plan)} aria-pressed={active} className="text-left">
-                <Card
-                  tone={active ? "elevated" : "default"}
-                  className={active ? "rounded-lg border-2 border-marigold" : "rounded-lg border border-border"}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-display text-base font-medium text-ink">{p.label}</p>
-                        {p.tag && <StatusPill tone="pending">{p.tag}</StatusPill>}
+          {plansError ? (
+            <p className="text-sm text-alert-red">Couldn&apos;t load subscription plans. Please try again.</p>
+          ) : !plans ? (
+            <>
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+              <Skeleton className="h-16 w-full rounded-lg" />
+            </>
+          ) : (
+            plans.map((p) => {
+              const active = selected === p.plan;
+              const meta = PLAN_META[p.plan];
+              return (
+                <button key={p.plan} onClick={() => setSelected(p.plan)} aria-pressed={active} className="text-left">
+                  <Card
+                    tone={active ? "elevated" : "default"}
+                    className={active ? "rounded-lg border-2 border-marigold" : "rounded-lg border border-border"}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-display text-base font-medium text-ink">{meta.label}</p>
+                          {meta.tag && <StatusPill tone="pending">{meta.tag}</StatusPill>}
+                        </div>
+                        <p className="text-xs text-ink-soft">{meta.perLabel}</p>
                       </div>
-                      <p className="text-xs text-ink-soft">{p.perLabel}</p>
+                      <MeterValue value={`₹${p.amount}`} size="md" />
                     </div>
-                    <MeterValue value={`₹${p.amount}`} size="md" />
-                  </div>
-                </Card>
-              </button>
-            );
-          })}
+                  </Card>
+                </button>
+              );
+            })
+          )}
         </div>
 
         {payState === "unavailable" && (
@@ -154,7 +201,7 @@ export default function SubscriptionPage() {
       </motion.div>
 
       <div className="mt-auto pt-8">
-        <Button variant="marigold" className="w-full" disabled={busy} onClick={handlePurchase}>
+        <Button variant="marigold" className="w-full" disabled={busy || !plans || plansError} onClick={handlePurchase}>
           {payState === "creating"
             ? "Starting payment…"
             : payState === "awaiting_checkout"

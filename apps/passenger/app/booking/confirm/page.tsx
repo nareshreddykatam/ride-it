@@ -9,7 +9,7 @@ import { Button, MeterValue, Skeleton, PinGlyph, VEHICLE_VISUALS, BottomSheet, P
 import { VehicleType, vehicleTypeToDb, VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { createRide, startMatching, getFareQuote, type FareQuote } from "@ride-it/data";
+import { createRide, startMatching, getFareQuote, haversineKm, type FareQuote } from "@ride-it/data";
 import { RideMap, getCurrentPositionOnce, fetchGeocode, fetchEta, decodePolyline, type LatLng } from "@ride-it/maps";
 
 // Fallback ONLY when real geolocation/geocoding is unavailable (permission
@@ -164,6 +164,16 @@ function ConfirmBookingPageContent() {
         setUsedRealRoute(true);
       } else {
         setStaleRoute(true);
+        // Never leave liveDistanceKm pinned at a fake constant (e.g. the
+        // Booking screen's honest-fallback guess) when we've never
+        // actually gotten a real route for THIS pickup/drop — recompute
+        // from the real straight-line distance instead, same floor
+        // createRide()/getFareQuote() apply server-side. If a real route
+        // WAS already obtained earlier (usedRealRoute), keep it — this
+        // failed refresh doesn't un-flag a genuinely-real distance.
+        if (!usedRealRoute) {
+          setLiveDistanceKm(Math.max(0.1, haversineKm(pickup, drop) + 0.15));
+        }
       }
     })();
     return () => {

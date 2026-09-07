@@ -12,7 +12,10 @@ import {
   type SubscriptionPlanRow,
   type AdminSubscriptionPaymentRow,
 } from "@ride-it/data";
+import { VEHICLE_TYPE_LABELS_DB } from "@ride-it/types";
 import { DataTable, type Column } from "../../../components/data-table";
+
+const VEHICLE_TYPE_ORDER: SubscriptionPlanRow["vehicle_type"][] = ["bike", "scooty", "auto", "car"];
 
 function formatDate(iso: string | null): string {
   if (!iso) return "—";
@@ -39,6 +42,9 @@ export default function SubscriptionsPage() {
   const [counts, setCounts] = React.useState<Record<string, number>>({});
   const [payments, setPayments] = React.useState<AdminSubscriptionPaymentRow[]>([]);
   const [loading, setLoading] = React.useState(true);
+  // Keyed by "vehicleType:plan" — the natural key since subscription_plans
+  // became vehicle-specific (20260907); `plan` alone no longer identifies
+  // one price row.
   const [editing, setEditing] = React.useState<string | null>(null);
   const [editValue, setEditValue] = React.useState("");
 
@@ -49,7 +55,7 @@ export default function SubscriptionsPage() {
       listSubscriptionPaymentsAdmin(supabase),
     ]);
     setPlans(p);
-    setCounts(Object.fromEntries(c.map((x) => [x.plan, x.activeCount])));
+    setCounts(Object.fromEntries(c.map((x) => [`${x.vehicleType}:${x.plan}`, x.activeCount])));
     setPayments(pay);
   }, [supabase]);
 
@@ -58,13 +64,19 @@ export default function SubscriptionsPage() {
     refresh().finally(() => setLoading(false));
   }, [user, refresh]);
 
-  async function handleSave(plan: SubscriptionPlanRow["plan"]) {
+  async function handleSave(vehicleType: SubscriptionPlanRow["vehicle_type"], plan: SubscriptionPlanRow["plan"]) {
     const amount = Number(editValue);
     if (!Number.isFinite(amount) || amount < 0) return;
-    await updateSubscriptionPlanAmount(supabase, plan, amount);
+    await updateSubscriptionPlanAmount(supabase, vehicleType, plan, amount);
     setEditing(null);
     await refresh();
   }
+
+  const plansByVehicle = React.useMemo(() => {
+    const map = new Map<SubscriptionPlanRow["vehicle_type"], SubscriptionPlanRow[]>();
+    for (const p of plans) map.set(p.vehicle_type, [...(map.get(p.vehicle_type) ?? []), p]);
+    return map;
+  }, [plans]);
 
   return (
     <div>
@@ -80,44 +92,65 @@ export default function SubscriptionsPage() {
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {loading
-          ? Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-lg" />)
-          : plans.map((p) => (
-              <Card key={p.plan} tone="elevated" accent="marigold">
-                <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">{p.plan.charAt(0).toUpperCase() + p.plan.slice(1)}</p>
-                <div className="mt-1 flex items-center justify-between">
-                  {editing === p.plan ? (
-                    <input
-                      autoFocus
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      className="h-8 w-20 rounded border border-border px-2 font-meter text-sm"
-                    />
-                  ) : (
-                    <MeterValue value={`₹${p.amount}`} size="md" />
-                  )}
-                  {editing === p.plan ? (
-                    <Button size="sm" variant="outline" onClick={() => handleSave(p.plan)}>
-                      Save
-                    </Button>
-                  ) : (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setEditing(p.plan);
-                        setEditValue(String(p.amount));
-                      }}
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </div>
-                <p className="mt-2 text-xs text-ink-soft">{(counts[p.plan] ?? 0).toLocaleString("en-IN")} active subscribers</p>
-              </Card>
-            ))}
-      </div>
+      {/* One group per vehicle type (Part 4) — the same plan tier can now
+          carry a different price for each vehicle. Loading skeleton keeps
+          the old flat 4-card shape since the real grid's height varies. */}
+      {loading ? (
+        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-lg" />
+          ))}
+        </div>
+      ) : (
+        VEHICLE_TYPE_ORDER.map((vehicleType) => (
+          <div key={vehicleType} className="mt-6">
+            <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-ink-soft">
+              {VEHICLE_TYPE_LABELS_DB[vehicleType]}
+            </p>
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              {(plansByVehicle.get(vehicleType) ?? []).map((p) => {
+                const key = `${p.vehicle_type}:${p.plan}`;
+                return (
+                  <Card key={key} tone="elevated" accent="marigold">
+                    <p className="text-xs font-medium uppercase tracking-wide text-ink-soft">
+                      {p.plan.charAt(0).toUpperCase() + p.plan.slice(1)}
+                    </p>
+                    <div className="mt-1 flex items-center justify-between">
+                      {editing === key ? (
+                        <input
+                          autoFocus
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          className="h-8 w-20 rounded border border-border px-2 font-meter text-sm"
+                        />
+                      ) : (
+                        <MeterValue value={`₹${p.amount}`} size="md" />
+                      )}
+                      {editing === key ? (
+                        <Button size="sm" variant="outline" onClick={() => handleSave(p.vehicle_type, p.plan)}>
+                          Save
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setEditing(key);
+                            setEditValue(String(p.amount));
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs text-ink-soft">{(counts[key] ?? 0).toLocaleString("en-IN")} active subscribers</p>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        ))
+      )}
 
       <Card className="mt-6" accent="blue">
         <CardHeader>
