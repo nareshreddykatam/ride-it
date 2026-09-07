@@ -55,6 +55,12 @@ function BookingPageContent() {
   const drop: LatLng | null = destLatParam && destLngParam ? { lat: Number(destLatParam), lng: Number(destLngParam) } : null;
 
   const [selected, setSelected] = React.useState<VehicleType>(VehicleType.AUTO);
+  // True the moment the passenger taps any vehicle card — once set, the
+  // recommended-vehicle fallback effect below must never reassign `selected`
+  // again. Selection is authoritative the instant the user makes one; a
+  // recommendation (or a vehicle's quote loading/failing later) must never
+  // silently override an explicit choice.
+  const userSelectedRef = React.useRef(false);
   const [confirming, setConfirming] = React.useState(false);
   const [pickup, setPickup] = React.useState<LatLng>(FALLBACK_PICKUP);
   const [distanceKm, setDistanceKm] = React.useState(FALLBACK_DISTANCE_KM);
@@ -183,12 +189,15 @@ function BookingPageContent() {
   const surgeActive = estimates.some((e) => (e.quote?.surgeMultiplier ?? 1) > 1);
   const selectedQuote: FareQuote | null = estimates.find((e) => e.type === selected)?.quote ?? null;
 
-  // If the default/currently-selected vehicle type turns out to have no
-  // active pricing rule once real quotes load, fall through to the first
-  // vehicle that actually has one — never leave the passenger stuck on an
-  // unbookable selection with no obvious way forward.
+  // Picks an initial vehicle once real quotes first load, in case the
+  // default (Auto) turns out to have no active pricing rule — this only
+  // ever runs before the passenger has made their own choice. Once
+  // userSelectedRef is set (any explicit tap, see the vehicle cards below),
+  // this must never fire again: a recommendation, a slow/failed quote, or
+  // any later refresh must not silently override an explicit selection —
+  // that's the passenger's own stated choice, not something to second-guess.
   React.useEffect(() => {
-    if (!quotesByVehicle || selectedQuote) return;
+    if (userSelectedRef.current || !quotesByVehicle || selectedQuote) return;
     const firstAvailable = estimates.find((e) => e.quote)?.type;
     if (firstAvailable) setSelected(firstAvailable);
   }, [quotesByVehicle, selectedQuote, estimates]);
@@ -298,9 +307,18 @@ function BookingPageContent() {
                 fare={fareLabel}
                 etaLabel={`${meta.etaMinutes} min away`}
                 selected={active}
-                disabled={quotesByVehicle !== null && !quote}
+                // Only disabled before quotes exist at all -- once they've
+                // loaded, every card stays tappable regardless of whether
+                // THIS one has a fare, so a passenger's selection is never
+                // silently ignored. A vehicle with no quote is communicated
+                // via its own fare label ("Unavailable") and the CTA/notice
+                // below, never by refusing the tap itself.
+                disabled={quotesByVehicle === null}
                 recommended={type === RECOMMENDED_TYPE}
-                onSelect={() => quote && setSelected(type)}
+                onSelect={() => {
+                  userSelectedRef.current = true;
+                  setSelected(type);
+                }}
               />
             );
           })}
@@ -316,6 +334,16 @@ function BookingPageContent() {
               : "We couldn't calculate your exact route right now, so this estimate uses an approximate distance. Your fare is calculated and locked by Ridora the moment you confirm your ride."}
           </p>
         </div>
+
+        {/* Explains a blocked Confirm button rather than leaving the
+            passenger to guess -- the selection itself never changes on its
+            own (see the recommended-fallback effect's userSelectedRef
+            guard above); this is the one place that names the reason. */}
+        {quotesByVehicle !== null && !selectedQuote && (
+          <div className="mt-3 rounded-xl border border-alert-red/30 bg-alert-red/5 p-3.5 text-center text-xs text-alert-red">
+            {VEHICLE_META[selected].label} isn&apos;t available for this route right now — please choose another vehicle.
+          </div>
+        )}
       </div>
 
       {/* Sticky Mobile CTA */}

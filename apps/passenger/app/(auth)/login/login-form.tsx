@@ -40,14 +40,28 @@ export function LoginForm({ children }: { children?: React.ReactNode }) {
 
   async function handleContinue() {
     if (!isValid) return;
+    // Dev-only timing (no OTP/token/PII values logged, only durations) —
+    // measures the actual bottleneck for the "OTP screen feels slower than
+    // the email/SMS itself" report. This call already transitions to
+    // /verify the instant it resolves; there is no unrelated profile/
+    // dashboard loading blocking this screen, so whatever this number
+    // shows IS the real cost of requestEmailOtp/requestPhoneOtp's own
+    // network round-trip, not client-side code.
+    const t0 = process.env.NODE_ENV !== "production" ? performance.now() : 0;
     setSubmitting(true);
     setSubmitError(null);
     try {
       if (detected.type === "phone") {
         await requestPhoneOtp(supabase, detected.value, "passenger");
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[auth-timing] send-otp (phone): ${Math.round(performance.now() - t0)}ms`);
+        }
         router.push(`/verify?type=phone&value=${detected.value}`);
       } else {
         await requestEmailOtp(supabase, detected.value, "passenger");
+        if (process.env.NODE_ENV !== "production") {
+          console.log(`[auth-timing] send-otp (email): ${Math.round(performance.now() - t0)}ms`);
+        }
         router.push(`/verify?type=email&value=${encodeURIComponent(detected.value)}`);
       }
     } catch (e) {

@@ -16,6 +16,15 @@ async function nextRouteAfterAuth(supabase: ReturnType<typeof getSupabaseBrowser
 }
 
 const RESEND_SECONDS = 30;
+const DEV_LOG = process.env.NODE_ENV !== "production";
+
+// Precise phases instead of one generic `verifying` boolean+label (Part 2's
+// explicit ask) — "Verifying…" only covers the actual verifyOtp() network
+// call; the code is already confirmed and the user is already
+// authenticated by the time the post-auth routing decision (which page to
+// land on) runs, so that window gets its own, honest label rather than
+// implying the code itself is still being checked.
+type VerifyPhase = "idle" | "verifying" | "authenticated";
 // A freshly-created auth account's created_at will be within a few
 // seconds of "now" at verification time; a returning user's account is
 // however old their account actually is. This threshold distinguishes
@@ -37,7 +46,8 @@ function VerifyPageContent() {
   const [otp, setOtp] = React.useState("");
   const [error, setError] = React.useState(false);
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
-  const [verifying, setVerifying] = React.useState(false);
+  const [phase, setPhase] = React.useState<VerifyPhase>("idle");
+  const verifying = phase !== "idle";
   const [secondsLeft, setSecondsLeft] = React.useState(RESEND_SECONDS);
   const [revealedPin, setRevealedPin] = React.useState<string | null>(null);
 
@@ -48,7 +58,15 @@ function VerifyPageContent() {
   }, [secondsLeft]);
 
   async function handleComplete(code: string) {
-    setVerifying(true);
+    // Dev-only timing (durations only — never the code, token, or
+    // identifier) — measures each real phase separately so "the UI feels
+    // slower than it should" can be verified against actual numbers rather
+    // than assumed. verifyOtp() itself is a fast Auth API call; the routing
+    // decision after it is a separate, necessary query (the redirect
+    // destination genuinely depends on profile-completeness) — logged
+    // apart from verification so the two are never conflated.
+    const t0 = DEV_LOG ? performance.now() : 0;
+    setPhase("verifying");
     setError(false);
     setErrorMessage(null);
     try {
@@ -56,6 +74,9 @@ function VerifyPageContent() {
         identifierType === "email"
           ? await verifyEmailOtp(supabase, identifierValue, code)
           : await verifyPhoneOtp(supabase, identifierValue, code);
+      if (DEV_LOG) console.log(`[auth-timing] verify-otp: ${Math.round(performance.now() - t0)}ms`);
+      setPhase("authenticated");
+
       const isNewAccount =
         !!result.user?.created_at && Date.now() - new Date(result.user.created_at).getTime() < NEW_ACCOUNT_THRESHOLD_MS;
 
@@ -69,18 +90,29 @@ function VerifyPageContent() {
         // copy — the PIN they see here IS their real, currently-active
         // Ride PIN from this point forward, not a preview. Same
         // set-then-get sequence Profile's "Change Ride PIN" uses.
+        const t1 = DEV_LOG ? performance.now() : 0;
         await setRidePin(supabase);
         setRevealedPin(await getMyRidePin(supabase));
-        setVerifying(false);
+        if (DEV_LOG) console.log(`[auth-timing] ride-pin-setup: ${Math.round(performance.now() - t1)}ms`);
+        setPhase("idle");
         return;
       }
 
       if (!result.user) throw new Error("Verification succeeded but no user was returned.");
-      router.push(await nextRouteAfterAuth(supabase, result.user.id));
+      // Genuinely necessary before navigating (the destination depends on
+      // profile completeness) — not removable, but measured on its own so
+      // it's never silently blamed on verifyOtp() or vice versa.
+      const t2 = DEV_LOG ? performance.now() : 0;
+      const destination = await nextRouteAfterAuth(supabase, result.user.id);
+      if (DEV_LOG) {
+        console.log(`[auth-timing] route-decision: ${Math.round(performance.now() - t2)}ms`);
+        console.log(`[auth-timing] verify-total (submit to navigate): ${Math.round(performance.now() - t0)}ms`);
+      }
+      router.push(destination);
     } catch (e) {
       setError(true);
       setErrorMessage(e instanceof Error ? e.message : null);
-      setVerifying(false);
+      setPhase("idle");
     }
   }
 
@@ -172,7 +204,7 @@ function VerifyPageContent() {
       </motion.div>
 
       <Button className="w-full" disabled={otp.length !== 6 || verifying} onClick={() => handleComplete(otp)}>
-        {verifying ? "Verifying…" : "Verify & continue"}
+        {phase === "verifying" ? "Verifying…" : phase === "authenticated" ? "Signing you in…" : "Verify & continue"}
       </Button>
     </main>
   );
