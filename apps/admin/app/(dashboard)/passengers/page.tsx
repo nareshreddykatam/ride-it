@@ -52,23 +52,32 @@ export default function PassengersPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
+  // See apps/admin/app/(dashboard)/drivers/page.tsx for why this is
+  // debounced rather than feeding `search` straight into the fetch effect
+  // -- was firing one full listPassengersAdmin() request per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
+
+  React.useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   React.useEffect(() => {
     setPage(0);
-  }, [search]);
+  }, [debouncedSearch]);
 
   React.useEffect(() => {
     if (!user) return;
     setLoading(true);
     setError(null);
-    listPassengersAdmin(supabase, { search: search || undefined, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+    listPassengersAdmin(supabase, { search: debouncedSearch || undefined, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
       .then(({ rows, hasMore: more }) => {
         setPassengers(rows);
         setHasMore(more);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load passengers."))
       .finally(() => setLoading(false));
-  }, [supabase, user, search, page]);
+  }, [supabase, user, debouncedSearch, page]);
 
   return (
     <div>

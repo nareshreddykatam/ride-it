@@ -80,6 +80,16 @@ export default function RideStatusPage() {
   const [ridePin, setRidePin] = React.useState<string | null>(null);
   const [ridePinChecked, setRidePinChecked] = React.useState(false);
   const navigatedRef = React.useRef(false);
+  // Tracks which driver_id loadDriver() has already been called for.
+  // Reading `driver` state here would work in principle, but the realtime
+  // subscription's callback below is deliberately created once (deps
+  // [supabase, params.id]) so it doesn't tear down/resubscribe on every
+  // status change -- that means it closes over `driver` at mount time
+  // (always null) forever. Checking a ref instead of the stale state is
+  // what actually makes "only load driver info once" true: previously
+  // `!driver` was always true, so loadDriver() (3 network calls) re-ran on
+  // every single realtime ride update for the rest of the ride.
+  const loadedDriverIdRef = React.useRef<string | null>(null);
 
   // Safety sheet state
   const [safetyOpen, setSafetyOpen] = React.useState(false);
@@ -143,7 +153,10 @@ export default function RideStatusPage() {
       .then(async (r) => {
         if (!active) return;
         setRide(r);
-        if (r?.driver_id) await loadDriver(r.driver_id);
+        if (r?.driver_id) {
+          loadedDriverIdRef.current = r.driver_id;
+          await loadDriver(r.driver_id);
+        }
       })
       .finally(() => active && setLoading(false));
     refreshTracking();
@@ -159,7 +172,10 @@ export default function RideStatusPage() {
   React.useEffect(() => {
     const unsubscribe = subscribeToRide(supabase, params.id, async (updated) => {
       setRide(updated);
-      if (updated.driver_id && !driver) await loadDriver(updated.driver_id);
+      if (updated.driver_id && loadedDriverIdRef.current !== updated.driver_id) {
+        loadedDriverIdRef.current = updated.driver_id;
+        await loadDriver(updated.driver_id);
+      }
       if (!navigatedRef.current && (updated.status === "ride_completed" || updated.status === "payment")) {
         navigatedRef.current = true;
         router.push(`/ride/${params.id}/complete`);

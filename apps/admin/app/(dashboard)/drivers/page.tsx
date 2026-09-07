@@ -92,20 +92,31 @@ export default function DriversPage() {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [search, setSearch] = React.useState("");
+  // The fetch effect depends on this, not the raw `search` state, so
+  // typing a name/phone doesn't fire a request per keystroke — previously
+  // an N-character query fired N full listDriversAdmin() requests, each
+  // racing the next with no request-id guard. The input itself stays
+  // bound to `search` for instant typing feedback.
+  const [debouncedSearch, setDebouncedSearch] = React.useState("");
   const [status, setStatus] = React.useState<AdminDriverListRow["verification_status"] | "all">("all");
+
+  React.useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   // Any filter change invalidates the current page — jump back to the start
   // rather than showing page 3 of a now-different, possibly shorter result set.
   React.useEffect(() => {
     setPage(0);
-  }, [search, status]);
+  }, [debouncedSearch, status]);
 
   React.useEffect(() => {
     if (!user) return;
     setLoading(true);
     setError(null);
     listDriversAdmin(supabase, {
-      search: search || undefined,
+      search: debouncedSearch || undefined,
       status: status === "all" ? undefined : status,
       limit: PAGE_SIZE,
       offset: page * PAGE_SIZE,
@@ -116,7 +127,7 @@ export default function DriversPage() {
       })
       .catch((e) => setError(errorMessage(e) ?? "Couldn't load drivers."))
       .finally(() => setLoading(false));
-  }, [supabase, user, search, status, page]);
+  }, [supabase, user, debouncedSearch, status, page]);
 
   return (
     <div>

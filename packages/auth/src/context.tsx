@@ -26,9 +26,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = React.useState<AuthProfile | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
+  // Guards against overlapping loadProfile() calls racing each other --
+  // onAuthStateChange can fire more than once in quick succession (e.g. a
+  // TOKEN_REFRESHED event landing right after SIGNED_IN), and without this,
+  // whichever network response happened to arrive last would win regardless
+  // of which auth event was actually most recent.
+  const loadProfileGenerationRef = React.useRef(0);
 
   const loadProfile = React.useCallback(
     async (userId: string) => {
+      const generation = ++loadProfileGenerationRef.current;
       // Three parallel PK-lookup queries rather than an embed: passengers/
       // drivers each have several ambiguous FK relationships to users (see
       // packages/data/src/profile.ts's PROFILE_COLUMNS comment on the exact
@@ -43,6 +50,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         supabase.from("passengers").select("id").eq("id", userId).maybeSingle(),
         supabase.from("drivers").select("id").eq("id", userId).maybeSingle(),
       ]);
+
+      if (generation !== loadProfileGenerationRef.current) return; // superseded by a newer call
 
       if (usersResult.error) {
         setError(usersResult.error.message);

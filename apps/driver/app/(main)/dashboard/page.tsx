@@ -58,12 +58,18 @@ export default function DashboardPage() {
   const [loadError, setLoadError] = React.useState(false);
   const [selfLocation, setSelfLocation] = React.useState<LatLng | null>(null);
 
+  // Single profile fetch, reused both to populate the dashboard AND for
+  // the onboarding-completeness check below -- these used to be two
+  // separate effects that each called getDriverProfile() independently,
+  // firing two redundant, concurrent requests for the exact same row on
+  // every Dashboard mount.
   const loadAll = React.useCallback(async () => {
     if (!user) return;
     setLoadError(false);
     try {
-      const [driverProfile, activeSub, earnings, wallet] = await Promise.all([
+      const [driverProfile, activeVehicle, activeSub, earnings, wallet] = await Promise.all([
         getDriverProfile(supabase, user.id),
+        getActiveVehicle(supabase, user.id),
         getActiveSubscription(supabase, user.id),
         getDriverEarningsSummary(supabase, user.id, "today"),
         getWallet(supabase, user.id),
@@ -72,25 +78,21 @@ export default function DashboardPage() {
       setSubscription(activeSub);
       setEarningsToday({ total: earnings.totalEarnings, rides: earnings.ridesCompleted });
       setWalletBalance(wallet?.balance ?? 0);
+      // Defensive re-check, same reasoning as Passenger Home: the verify
+      // screen's routing is the primary onboarding gate, this closes the
+      // gap for any path that reaches Dashboard directly with incomplete
+      // personal info or no active vehicle on file.
+      if (!driverProfile || !isDriverPersonalInfoComplete(driverProfile) || !activeVehicle) {
+        router.replace("/onboarding");
+      }
     } catch {
       setLoadError(true);
     }
-  }, [supabase, user]);
+  }, [supabase, user, router]);
 
   React.useEffect(() => {
     loadAll().finally(() => setLoading(false));
   }, [loadAll]);
-
-  // Defensive re-check, same reasoning as Passenger Home: the verify
-  // screen's routing is the primary onboarding gate, this closes the gap
-  // for any path that reaches Dashboard directly with incomplete personal
-  // info or no active vehicle on file.
-  React.useEffect(() => {
-    if (!user) return;
-    Promise.all([getDriverProfile(supabase, user.id), getActiveVehicle(supabase, user.id)]).then(([p, vehicle]) => {
-      if (!p || !isDriverPersonalInfoComplete(p) || !vehicle) router.replace("/onboarding");
-    });
-  }, [supabase, user, router]);
 
   // Reconcile against authoritative state on mount/reconnect — if a
   // realtime event was missed while this screen wasn't open, this catches
