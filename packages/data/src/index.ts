@@ -1,4 +1,5 @@
 export * from "./types";
+export * from "./realtime";
 export * from "./rides";
 export * from "./profile";
 export * from "./saved-places";

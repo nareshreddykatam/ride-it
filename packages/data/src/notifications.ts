@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NotificationRow } from "./types";
+import { freshChannel } from "./realtime";
 
 const NOTIFICATION_COLUMNS = "id, user_id, type, title, body, data, is_read, created_at";
 
@@ -43,8 +44,7 @@ export async function markAllNotificationsRead(supabase: SupabaseClient, userId:
  * notifications_select_own RLS (Phase 3) scopes what actually arrives.
  */
 export function subscribeToNotifications(supabase: SupabaseClient, userId: string, onNew: (notification: NotificationRow) => void) {
-  const channel = supabase
-    .channel(`notifications:${userId}`)
+  const channel = freshChannel(supabase, `notifications:${userId}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },

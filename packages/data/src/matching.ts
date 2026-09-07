@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RideRow, RideOfferRow, RideStatusRow } from "./types";
+import { freshChannel } from "./realtime";
 
 /**
  * Kicks off matching for a freshly-created ride — calls dispatch_next_batch()
@@ -109,8 +110,7 @@ export async function getRideTracking(supabase: SupabaseClient, rideId: string):
  * read coordinates out of the callback's payload.
  */
 export function subscribeToDriverLocationChanges(supabase: SupabaseClient, driverId: string, onChange: () => void) {
-  const channel = supabase
-    .channel(`driver-location:${driverId}`)
+  const channel = freshChannel(supabase, `driver-location:${driverId}`)
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "drivers", filter: `id=eq.${driverId}` },
@@ -136,8 +136,7 @@ export function subscribeToRide(
   rideId: string,
   onChange: (ride: RideRow) => void
 ) {
-  const channel = supabase
-    .channel(`ride:${rideId}`)
+  const channel = freshChannel(supabase, `ride:${rideId}`)
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "rides", filter: `id=eq.${rideId}` },
@@ -162,8 +161,7 @@ export function subscribeToDriverOffers(
   driverId: string,
   onOffer: (offer: RideOfferRow) => void
 ) {
-  const channel = supabase
-    .channel(`driver-offers:${driverId}`)
+  const channel = freshChannel(supabase, `driver-offers:${driverId}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "ride_offers", filter: `driver_id=eq.${driverId}` },
@@ -186,8 +184,7 @@ export function subscribeToOfferUpdates(
   offerId: string,
   onUpdate: (offer: RideOfferRow) => void
 ) {
-  const channel = supabase
-    .channel(`offer:${offerId}`)
+  const channel = freshChannel(supabase, `offer:${offerId}`)
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "ride_offers", filter: `id=eq.${offerId}` },
@@ -208,8 +205,7 @@ export function subscribeToOfferUpdates(
  * subscribe with a specific row/driver filter.
  */
 export function subscribeToAllRideChanges(supabase: SupabaseClient, onChange: () => void) {
-  const channel = supabase
-    .channel("admin-rides")
+  const channel = freshChannel(supabase, "admin-rides")
     .on("postgres_changes", { event: "*", schema: "public", table: "rides" }, () => onChange())
     .subscribe();
 

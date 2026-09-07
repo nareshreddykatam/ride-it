@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PaymentRow, RideRow } from "./types";
+import { freshChannel } from "./realtime";
 
 /** Step 1 — server re-derives the amount from the ride itself, never a parameter. Idempotent (returns an existing in-flight attempt if one exists). */
 export async function createPendingRidePayment(supabase: SupabaseClient, rideId: string): Promise<PaymentRow> {
@@ -129,8 +130,7 @@ export async function processPaymentWebhookEvent(
  * passenger's own payments only.
  */
 export function subscribeToPayment(supabase: SupabaseClient, paymentId: string, onChange: (payment: PaymentRow) => void) {
-  const channel = supabase
-    .channel(`payment:${paymentId}`)
+  const channel = freshChannel(supabase, `payment:${paymentId}`)
     .on(
       "postgres_changes",
       { event: "UPDATE", schema: "public", table: "payments", filter: `id=eq.${paymentId}` },
