@@ -5,11 +5,27 @@
 -- driver-derived field in this function already is guarded by the left
 -- join -- so a stale speed_kmh value left over from a since-completed ride
 -- is never returned once the ride has moved on to a non-active status.
--- Same signature -> CREATE OR REPLACE preserves the existing
--- REVOKE .../GRANT ... TO authenticated state; no need to reissue.
+-- REAL FINDING from actually applying this against the live production
+-- project (not caught by local review -- no PostGIS available locally to
+-- exercise this function for real): Postgres refuses `CREATE OR REPLACE
+-- FUNCTION` on a table-returning function when the OUT-parameter row type
+-- changes -- even purely additively -- with `cannot change return type of
+-- existing function` / `Row type defined by OUT parameters is different`.
+-- Adding driver_speed_kmh/driver_speed_updated_at to the RETURNS TABLE
+-- (...) list is exactly that case. DROP FUNCTION is required first; once
+-- dropped, CREATE FUNCTION (not OR REPLACE, since nothing exists to
+-- replace at that point) starts from Postgres's default grant state
+-- (EXECUTE to PUBLIC) rather than inheriting the prior function's
+-- REVOKE/GRANT state the way CREATE OR REPLACE would have -- so, unlike a
+-- same-signature CREATE OR REPLACE elsewhere in this migration set, the
+-- REVOKE/GRANT pair at the end of this file is NOT redundant boilerplate;
+-- it is the only thing closing that PUBLIC grant back down to
+-- authenticated-only, matching every other RPC's convention.
 -- ============================================================================
 
-create or replace function public.get_ride_tracking(p_ride_id uuid)
+drop function if exists public.get_ride_tracking(uuid);
+
+create function public.get_ride_tracking(p_ride_id uuid)
 returns table (
   ride_id uuid,
   status public.ride_status_enum,
@@ -72,3 +88,6 @@ $$;
 
 comment on function public.get_ride_tracking(uuid) is
   'Decodes pickup/drop/driver geography into plain lat/lng for a single ride, with an explicit authorization check (ride''s passenger, assigned driver, or admin only), plus the driver''s live speed (km/h) -- speed fields are null unless the ride is currently in an active status (ride_started/destination_reached/payment_collected), even if drivers.speed_kmh still holds a stale value from a prior ride. This is the sanctioned way to read coordinates/speed for map/speedometer display -- no client ever selects current_location/pickup_location/drop_location/speed_kmh directly.';
+
+revoke execute on function public.get_ride_tracking(uuid) from public;
+grant execute on function public.get_ride_tracking(uuid) to authenticated;
