@@ -68,12 +68,14 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="hidden items-center gap-2 md:flex">
-          <span className="rounded-full border border-marigold/30 bg-tint-marigold px-2.5 py-1 text-xs font-semibold text-marigold-text">
-            Coming soon
-          </span>
-          <Button size="sm" variant="brand" disabled>
-            Download app
-          </Button>
+          <a href="https://driver.ridora.in" className="text-sm font-medium text-ink-soft transition-colors hover:text-ink">
+            Drive with Ridora
+          </a>
+          <a href="https://app.ridora.in">
+            <Button size="sm" variant="brand">
+              Book a Ride
+            </Button>
+          </a>
         </div>
         <button
           type="button"
@@ -124,12 +126,16 @@ export function SiteHeader() {
           })}
         </nav>
         <div className="mt-6 flex items-center gap-3 border-t border-border pt-5">
-          <Button size="md" variant="brand" disabled className="flex-1">
-            Download app
-          </Button>
-          <span className="rounded-full border border-marigold/30 bg-tint-marigold px-2.5 py-1.5 text-xs font-semibold text-marigold-text">
-            Coming soon
-          </span>
+          <a href="https://app.ridora.in" className="flex-1">
+            <Button size="md" variant="brand" className="w-full">
+              Book a Ride
+            </Button>
+          </a>
+          <a href="https://driver.ridora.in" className="flex-1">
+            <Button size="md" variant="outline" className="w-full">
+              Drive with Ridora
+            </Button>
+          </a>
         </div>
       </BottomSheet>
     </header>
@@ -181,9 +187,10 @@ export function SiteFooter() {
         </div>
         <div className="mt-10 flex flex-col-reverse items-start justify-between gap-4 border-t border-border pt-6 sm:flex-row sm:items-center">
           <p className="text-xs text-ink-soft">© 2026 Ridora. All rights reserved.</p>
-          <span className="rounded-full border border-marigold/30 bg-tint-marigold px-2.5 py-1 text-xs font-semibold text-marigold-text">
-            Coming soon
-          </span>
+          <div className="flex items-center gap-4 text-xs font-medium">
+            <a href="https://app.ridora.in" className="text-signal-blue hover:underline">Book a Ride</a>
+            <a href="https://driver.ridora.in" className="text-ink-soft hover:text-ink hover:underline">Drive with Ridora</a>
+          </div>
         </div>
       </div>
     </footer>

@@ -10,6 +10,7 @@
     "./server": "./src/server.ts",
     "./middleware": "./src/middleware.ts",
     "./e2e": "./src/e2e.ts",
+    "./public": "./src/public.ts",
     "./auth": "./src/auth.ts",
     "./db": "./src/db.ts",
     "./storage": "./src/storage.ts",

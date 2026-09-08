@@ -190,6 +190,9 @@ importers:
 
   apps/marketing:
     dependencies:
+      '@ride-it/supabase':
+        specifier: workspace:*
+        version: link:../../packages/supabase
       '@ride-it/ui':
         specifier: workspace:*
         version: link:../../packages/ui

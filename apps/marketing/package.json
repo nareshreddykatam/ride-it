@@ -10,6 +10,7 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@ride-it/supabase": "workspace:*",
     "@ride-it/ui": "workspace:*",
     "framer-motion": "^11.2.0",
     "lucide-react": "^0.383.0",

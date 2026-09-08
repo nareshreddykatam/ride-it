@@ -12,6 +12,13 @@ import {
 } from "@ride-it/ui";
 import { FareLineHero } from "../components/fare-line-hero";
 import { HeroVehicleCluster } from "../components/hero-vehicle-cluster";
+import { getPublicRideStats } from "../lib/ride-stats";
+
+// Static generation + background revalidation every 5 minutes — the stat
+// "feels live" without a client-side fetch or a DB round-trip on every
+// single homepage visit (Part 7's explicit ask: no per-second polling, no
+// anonymous Realtime subscription).
+export const revalidate = 300;
 
 const STEPS = [
   {
@@ -44,7 +51,8 @@ const STEPS = [
   },
 ];
 
-export default function MarketingHomePage() {
+export default async function MarketingHomePage() {
+  const stats = await getPublicRideStats();
   return (
     <main>
       {/* Hero — large-type brand moment, no decorative graphics. A real
@@ -75,22 +83,29 @@ export default function MarketingHomePage() {
               100% of what you earn.
             </p>
             <div className="mt-9 flex flex-wrap items-center gap-4">
-              <Button size="lg" variant="marigold" disabled>
-                Download the app
-              </Button>
-              <span className="rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/90">
-                Coming soon
-              </span>
+              <a href="https://app.ridora.in">
+                <Button size="lg" variant="marigold">
+                  Book a Ride
+                </Button>
+              </a>
+              <a href="https://driver.ridora.in">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white/30 text-white hover:border-white/60 hover:bg-white/10"
+                >
+                  Drive with Ridora
+                </Button>
+              </a>
             </div>
-            <Link href="/for-drivers" className="mt-4 inline-block">
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white/30 text-white hover:border-white/60 hover:bg-white/10"
-              >
-                See driver plans
-              </Button>
-            </Link>
+            {stats && (
+              <p className="mt-6 flex items-center gap-2 text-sm text-white/70">
+                <span className="font-meter text-lg font-semibold text-white">
+                  {stats.successfulRides.toLocaleString("en-IN")}+
+                </span>
+                successful rides completed
+              </p>
+            )}
           </div>
         </div>
       </section>
