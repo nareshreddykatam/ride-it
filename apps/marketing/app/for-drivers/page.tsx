@@ -16,19 +16,19 @@ const PLANS = [
 export default function ForDriversPage() {
   return (
     <main>
-      {/* Solid Ridora teal — the pricing/earnings hue for this redesign
-          (was marigold; changed to keep the site's yellow-free identity
-          consistent on every page reachable from the new nav). */}
-      <section className="bg-rd-teal">
+      {/* Solid marigold — the pricing/earnings hue, flat fill. Dark ink
+          text keeps comfortable contrast here, unlike the dark hero band
+          sections which use white text. */}
+      <section className="bg-marigold">
         <div className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
-          <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white/90">
+          <span className="inline-flex items-center gap-2 rounded-full border border-ink/15 bg-ink/10 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-ink/80">
             <WalletIcon size={13} aria-hidden="true" />
             Flat subscription
           </span>
-          <h1 className="mt-4 font-display text-4xl font-medium text-white sm:text-5xl">
+          <h1 className="mt-4 font-display text-4xl font-medium text-ink sm:text-5xl">
             One flat fee. Keep every rupee you earn.
           </h1>
-          <p className="mt-3 max-w-xl text-white/85">
+          <p className="mt-3 max-w-xl text-ink/80">
             Most platforms take a cut of every single ride. Ridora charges
             one fixed subscription instead — the rest of the fare, cash or
             UPI, is entirely yours.
@@ -44,7 +44,8 @@ export default function ForDriversPage() {
               <Card
                 key={p.plan}
                 tone={popular ? "tinted" : "elevated"}
-                className={popular ? "ring-1 ring-rd-teal/40" : undefined}
+                accent={popular ? "marigold" : undefined}
+                className={popular ? "ring-1 ring-marigold/40" : undefined}
               >
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-display text-base font-medium text-ink">{p.plan}</p>
@@ -57,11 +58,7 @@ export default function ForDriversPage() {
                 <MeterValue value={`₹${p.amount}`} size="lg" className="mt-3" />
                 <p className="mt-2 text-xs text-ink-soft">{p.blurb}</p>
                 <a href={DRIVER_APP_URL} className="mt-4 block">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className={`w-full ${popular ? "border-transparent bg-rd-teal text-white hover:bg-rd-teal-dark" : ""}`}
-                  >
+                  <Button size="sm" className="w-full" variant={popular ? "marigold" : "outline"}>
                     Get started
                   </Button>
                 </a>
