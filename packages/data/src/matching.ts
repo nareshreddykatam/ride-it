@@ -57,6 +57,9 @@ export interface RideTrackingInfo {
   driverLocationUpdatedAt: string | null;
   distanceToPickupMeters: number | null;
   distanceToDropMeters: number | null;
+  /** Driver's live speed (km/h), null unless the ride is currently in an active status — see get_ride_tracking()'s migration comment. */
+  driverSpeedKmh: number | null;
+  driverSpeedUpdatedAt: string | null;
 }
 
 /**
@@ -85,6 +88,8 @@ export async function getRideTracking(supabase: SupabaseClient, rideId: string):
         driver_location_updated_at: string | null;
         distance_to_pickup_meters: number | null;
         distance_to_drop_meters: number | null;
+        driver_speed_kmh: number | null;
+        driver_speed_updated_at: string | null;
       }
     | undefined;
 
@@ -99,6 +104,8 @@ export async function getRideTracking(supabase: SupabaseClient, rideId: string):
     driverLocationUpdatedAt: row.driver_location_updated_at,
     distanceToPickupMeters: row.distance_to_pickup_meters,
     distanceToDropMeters: row.distance_to_drop_meters,
+    driverSpeedKmh: row.driver_speed_kmh,
+    driverSpeedUpdatedAt: row.driver_speed_updated_at,
   };
 }
 
@@ -166,6 +173,33 @@ export function subscribeToDriverOffers(
       "postgres_changes",
       { event: "INSERT", schema: "public", table: "ride_offers", filter: `driver_id=eq.${driverId}` },
       (payload) => onOffer(payload.new as unknown as RideOfferRow)
+    )
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Subscribes to status changes on ANY of the calling driver's ride_offers
+ * rows (rejected, lost a race, expired, or superseded by that ride's
+ * passenger cancelling during matching) — one channel per driver, not one
+ * per offer, so the Dashboard's multi-offer list can react generically to
+ * an offer leaving `pending` regardless of which of the driver's several
+ * simultaneous offers it was. Pairs with subscribeToDriverOffers (INSERT)
+ * to keep the driver's offer list in sync without polling.
+ */
+export function subscribeToDriverOfferUpdates(
+  supabase: SupabaseClient,
+  driverId: string,
+  onUpdate: (offer: RideOfferRow) => void
+) {
+  const channel = freshChannel(supabase, `driver-offer-updates:${driverId}`)
+    .on(
+      "postgres_changes",
+      { event: "UPDATE", schema: "public", table: "ride_offers", filter: `driver_id=eq.${driverId}` },
+      (payload) => onUpdate(payload.new as unknown as RideOfferRow)
     )
     .subscribe();
 

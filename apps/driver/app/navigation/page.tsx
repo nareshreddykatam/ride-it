@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, Flag, MapPinOff, MessageCircle, Phone, Users, X } from "lucide-react";
-import { BottomSheet, Button, Card, MeterValue, OtpInput, Select, Skeleton, StatusPill, PinGlyph, SafetyIcon, SlideToAction, PageLoader } from "@ride-it/ui";
+import { BottomSheet, Button, Card, MeterValue, OtpInput, Select, Skeleton, StatusPill, PinGlyph, SafetyIcon, SlideToAction, PageLoader, SpeedChip } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -19,6 +19,7 @@ import {
   completeRide,
   getRideTracking,
   updateDriverLocation,
+  publishDriverSpeed,
   triggerSos,
   getAppSettingValue,
   createReport,
@@ -34,7 +35,7 @@ import {
   type MatchedPassengerContact,
   type DriverProfileRow,
 } from "@ride-it/data";
-import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, type GeolocationErrorReason } from "@ride-it/maps";
+import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, SPEED_CONFIG, type GeolocationErrorReason } from "@ride-it/maps";
 import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi";
 
 // ARRIVED / PAYMENT_RECEIVED are new (Part 2 of the driver-controlled
@@ -55,6 +56,11 @@ type Phase =
   | "CANCELLED_BY_PASSENGER"
   | "CANCELLED_BY_DRIVER";
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "report";
+
+/** Phases the server's update_driver_speed()/get_ride_tracking() actually treat as "active ride" (ride_started/destination_reached/payment_collected) — the speedometer only captures/publishes/renders during these, never before pickup or after the ride wraps up. */
+function isActiveRidePhase(phase: Phase): boolean {
+  return phase === "TO_DROP" || phase === "ARRIVED" || phase === "PAYMENT_RECEIVED";
+}
 
 /** Maps a freshly-loaded/reloaded ride's server status to the phase this screen should resume at — so a driver who backgrounds or reloads mid-flow doesn't lose their place (server state is authoritative either way; this is purely which screen to show). */
 function phaseForRideStatus(status: RideRow["status"]): Phase | null {
@@ -97,6 +103,13 @@ function NavigationPageContent() {
   const [verifying, setVerifying] = React.useState(false);
   const [locationError, setLocationError] = React.useState<GeolocationErrorReason | null>(null);
   const [selfLocation, setSelfLocation] = React.useState<{ lat: number; lng: number } | null>(null);
+  // Own-display speed updates at native GPS tick rate — never a server
+  // round-trip. `at` is a local capture timestamp (not server time), used
+  // only to decide when to show "Speed unavailable" on THIS device.
+  const [liveSpeed, setLiveSpeed] = React.useState<{ kmh: number | null; at: number } | null>(null);
+  const [speedStaleTick, setSpeedStaleTick] = React.useState(0); // forces a re-render every second so staleness recomputes even when GPS stops ticking entirely
+  const lastPublishAtRef = React.useRef(0);
+  const lastPublishedKmhRef = React.useRef<number | null>(null);
   const [cancelSheetOpen, setCancelSheetOpen] = React.useState(false);
   const [cancelReason, setCancelReason] = React.useState(DRIVER_CANCELLATION_REASONS[0].value);
   const [cancelNote, setCancelNote] = React.useState("");
@@ -233,10 +246,52 @@ function NavigationPageContent() {
         });
       },
       onError: setLocationError,
+      onSpeedUpdate: (speedKmh) => {
+        // Driver's own display updates at native GPS tick rate — no
+        // server round-trip needed for this device to see its own speed.
+        setLiveSpeed({ kmh: speedKmh, at: Date.now() });
+
+        // Publish to the server only while the ride is actually in an
+        // active status the RPC will accept, and only per the
+        // floor/ceiling/delta throttle — NOT on every raw GPS tick, to
+        // avoid hammering the database (update_driver_speed() would
+        // simply return false outside TO_DROP/ARRIVED/PAYMENT_RECEIVED
+        // anyway, but there's no reason to even make that call).
+        if (speedKmh === null || !rideId || !isActiveRidePhase(phase)) return;
+        const now = Date.now();
+        const elapsed = now - lastPublishAtRef.current;
+        const delta = lastPublishedKmhRef.current === null ? Infinity : Math.abs(speedKmh - lastPublishedKmhRef.current);
+        const shouldPublish =
+          elapsed >= SPEED_CONFIG.PUBLISH_FLOOR_MS &&
+          (delta >= SPEED_CONFIG.PUBLISH_DELTA_KMH || elapsed >= SPEED_CONFIG.PUBLISH_CEILING_MS);
+        if (!shouldPublish) return;
+
+        lastPublishAtRef.current = now;
+        lastPublishedKmhRef.current = speedKmh;
+        publishDriverSpeed(supabase, rideId, speedKmh).catch(() => {
+          // Best-effort, same as the location write above — the next
+          // accepted tick retries naturally.
+        });
+      },
     });
 
     return stopWatching;
   }, [supabase, user, rideId, phase]);
+
+  // Marks the driver's own displayed speed stale once no update has landed
+  // for SPEED_CONFIG.STALE_THRESHOLD_SECONDS — GPS can simply stop ticking
+  // (signal loss) without ever calling onSpeedUpdate again, so this can't
+  // rely on a new value arriving to notice.
+  React.useEffect(() => {
+    if (!isActiveRidePhase(phase)) return;
+    const t = setInterval(() => setSpeedStaleTick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [phase]);
+
+  const speedStale =
+    !liveSpeed || Date.now() - liveSpeed.at > SPEED_CONFIG.STALE_THRESHOLD_SECONDS * 1000;
+  // speedStaleTick is read only to force this to recompute every second — intentionally otherwise unused.
+  void speedStaleTick;
 
   async function handleArrived() {
     if (!rideId) return;
@@ -488,6 +543,9 @@ function NavigationPageContent() {
     <main className="flex flex-1 flex-col px-6 py-8">
       <div className="relative -mx-6 -mt-8">
         <RideMap pickup={tracking?.pickup} drop={tracking?.drop} driverLocation={selfLocation} fallbackVariant="route" className="h-56" />
+        {isActiveRidePhase(phase) && (
+          <SpeedChip speedKmh={liveSpeed?.kmh ?? null} stale={speedStale} className="absolute left-4 top-4" />
+        )}
         <button
           onClick={openSafety}
           className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full bg-alert-red px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition-transform active:scale-95"

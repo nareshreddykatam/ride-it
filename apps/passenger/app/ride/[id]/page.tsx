@@ -16,7 +16,7 @@ import {
   Flag,
   X,
 } from "lucide-react";
-import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, VEHICLE_VISUALS, SafetyIcon } from "@ride-it/ui";
+import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, VEHICLE_VISUALS, SafetyIcon, SpeedChip } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getRide,
@@ -34,7 +34,7 @@ import { getRideTracking, subscribeToDriverLocationChanges, type RideTrackingInf
 import { triggerSos, getAppSettingValue, createReport, PASSENGER_REPORT_REASONS } from "@ride-it/data";
 import { createRideShare, listTrustedContacts, type TrustedContactRow } from "@ride-it/data";
 import { useAuth } from "@ride-it/auth";
-import { RideMap, LOCATION_CONFIG, getCurrentPositionOnce } from "@ride-it/maps";
+import { RideMap, LOCATION_CONFIG, SPEED_CONFIG, getCurrentPositionOnce } from "@ride-it/maps";
 
 const STEPS: { status: RideRow["status"]; label: string }[] = [
   { status: "accepted", label: "Driver assigned" },
@@ -54,11 +54,13 @@ const END_OF_RIDE_LABEL: Partial<Record<RideRow["status"], string>> = {
   payment_collected: "Payment collected",
 };
 
-function isStale(updatedAt: string | null): boolean {
+function isStale(updatedAt: string | null, thresholdSeconds: number): boolean {
   if (!updatedAt) return true;
   const ageSeconds = (Date.now() - new Date(updatedAt).getTime()) / 1000;
-  return ageSeconds > LOCATION_CONFIG.STALE_LOCATION_THRESHOLD_SECONDS;
+  return ageSeconds > thresholdSeconds;
 }
+
+const ACTIVE_RIDE_STATUSES: RideRow["status"][] = ["ride_started", "destination_reached", "payment_collected"];
 
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "share" | "report";
 
@@ -333,7 +335,13 @@ export default function RideStatusPage() {
   const stepIndex = stepIndexForStatus(status);
   const progressPct = (stepIndex / (STEPS.length - 1)) * 100;
   const canCancel = status === "accepted" || status === "driver_arriving" || status === "ride_started";
-  const driverStale = tracking?.driverLocationUpdatedAt ? isStale(tracking.driverLocationUpdatedAt) : false;
+  const driverStale = tracking?.driverLocationUpdatedAt
+    ? isStale(tracking.driverLocationUpdatedAt, LOCATION_CONFIG.STALE_LOCATION_THRESHOLD_SECONDS)
+    : false;
+  const speedStale = tracking?.driverSpeedUpdatedAt
+    ? isStale(tracking.driverSpeedUpdatedAt, SPEED_CONFIG.STALE_THRESHOLD_SECONDS)
+    : true;
+  const showSpeed = ACTIVE_RIDE_STATUSES.includes(status);
 
   const driverEtaLabel =
     tracking?.distanceToPickupMeters != null && status === "accepted"
@@ -367,6 +375,12 @@ export default function RideStatusPage() {
           {END_OF_RIDE_LABEL[status] ?? STEPS[stepIndex]?.label ?? "In progress"}
         </StatusPill>
       </div>
+
+      {showSpeed && (
+        <div className="relative z-10 -mt-1 flex justify-center">
+          <SpeedChip speedKmh={tracking?.driverSpeedKmh ?? null} stale={speedStale} className="shadow-md" />
+        </div>
+      )}
 
       {tracking?.driverLocation && driverStale && (
         <p className="relative z-10 mx-4 rounded-lg bg-surface/95 px-3 py-2 text-xs text-marigold-text shadow-md backdrop-blur-sm">

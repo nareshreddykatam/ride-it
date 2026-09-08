@@ -1,8 +1,10 @@
 "use client";
 
-import { LOCATION_CONFIG } from "./config";
+import { LOCATION_CONFIG, SPEED_CONFIG } from "./config";
 
 export type GeolocationErrorReason = "permission_denied" | "position_unavailable" | "timeout" | "not_supported";
+
+export type SpeedSource = "gps" | "derived";
 
 export interface GeolocationWatchOptions {
   /** Minimum ms between accepted updates. */
@@ -11,6 +13,17 @@ export interface GeolocationWatchOptions {
   minMovementMeters?: number;
   onUpdate: (position: { lat: number; lng: number }) => void;
   onError: (reason: GeolocationErrorReason) => void;
+  /**
+   * Optional — fired on every RAW watchPosition tick (not gated by
+   * minIntervalMs/minMovementMeters, since a speedometer needs to update
+   * far more often than the position-write throttle). speedKmh is null
+   * when no plausible speed could be determined this tick (GPS speed
+   * unavailable AND no usable prior fix for the haversine fallback, or the
+   * computed value fell outside a plausible range) — callers should treat
+   * null as "no update," not "speed is zero." Purely additive: existing
+   * callers that don't pass this are unaffected.
+   */
+  onSpeedUpdate?: (speedKmh: number | null, source: SpeedSource | null) => void;
 }
 
 /** Haversine distance in meters — used only for the client-side "is this update worth sending" throttle decision, never as production spatial truth (that stays PostGIS, server-side, per Phase 9's explicit instruction). */
@@ -22,6 +35,43 @@ function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: 
   const lat2 = (b.lat * Math.PI) / 180;
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/**
+ * Speed for one raw watchPosition tick. Prefers the device's own
+ * GeolocationPosition.coords.speed (m/s -> km/h) when it's a finite,
+ * non-negative number — most accurate, since it comes from the GPS chip's
+ * own Doppler-based estimate, not a two-point diff. Falls back to
+ * haversine distance / elapsed time between this raw fix and the previous
+ * raw fix (NOT the throttle-accepted fix — see the caller's comment) when
+ * device speed is unavailable, which is common on many Android/iOS
+ * devices/browsers. Either way, clamps to [0, MAX_PLAUSIBLE_KMH] and
+ * returns null for anything outside that range or with an unreliable
+ * (non-positive or >10s) time gap — never a fabricated/spiky number.
+ */
+function computeSpeed(
+  pos: GeolocationPosition,
+  next: { lat: number; lng: number },
+  now: number,
+  lastRawFix: { lat: number; lng: number; at: number } | null
+): [number | null, SpeedSource | null] {
+  const clamp = (kmh: number): number | null => (kmh >= 0 && kmh <= SPEED_CONFIG.MAX_PLAUSIBLE_KMH ? kmh : null);
+
+  if (typeof pos.coords.speed === "number" && Number.isFinite(pos.coords.speed) && pos.coords.speed >= 0) {
+    const kmh = clamp(pos.coords.speed * 3.6);
+    return kmh !== null ? [kmh, "gps"] : [null, null];
+  }
+
+  if (lastRawFix) {
+    const elapsedSeconds = (now - lastRawFix.at) / 1000;
+    if (elapsedSeconds > 0 && elapsedSeconds <= 10) {
+      const meters = distanceMeters(lastRawFix, next);
+      const kmh = clamp((meters / elapsedSeconds) * 3.6);
+      return kmh !== null ? [kmh, "derived"] : [null, null];
+    }
+  }
+
+  return [null, null];
 }
 
 function mapGeolocationError(err: GeolocationPositionError): GeolocationErrorReason {
@@ -101,7 +151,12 @@ export function watchDriverLocation(options: GeolocationWatchOptions): () => voi
     console.warn(
       `[DEV ONLY] Real geolocation unavailable (${reason}) — simulating driver movement for active-ride tracking. This NEVER happens in a production build.`
     );
-    const emit = () => options.onUpdate(devSimulatedPosition(devTick++));
+    const emit = () => {
+      options.onUpdate(devSimulatedPosition(devTick++));
+      // Never fabricate a speed value, even in the dev-only simulated-GPS
+      // fallback — "Speed unavailable" is the honest state here.
+      options.onSpeedUpdate?.(null, null);
+    };
     emit();
     devFallbackInterval = setInterval(emit, Math.max(minIntervalMs, 5000));
   }
@@ -115,6 +170,12 @@ export function watchDriverLocation(options: GeolocationWatchOptions): () => voi
 
   let lastAcceptedAt = 0;
   let lastAcceptedPosition: { lat: number; lng: number } | null = null;
+  // Tracked independently of lastAcceptedPosition: the position-write
+  // throttle accepts a fix only every minIntervalMs/minMovementMeters, far
+  // too coarse a window to derive a responsive speed from (it would smear
+  // speed over 5s+/25m). The speed fallback instead diffs consecutive RAW
+  // ticks, ungated by that throttle.
+  let lastRawFix: { lat: number; lng: number; at: number } | null = null;
 
   const watchId = navigator.geolocation.watchPosition(
     (pos) => {
@@ -129,6 +190,11 @@ export function watchDriverLocation(options: GeolocationWatchOptions): () => voi
         lastAcceptedPosition = next;
         options.onUpdate(next);
       }
+
+      if (options.onSpeedUpdate) {
+        options.onSpeedUpdate(...computeSpeed(pos, next, now, lastRawFix));
+      }
+      lastRawFix = { ...next, at: now };
     },
     (err) => handleGeolocationError(mapGeolocationError(err)),
     { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }

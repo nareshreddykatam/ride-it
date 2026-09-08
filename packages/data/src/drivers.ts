@@ -272,6 +272,22 @@ export async function updateDriverLocation(
   if (error) throw error;
 }
 
+/**
+ * Publishes the driver's live speed (km/h) for the given ride, via
+ * update_driver_speed() (migration 20260908060000) — never a raw client
+ * `.update()`, since the server must also validate the ride is currently
+ * assigned to this driver AND in an active-ride status, not just that the
+ * caller owns the drivers row. Returns false (not an error) if the RPC's
+ * guard rejects the write — a benign, expected race as a ride completes
+ * mid-publish; callers should treat this the same as a dropped location
+ * ping (log/ignore, let the next tick retry) rather than surfacing it.
+ */
+export async function publishDriverSpeed(supabase: SupabaseClient, rideId: string, speedKmh: number): Promise<boolean> {
+  const { data, error } = await supabase.rpc("update_driver_speed", { p_ride_id: rideId, p_speed_kmh: speedKmh });
+  if (error) throw error;
+  return Boolean(data);
+}
+
 export interface SubscriptionRow {
   id: string;
   driver_id: string;

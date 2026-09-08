@@ -17,19 +17,53 @@ const OFFER_COLUMNS =
  * subscribeToDriverOffers() (matching.ts) instead of polling this module.
  */
 
-/** The driver's current live (pending, unexpired) offer, if any — used on mount/reconnect to reconcile state rather than relying solely on the realtime stream. */
-export async function getActiveOfferForDriver(supabase: SupabaseClient, driverId: string): Promise<RideOfferRow | null> {
-  const { data, error } = await supabase
+const OFFERS_PAGE_SIZE = 25;
+
+export interface DriverOffersPage {
+  offers: RideOfferRow[];
+  /** True if there may be more pending offers beyond this page — fetch the next page (passing `nextCursor` as `opts.after`) only if this is true; most drivers will have far fewer than one page's worth. */
+  hasMore: boolean;
+  /** Cursor for the next page (the last row's offered_at), or null if this page was empty. Pass as `opts.after` — NOT a numeric offset, deliberately: an offset would silently skip or repeat rows as offers ahead of it leave `pending` (accepted/rejected/expired) between page fetches, since that shifts what "row N" even means. A cursor keyed on offered_at is immune to that. */
+  nextCursor: string | null;
+}
+
+/**
+ * Every one of the driver's current live (pending, unexpired) offers —
+ * used on mount/reconnect to reconcile state rather than relying solely on
+ * the realtime stream. Ridora's matching model deliberately lets a driver
+ * hold several simultaneous offers across different rides (see
+ * 20260908070000_matching_allow_concurrent_offers_per_driver.sql), so this
+ * returns a page of rows, not a single one — no arbitrary cap on how many
+ * a driver may have; callers fetch another page (via `opts.after`) only if
+ * genuinely needed for UI performance (each ride's own batch is already
+ * small, so in practice a driver rarely approaches a full page).
+ */
+export async function getActiveOffersForDriver(
+  supabase: SupabaseClient,
+  driverId: string,
+  opts?: { after?: string; pageSize?: number }
+): Promise<DriverOffersPage> {
+  const pageSize = opts?.pageSize ?? OFFERS_PAGE_SIZE;
+  let query = supabase
     .from("ride_offers")
     .select(OFFER_COLUMNS)
     .eq("driver_id", driverId)
     .eq("status", "pending")
     .gt("expires_at", new Date().toISOString())
-    .order("offered_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order("offered_at", { ascending: true })
+    .limit(pageSize);
+  if (opts?.after) {
+    query = query.gt("offered_at", opts.after);
+  }
+  const { data, error } = await query;
   if (error) throw error;
-  return data as unknown as RideOfferRow | null;
+  const offers = (data ?? []) as unknown as RideOfferRow[];
+  const lastOffer = offers[offers.length - 1];
+  return {
+    offers,
+    hasMore: offers.length === pageSize,
+    nextCursor: lastOffer ? lastOffer.offered_at : (opts?.after ?? null),
+  };
 }
 
 /**

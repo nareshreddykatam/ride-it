@@ -59,6 +59,25 @@ export const LOCATION_CONFIG = {
   TRACKING_POLL_INTERVAL_MS: 10_000,
 } as const;
 
+/**
+ * Live driver speedometer thresholds (Ridora speed telemetry feature).
+ * Deliberately separate from LOCATION_CONFIG's write gate: a car braking
+ * to a stop needs a speed update without moving MIN_MOVEMENT_METERS, so
+ * speed publishing has its own, faster, movement-independent throttle.
+ */
+export const SPEED_CONFIG = {
+  /** Never publish a speed update to the server faster than this, even if speed is changing rapidly. */
+  PUBLISH_FLOOR_MS: 1_200,
+  /** Force a publish at least this often even when speed is holding steady, so passenger-side freshness stays within the "roughly every 1-2s" target. */
+  PUBLISH_CEILING_MS: 2_500,
+  /** Publish immediately (subject to the floor) once speed has changed by more than this many km/h since the last accepted publish. */
+  PUBLISH_DELTA_KMH: 5,
+  /** How long a displayed speed is trusted before showing "Speed unavailable" — much shorter than STALE_LOCATION_THRESHOLD_SECONDS since speed updates far more often than position. */
+  STALE_THRESHOLD_SECONDS: 6,
+  /** Any computed/reported speed above this (or negative) is treated as an invalid GPS reading and dropped, not displayed or published. */
+  MAX_PLAUSIBLE_KMH: 180,
+} as const;
+
 export const ETA_CONFIG = {
   /**
    * Minimum time between route/ETA recalculations for the same ride —

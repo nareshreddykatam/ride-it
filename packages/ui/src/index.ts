@@ -18,6 +18,7 @@ export * from "./components/vehicle-card";
 export * from "./components/stat-card";
 export * from "./components/driver-card";
 export * from "./components/ride-offer-card";
+export * from "./components/speed-chip";
 export * from "./components/online-toggle";
 export * from "./components/searching-indicator";
 export * from "./components/matching-radar";

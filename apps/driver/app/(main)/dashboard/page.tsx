@@ -15,10 +15,11 @@ import {
   updateDriverLocation,
   getDriverEarningsSummary,
   getWallet,
-  getActiveOfferForDriver,
+  getActiveOffersForDriver,
   acceptRideRequest,
   rejectRideRequest,
   subscribeToDriverOffers,
+  subscribeToDriverOfferUpdates,
   isDriverPersonalInfoComplete,
   getActiveVehicle,
   type DriverProfileRow,
@@ -26,7 +27,32 @@ import {
   type RideOfferRow,
   type VehicleRow,
 } from "@ride-it/data";
-import { RideRequestSheet } from "../../../components/ride-request-sheet";
+import { RideRequestSheet, type RideOfferItem } from "../../../components/ride-request-sheet";
+
+/** Maps a raw ride_offers row to the shape RideRequestSheet renders — pure presentation mapping, no new data. */
+function toOfferItem(offer: RideOfferRow): RideOfferItem {
+  return {
+    id: offer.id,
+    rideId: offer.ride_id,
+    pickup: { lat: 0, lng: 0, address: offer.pickup_address ?? "Pickup" },
+    drop: { lat: 0, lng: 0, address: offer.drop_address ?? "Drop" },
+    expiresAt: offer.expires_at,
+    fare: {
+      vehicleType: offer.vehicle_type === "bike" ? VehicleType.BIKE : VehicleType.AUTO,
+      baseFare: offer.base_fare,
+      distanceFare: offer.distance_fare,
+      totalFare: offer.total_fare,
+      currency: "INR",
+      distanceKm: offer.distance_km ?? 0,
+      etaMinutes: 5,
+      // The offer's base_fare/distance_fare are already surge-inclusive
+      // (set from the ride's own server-computed values at dispatch
+      // time) — this field isn't rendered by RideRequestSheet, kept
+      // only to satisfy FareEstimate's shape.
+      surgeMultiplier: 1,
+    },
+  };
+}
 
 const VERIFICATION_LABEL: Record<DriverProfileRow["verification_status"], string> = {
   pending: "Pending review",
@@ -63,8 +89,25 @@ export default function DashboardPage() {
   const [earningsToday, setEarningsToday] = React.useState({ total: 0, rides: 0 });
   const [walletBalance, setWalletBalance] = React.useState(0);
   const [togglingOnline, setTogglingOnline] = React.useState(false);
-  const [pendingOffer, setPendingOffer] = React.useState<RideOfferRow | null>(null);
-  const [requestOpen, setRequestOpen] = React.useState(false);
+  // Ridora's correct matching model: a driver may hold several
+  // simultaneous pending offers across different rides and chooses which
+  // to accept — never capped to one (see
+  // 20260908070000_matching_allow_concurrent_offers_per_driver.sql).
+  // Pagination here is purely a UI/fetch-performance mechanism (one page
+  // is plenty for virtually every driver) — there is no business limit on
+  // how many offers can end up in `offers`; realtime INSERTs keep
+  // appending to it regardless of pagination state.
+  const [offers, setOffers] = React.useState<RideOfferRow[]>([]);
+  const [offersHasMore, setOffersHasMore] = React.useState(false);
+  const [loadingMoreOffers, setLoadingMoreOffers] = React.useState(false);
+  // The cursor for the next page (last-loaded offer's offered_at) — kept
+  // in a ref, not state, because it must NOT be derived from `offers`
+  // itself: accepting/rejecting/expiring removes entries from `offers`,
+  // and re-deriving the cursor from the (now shorter) array would corrupt
+  // pagination — e.g. re-requesting rows already loaded, or skipping ones
+  // that were never fetched. This ref only ever moves forward, once per
+  // successful page fetch, independent of later removals.
+  const nextOffersCursorRef = React.useRef<string | null>(null);
   const [loadError, setLoadError] = React.useState(false);
   const [selfLocation, setSelfLocation] = React.useState<LatLng | null>(null);
 
@@ -108,28 +151,55 @@ export default function DashboardPage() {
 
   // Reconcile against authoritative state on mount/reconnect — if a
   // realtime event was missed while this screen wasn't open, this catches
-  // an already-pending offer rather than relying solely on the stream.
+  // every already-pending offer rather than relying solely on the stream.
   React.useEffect(() => {
     if (!user) return;
-    getActiveOfferForDriver(supabase, user.id).then((offer) => {
-      if (offer) {
-        setPendingOffer(offer);
-        setRequestOpen(true);
-      }
+    getActiveOffersForDriver(supabase, user.id).then((page) => {
+      setOffers(page.offers);
+      setOffersHasMore(page.hasMore);
+      nextOffersCursorRef.current = page.nextCursor;
     });
   }, [supabase, user]);
 
-  // Real-time: subscribe to new offers made to this driver. Filtered to
-  // this driver's own id — not a broadcast-all subscription.
+  // Fetches the next page (by cursor, not offset — see nextOffersCursorRef's
+  // comment) and merges it into the existing list, deduping by id in case a
+  // realtime INSERT already delivered one of these rows in the meantime.
+  async function handleLoadMoreOffers() {
+    if (!user || !nextOffersCursorRef.current || loadingMoreOffers) return;
+    setLoadingMoreOffers(true);
+    try {
+      const page = await getActiveOffersForDriver(supabase, user.id, { after: nextOffersCursorRef.current });
+      setOffers((prev) => {
+        const existingIds = new Set(prev.map((o) => o.id));
+        return [...prev, ...page.offers.filter((o) => !existingIds.has(o.id))];
+      });
+      setOffersHasMore(page.hasMore);
+      nextOffersCursorRef.current = page.nextCursor;
+    } finally {
+      setLoadingMoreOffers(false);
+    }
+  }
+
+  // Real-time: subscribe to new offers made to this driver (INSERT) and to
+  // status changes on the driver's own offers (UPDATE — rejected, lost a
+  // race, expired, or superseded by that ride's passenger cancelling
+  // during matching). Both filtered to this driver's own id — not a
+  // broadcast-all subscription. Together these keep the multi-offer list
+  // in sync without polling.
   React.useEffect(() => {
     if (!user) return;
-    const unsubscribe = subscribeToDriverOffers(supabase, user.id, (offer) => {
-      if (offer.status === "pending") {
-        setPendingOffer(offer);
-        setRequestOpen(true);
-      }
+    const unsubscribeNew = subscribeToDriverOffers(supabase, user.id, (offer) => {
+      if (offer.status !== "pending") return;
+      setOffers((prev) => (prev.some((o) => o.id === offer.id) ? prev : [...prev, offer]));
     });
-    return unsubscribe;
+    const unsubscribeUpdates = subscribeToDriverOfferUpdates(supabase, user.id, (offer) => {
+      if (offer.status === "pending") return;
+      setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+    });
+    return () => {
+      unsubscribeNew();
+      unsubscribeUpdates();
+    };
   }, [supabase, user]);
 
   // Location reporting while online but not yet on a ride. Real device GPS
@@ -185,26 +255,37 @@ export default function DashboardPage() {
     }
   }
 
-  async function handleAccept() {
-    if (!pendingOffer) return;
-    setRequestOpen(false);
-    const claimed = await acceptRideRequest(supabase, pendingOffer.ride_id);
+  async function handleAccept(item: RideOfferItem) {
+    const claimed = await acceptRideRequest(supabase, item.rideId);
     if (claimed) {
+      // Won — this driver is now busy (accept_ride_offer's own advisory-
+      // lock guard prevents accepting any other ride from here on, see
+      // 20260908070100_accept_ride_offer_single_active_ride_guard.sql).
+      // Clear every other pending offer locally, and best-effort release
+      // them server-side too so those rides' batch slots free up sooner
+      // instead of waiting out their full expiry window — a throughput
+      // optimization, not required for correctness.
+      const others = offers.filter((o) => o.id !== item.id);
+      setOffers([]);
+      void Promise.allSettled(others.map((o) => rejectRideRequest(supabase, o.ride_id)));
       router.push(`/navigation?rideId=${claimed.id}`);
+      return;
     }
-    // If claimed is null, the race was lost (another driver got it first)
-    // or the offer expired — accept_ride_offer() already marked this
-    // driver's own offer row accordingly server-side.
-    setPendingOffer(null);
+    // Lost the race, the offer expired, or this driver was already busy —
+    // accept_ride_offer() already marked this driver's own offer row
+    // accordingly server-side. Only this one offer is removed; the rest
+    // of the list is untouched.
+    setOffers((prev) => prev.filter((o) => o.id !== item.id));
   }
 
-  async function handleReject() {
-    if (!pendingOffer) return;
-    setRequestOpen(false);
+  async function handleReject(item: RideOfferItem) {
+    setOffers((prev) => prev.filter((o) => o.id !== item.id));
     try {
-      await rejectRideRequest(supabase, pendingOffer.ride_id);
-    } finally {
-      setPendingOffer(null);
+      await rejectRideRequest(supabase, item.rideId);
+    } catch {
+      // Best-effort — the offer will still naturally expire server-side
+      // if this call fails, and the local list already reflects the
+      // driver's decision.
     }
   }
 
@@ -403,31 +484,15 @@ export default function DashboardPage() {
         />
       </div>
 
-      {pendingOffer && (
-        <RideRequestSheet
-          open={requestOpen}
-          pickup={{ lat: 0, lng: 0, address: pendingOffer.pickup_address ?? "Pickup" }}
-          drop={{ lat: 0, lng: 0, address: pendingOffer.drop_address ?? "Drop" }}
-          expiresAt={pendingOffer.expires_at}
-          fare={{
-            vehicleType: pendingOffer.vehicle_type === "bike" ? VehicleType.BIKE : VehicleType.AUTO,
-            baseFare: pendingOffer.base_fare,
-            distanceFare: pendingOffer.distance_fare,
-            totalFare: pendingOffer.total_fare,
-            currency: "INR",
-            distanceKm: pendingOffer.distance_km ?? 0,
-            etaMinutes: 5,
-            // The offer's base_fare/distance_fare are already surge-inclusive
-            // (set from the ride's own server-computed values at dispatch
-            // time) — this field isn't rendered by RideRequestSheet, kept
-            // only to satisfy FareEstimate's shape.
-            surgeMultiplier: 1,
-          }}
-          onAccept={handleAccept}
-          onReject={handleReject}
-          onExpire={handleReject}
-        />
-      )}
+      <RideRequestSheet
+        offers={offers.map(toOfferItem)}
+        onAccept={handleAccept}
+        onReject={handleReject}
+        onExpire={handleReject}
+        hasMore={offersHasMore}
+        onLoadMore={handleLoadMoreOffers}
+        loadingMore={loadingMoreOffers}
+      />
     </main>
   );
 }
