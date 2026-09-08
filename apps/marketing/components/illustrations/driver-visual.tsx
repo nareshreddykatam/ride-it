@@ -1,61 +1,61 @@
 /**
- * Stylized driver figure — deliberately an illustrated silhouette, not an
- * attempt at a fake photograph of a real person. Rendering a convincing
- * photorealistic human in hand-authored SVG isn't achievable credibly, and
- * a fabricated "photo" of a nonexistent driver would misrepresent the
- * product more than an honest illustration does. Confident stance (arms
- * crossed), helmet at hand, city skyline behind — same lighting/shadow
- * language as the vehicle illustrations so it reads as one visual system.
+ * The driver section is represented through their vehicle and a helmet
+ * resting on its seat, not an illustrated human figure — a hand-authored
+ * SVG person reads as exactly the "generic AI-illustrated human" this
+ * redesign is trying to move away from, and a fabricated "photo" of a
+ * nonexistent driver would misrepresent the product. The bike is grounded
+ * on the same road/skyline language as the hero street scene, so it reads
+ * as one consistent place rather than a decorative accent.
  */
-import { CitySkyline } from "./city-scene";
+import { RidoraBikeArt } from "./vehicles";
 
 export function DriverVisual({ className }: { className?: string }) {
   return (
-    <div className={`relative ${className ?? ""}`}>
-      <div className="absolute inset-x-0 bottom-0 h-2/3 opacity-[0.08]">
-        <CitySkyline className="h-full w-full" />
-      </div>
-      <svg viewBox="0 0 260 320" className="relative h-full w-full" role="img" aria-label="Ridora driver, ready to go">
+    <div className={`relative overflow-hidden ${className ?? ""}`}>
+      <svg viewBox="0 0 700 560" preserveAspectRatio="xMidYMax slice" className="absolute inset-0 h-full w-full" aria-hidden="true">
         <defs>
-          <linearGradient id="rd-driver-shirt" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#123B32" />
+          <linearGradient id="rd-driver-road" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stopColor="#16233A" />
             <stop offset="1" stopColor="#0B1628" />
           </linearGradient>
-          <linearGradient id="rd-driver-skin" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="#C48A5E" />
-            <stop offset="1" stopColor="#9C6B45" />
-          </linearGradient>
         </defs>
-
-        <ellipse cx="130" cy="300" rx="70" ry="12" fill="#0B1628" opacity="0.12" />
-
-        {/* Helmet, resting beside the figure */}
-        <g transform="translate(196,220)">
-          <ellipse cx="0" cy="18" rx="30" ry="8" fill="#0B1628" opacity="0.14" />
-          <path d="M-26 4 a26 26 0 0 1 52 0 v6 a10 10 0 0 1 -10 10 h-32 a10 10 0 0 1 -10 -10 Z" fill="#0F8F78" />
-          <rect x="-20" y="2" width="40" height="10" rx="5" fill="#0B1628" opacity="0.35" />
-          <circle cx="0" cy="-2" r="3" fill="#FFFFFF" opacity="0.7" />
+        <rect width="700" height="560" fill="#0B1628" />
+        <g opacity="0.14" fill="#FFFFFF">
+          {[
+            { x: 20, w: 60, h: 160 },
+            { x: 100, w: 40, h: 220 },
+            { x: 160, w: 70, h: 130 },
+            { x: 260, w: 50, h: 240 },
+            { x: 340, w: 90, h: 170 },
+            { x: 460, w: 60, h: 200 },
+            { x: 540, w: 80, h: 140 },
+            { x: 640, w: 50, h: 210 },
+          ].map((b, i) => (
+            <rect key={i} x={b.x} y={330 - b.h} width={b.w} height={b.h} />
+          ))}
         </g>
-
-        {/* Legs */}
-        <rect x="104" y="230" width="20" height="66" rx="8" fill="#16233A" />
-        <rect x="140" y="230" width="20" height="66" rx="8" fill="#16233A" />
-
-        {/* Torso */}
-        <path d="M92 140 C92 118 112 104 132 104 C152 104 172 118 172 140 L176 232 C176 240 168 246 160 246 L104 246 C96 246 88 240 88 232 Z" fill="url(#rd-driver-shirt)" />
-
-        {/* Crossed arms */}
-        <path d="M96 156 C118 176 148 176 170 156 L166 182 C144 198 120 198 100 182 Z" fill="#0C2A24" />
-        {/* Small chest logo */}
-        <circle cx="132" cy="146" r="7" fill="#FFFFFF" opacity="0.9" />
-        <circle cx="132" cy="146" r="3" fill="#0F8F78" />
-
-        {/* Neck + head */}
-        <rect x="122" y="90" width="20" height="20" fill="url(#rd-driver-skin)" />
-        <circle cx="132" cy="72" r="30" fill="url(#rd-driver-skin)" />
-        {/* Simple hair */}
-        <path d="M102 66 a30 30 0 0 1 60 0 c0 -10 -10 -20 -30 -20 c-20 0 -30 10 -30 20 Z" fill="#241A12" />
+        <rect x="0" y="360" width="700" height="200" fill="url(#rd-driver-road)" />
+        <g fill="#F7F9FA" opacity="0.35">
+          {[30, 150, 270, 390, 510, 630].map((x) => (
+            <rect key={x} x={x} y="388" width="42" height="5" rx="2.5" />
+          ))}
+        </g>
+        <ellipse cx="350" cy="452" rx="130" ry="16" fill="#000000" opacity="0.3" style={{ filter: "blur(5px)" }} />
       </svg>
+
+      <div className="absolute left-1/2 top-[42%] w-[46%] -translate-x-1/2">
+        <RidoraBikeArt className="w-full" />
+      </div>
+
+      {/* Helmet resting beside the bike */}
+      <div className="absolute left-[68%] top-[54%] w-[14%]">
+        <svg viewBox="0 0 100 70" role="img" aria-label="A driver's helmet">
+          <ellipse cx="50" cy="60" rx="34" ry="8" fill="#000000" opacity="0.2" />
+          <path d="M14 40 a36 36 0 0 1 72 0 v8 a14 14 0 0 1 -14 14 H28 A14 14 0 0 1 14 48 Z" fill="#0F8F78" />
+          <rect x="22" y="36" width="56" height="12" rx="6" fill="#0B1628" opacity="0.35" />
+          <circle cx="50" cy="30" r="4" fill="#FFFFFF" opacity="0.7" />
+        </svg>
+      </div>
     </div>
   );
 }

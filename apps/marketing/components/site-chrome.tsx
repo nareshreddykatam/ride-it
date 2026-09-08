@@ -8,15 +8,16 @@ import { BottomSheet } from "@ride-it/ui";
 import { CtaButton } from "./ui/cta-button";
 
 // Every label maps to a real, already-working route — no placeholder
-// pages were created to match this list literally. "Ride"/"Drive"/"Help"
-// point at the closest existing real page (how-it-works / for-drivers /
-// contact) rather than fabricating new empty routes.
+// pages were created to match this list literally. "Ride"/"Drive" point
+// at the closest existing real page (how-it-works / for-drivers) rather
+// than fabricating new empty routes. Help/Contact moved out of the primary
+// nav (kept minimal, per the editorial-brand direction) but stays reachable
+// from the footer.
 const LINKS = [
   { href: "/how-it-works", label: "Ride" },
   { href: "/for-drivers", label: "Drive" },
   { href: "/safety", label: "Safety" },
   { href: "/about", label: "About" },
-  { href: "/contact", label: "Help" },
 ];
 
 function Wordmark({ dark = false, className = "" }: { dark?: boolean; className?: string }) {
@@ -73,10 +74,7 @@ export function SiteHeader() {
             );
           })}
         </nav>
-        <div className="hidden items-center gap-3 md:flex">
-          <a href="https://driver.ridora.in" className="text-sm font-medium text-rd-navy-soft transition-colors hover:text-rd-navy">
-            Drive with Ridora
-          </a>
+        <div className="hidden items-center md:flex">
           <CtaButton href="https://app.ridora.in" size="md">
             Book a Ride
           </CtaButton>

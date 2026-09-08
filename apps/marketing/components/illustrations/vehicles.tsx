@@ -22,6 +22,13 @@
  * (buttons, cards, backgrounds, route lines), not on the vehicles
  * themselves — consistent with how real ride-hailing marketing sites
  * depict real vehicles without repainting them in brand colors.
+ *
+ * Every gradient/clipPath id is namespaced with React.useId() — these
+ * components can now legitimately appear more than once on the same page
+ * (e.g. the hero street scene AND the vehicle showcase both use
+ * RidoraAutoArt), and duplicate SVG ids on one page are a real bug (the
+ * second instance's url(#id) references can resolve to the first
+ * instance's definition instead of its own).
  */
 import * as React from "react";
 
@@ -41,18 +48,22 @@ function GroundShadow({ cx, rx = 78, cy = 152 }: { cx: number; rx?: number; cy?:
 const FRAME = "0 0 240 170";
 
 export function RidoraBikeArt({ className }: { className?: string }) {
+  const uid = React.useId();
+  const body = `rd-bike-body-${uid}`;
+  const sheen = `rd-bike-sheen-${uid}`;
+  const clip = `rd-bike-clip-${uid}`;
   return (
     <svg viewBox={FRAME} className={className} role="img" aria-label="Ridora motorcycle">
       <defs>
-        <linearGradient id="rd-bike-body" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={body} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#2B3B52" />
           <stop offset="1" stopColor="#0B1628" />
         </linearGradient>
-        <linearGradient id="rd-bike-sheen" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.5" />
           <stop offset="0.5" stopColor="#FFFFFF" stopOpacity="0" />
         </linearGradient>
-        <clipPath id="rd-bike-clip">
+        <clipPath id={clip}>
           <path
             transform="translate(21,24) scale(4)"
             d="M17 11.5 C19 8.5 24 8.5 27.5 11.5 C29 13 29 15.5 27.5 16.5 L18 15.5 Z M26.5 14.5 C28.5 13.5 32 13 36 13 C38.5 13 41.5 14 43 15.5 L43 18 C39.5 18 34 18 26.5 17 Z M19 17.5 L27 17.5 L26.5 24.5 L18.5 24.5 Z"
@@ -62,41 +73,45 @@ export function RidoraBikeArt({ className }: { className?: string }) {
 
       <GroundShadow cx={120} />
 
-      <g transform="translate(21,24) scale(4)" fill="url(#rd-bike-body)">
-        <path d="M9.5 26.5 L16.5 9.5 M14 9 L18 10 M12.5 12 L15.5 13" stroke="url(#rd-bike-body)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <g transform="translate(21,24) scale(4)" fill={`url(#${body})`}>
+        <path d="M9.5 26.5 L16.5 9.5 M14 9 L18 10 M12.5 12 L15.5 13" stroke={`url(#${body})`} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
         <path d="M17 11.5 C19 8.5 24 8.5 27.5 11.5 C29 13 29 15.5 27.5 16.5 L18 15.5 Z" />
         <path d="M26.5 14.5 C28.5 13.5 32 13 36 13 C38.5 13 41.5 14 43 15.5 L43 18 C39.5 18 34 18 26.5 17 Z" />
         <path d="M19 17.5 L27 17.5 L26.5 24.5 L18.5 24.5 Z" />
         <line x1="20" y1="20" x2="25.5" y2="20" stroke="#E9F7F2" strokeWidth="1.1" />
         <line x1="20" y1="22.5" x2="25.5" y2="22.5" stroke="#E9F7F2" strokeWidth="1.1" />
         <path d="M26 23.5 L42.5 25 C43.5 25 44 25.6 44 26.2 C44 27 43.2 27.5 42.2 27.2 L26 25 Z" fill="#C7CFD6" />
-        <path d="M5.5 23.5 C6.5 19.5 10.5 19.5 13.5 21.5" stroke="url(#rd-bike-body)" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-        <path d="M26 22 L38.5 26.5" stroke="url(#rd-bike-body)" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+        <path d="M5.5 23.5 C6.5 19.5 10.5 19.5 13.5 21.5" stroke={`url(#${body})`} strokeWidth="1.6" strokeLinecap="round" fill="none" />
+        <path d="M26 22 L38.5 26.5" stroke={`url(#${body})`} strokeWidth="2.2" strokeLinecap="round" fill="none" />
         <circle cx="9.5" cy="26.5" r="5" fill="#161E2B" />
         <circle cx="9.5" cy="26.5" r="2.2" fill="#8A98A6" />
         <circle cx="38.5" cy="26.5" r="5" fill="#161E2B" />
         <circle cx="38.5" cy="26.5" r="2.2" fill="#8A98A6" />
       </g>
 
-      <rect x="60" y="90" width="150" height="40" fill="url(#rd-bike-sheen)" clipPath="url(#rd-bike-clip)" />
+      <rect x="60" y="90" width="150" height="40" fill={`url(#${sheen})`} clipPath={`url(#${clip})`} />
       <RidoraBadge cx={148} cy={106} />
     </svg>
   );
 }
 
 export function RidoraScootyArt({ className }: { className?: string }) {
+  const uid = React.useId();
+  const body = `rd-scooty-body-${uid}`;
+  const sheen = `rd-scooty-sheen-${uid}`;
+  const clip = `rd-scooty-clip-${uid}`;
   return (
     <svg viewBox={FRAME} className={className} role="img" aria-label="Ridora scooter">
       <defs>
-        <linearGradient id="rd-scooty-body" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={body} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#FFFFFF" />
           <stop offset="1" stopColor="#C9D3D9" />
         </linearGradient>
-        <linearGradient id="rd-scooty-sheen" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.75" />
           <stop offset="0.6" stopColor="#FFFFFF" stopOpacity="0" />
         </linearGradient>
-        <clipPath id="rd-scooty-clip">
+        <clipPath id={clip}>
           <path
             transform="translate(23,26) scale(4)"
             d="M23.5 23 C24 17.5 26.5 14.5 30.5 14.5 C35.5 14.5 40.5 16.8 42 20.5 C42.5 22 42.5 23.8 41.5 25 L38.5 25 C38 22.8 35.5 21.2 32.5 21.2 C29.5 21.2 27.2 22.8 26.8 24.5 L23.5 23 Z"
@@ -106,7 +121,7 @@ export function RidoraScootyArt({ className }: { className?: string }) {
 
       <GroundShadow cx={120} />
 
-      <g transform="translate(23,26) scale(4)" fill="url(#rd-scooty-body)" stroke="url(#rd-scooty-body)">
+      <g transform="translate(23,26) scale(4)" fill={`url(#${body})`} stroke={`url(#${body})`}>
         <path d="M14.5 8 L17.5 8.5 M16 8.5 L17 11.5" strokeWidth="2.2" strokeLinecap="round" fill="none" />
         <path d="M16.5 9.5 C15 13.5 11 16.5 10 19.5 C9.5 21.5 10.5 23.5 12 24.5 L15 24.5 L14 18.5 C15.2 15.5 17.5 12.5 18.5 9.5 Z" stroke="none" />
         <path d="M6 24 C7 20.5 10.5 20.5 12.5 22.5" strokeWidth="1.6" strokeLinecap="round" fill="none" />
@@ -120,25 +135,29 @@ export function RidoraScootyArt({ className }: { className?: string }) {
         <circle cx="36.5" cy="26.5" r="1.8" fill="#8A98A6" stroke="none" />
       </g>
 
-      <rect x="55" y="90" width="150" height="36" fill="url(#rd-scooty-sheen)" clipPath="url(#rd-scooty-clip)" />
+      <rect x="55" y="90" width="150" height="36" fill={`url(#${sheen})`} clipPath={`url(#${clip})`} />
       <RidoraBadge cx={130} cy={108} />
     </svg>
   );
 }
 
 export function RidoraAutoArt({ className }: { className?: string }) {
+  const uid = React.useId();
+  const body = `rd-auto-body-${uid}`;
+  const sheen = `rd-auto-sheen-${uid}`;
+  const clip = `rd-auto-clip-${uid}`;
   return (
     <svg viewBox={FRAME} className={className} role="img" aria-label="Ridora auto rickshaw">
       <defs>
-        <linearGradient id="rd-auto-body" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={body} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#FFD84D" />
           <stop offset="1" stopColor="#E8A400" />
         </linearGradient>
-        <linearGradient id="rd-auto-sheen" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.55" />
           <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0" />
         </linearGradient>
-        <clipPath id="rd-auto-clip">
+        <clipPath id={clip}>
           <path
             transform="translate(24,24) scale(4)"
             fillRule="evenodd"
@@ -156,7 +175,7 @@ export function RidoraAutoArt({ className }: { className?: string }) {
         <rect x="9" y="10" width="32" height="13" fill="#16233A" />
       </g>
 
-      <g transform="translate(24,24) scale(4)" fill="url(#rd-auto-body)">
+      <g transform="translate(24,24) scale(4)" fill={`url(#${body})`}>
         <path
           fillRule="evenodd"
           clipRule="evenodd"
@@ -171,25 +190,29 @@ export function RidoraAutoArt({ className }: { className?: string }) {
         <circle cx="6.5" cy="18" r="1.2" fill="#FFF3C4" />
       </g>
 
-      <rect x="60" y="88" width="140" height="34" fill="url(#rd-auto-sheen)" clipPath="url(#rd-auto-clip)" />
+      <rect x="60" y="88" width="140" height="34" fill={`url(#${sheen})`} clipPath={`url(#${clip})`} />
       <RidoraBadge cx={162} cy={112} />
     </svg>
   );
 }
 
 export function RidoraCarArt({ className }: { className?: string }) {
+  const uid = React.useId();
+  const body = `rd-car-body-${uid}`;
+  const sheen = `rd-car-sheen-${uid}`;
+  const clip = `rd-car-clip-${uid}`;
   return (
     <svg viewBox={FRAME} className={className} role="img" aria-label="Ridora car">
       <defs>
-        <linearGradient id="rd-car-body" x1="0" y1="0" x2="1" y2="1">
+        <linearGradient id={body} x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#FFFFFF" />
           <stop offset="1" stopColor="#D3DBE0" />
         </linearGradient>
-        <linearGradient id="rd-car-sheen" x1="0" y1="0" x2="0" y2="1">
+        <linearGradient id={sheen} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.7" />
           <stop offset="0.55" stopColor="#FFFFFF" stopOpacity="0" />
         </linearGradient>
-        <clipPath id="rd-car-clip">
+        <clipPath id={clip}>
           <path
             transform="translate(21,25) scale(4)"
             fillRule="evenodd"
@@ -205,7 +228,7 @@ export function RidoraCarArt({ className }: { className?: string }) {
         <rect x="13.5" y="9.5" width="23" height="8" fill="#16233A" />
       </g>
 
-      <g transform="translate(21,25) scale(4)" fill="url(#rd-car-body)">
+      <g transform="translate(21,25) scale(4)" fill={`url(#${body})`}>
         <path
           fillRule="evenodd"
           clipRule="evenodd"
@@ -219,7 +242,7 @@ export function RidoraCarArt({ className }: { className?: string }) {
         <circle cx="36" cy="26.5" r="2" fill="#8A98A6" />
       </g>
 
-      <rect x="55" y="85" width="170" height="40" fill="url(#rd-car-sheen)" clipPath="url(#rd-car-clip)" />
+      <rect x="55" y="85" width="170" height="40" fill={`url(#${sheen})`} clipPath={`url(#${clip})`} />
       <RidoraBadge cx={150} cy={108} />
     </svg>
   );
