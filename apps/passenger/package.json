@@ -7,9 +7,12 @@
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "cap:sync": "cap sync android"
   },
   "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
     "@ride-it/auth": "workspace:*",
     "@ride-it/data": "workspace:*",
     "@ride-it/maps": "workspace:*",
@@ -25,6 +28,7 @@
     "react-dom": "^18.3.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^6.0.0",
     "@ride-it/config": "workspace:*",
     "@types/node": "^20.14.0",
     "@types/google.maps": "^3.65.5",
