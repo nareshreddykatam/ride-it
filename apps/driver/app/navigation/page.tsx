@@ -5,8 +5,8 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { AlertTriangle, CheckCircle2, Flag, MapPinOff, MessageCircle, Phone, Users, X } from "lucide-react";
-import { BottomSheet, Button, Card, MeterValue, OtpInput, Select, Skeleton, StatusPill, PinGlyph, SafetyIcon, SlideToAction, PageLoader, SpeedChip } from "@ride-it/ui";
+import { AlertTriangle, CheckCircle2, Flag, MapPinOff, MessageCircle, MessageSquare, Phone, Users, X } from "lucide-react";
+import { BottomSheet, Button, Card, MeterValue, OtpInput, Select, Skeleton, StatusPill, PinGlyph, SafetyIcon, SlideToAction, PageLoader, SpeedChip, RideChatPanel } from "@ride-it/ui";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
@@ -30,10 +30,18 @@ import {
   DRIVER_REPORT_REASONS,
   DRIVER_CANCELLATION_REASONS,
   formatCancellationReason,
+  getRideMessages,
+  sendRideMessage,
+  markRideMessagesRead,
+  getUnreadRideMessageCount,
+  subscribeToRideMessages,
+  isRideChatAvailable,
+  canSendRideMessage,
   type RideRow,
   type RideTrackingInfo,
   type MatchedPassengerContact,
   type DriverProfileRow,
+  type RideMessageRow,
 } from "@ride-it/data";
 import { RideMap, watchDriverLocation, getCurrentPositionOnce, getExternalNavigationUrl, SPEED_CONFIG, type GeolocationErrorReason } from "@ride-it/maps";
 import { buildUpiPaymentUri, generateUpiQrDataUrl } from "@ride-it/payments/upi";
@@ -80,6 +88,19 @@ function phaseForRideStatus(status: RideRow["status"]): Phase | null {
   }
 }
 
+// Short canned replies so a driver can respond without typing while
+// moving — still go through the exact same send path (handleSendChatMessage
+// -> sendRideMessage() -> the server-side send_ride_message() RPC) as any
+// typed message. Never sent automatically based on GPS/ride events — a
+// driver must tap one.
+const DRIVER_CHAT_QUICK_REPLIES = [
+  "I'm arriving",
+  "I'm at the pickup point",
+  "Please wait at the pickup point",
+  "I can't find you",
+  "Please come to the pickup point",
+];
+
 const LOCATION_ERROR_MESSAGE: Record<GeolocationErrorReason, string> = {
   permission_denied: "Location permission required for live tracking.",
   position_unavailable: "Unable to update location right now.",
@@ -110,6 +131,19 @@ function NavigationPageContent() {
   const [speedStaleTick, setSpeedStaleTick] = React.useState(0); // forces a re-render every second so staleness recomputes even when GPS stops ticking entirely
   const lastPublishAtRef = React.useRef(0);
   const lastPublishedKmhRef = React.useRef<number | null>(null);
+  // Chat state
+  const [chatOpen, setChatOpen] = React.useState(false);
+  const [chatMessages, setChatMessages] = React.useState<RideMessageRow[]>([]);
+  const [chatLoaded, setChatLoaded] = React.useState(false);
+  const [chatLoading, setChatLoading] = React.useState(false);
+  const [chatLoadingMore, setChatLoadingMore] = React.useState(false);
+  const [chatHasMore, setChatHasMore] = React.useState(false);
+  const [chatSending, setChatSending] = React.useState(false);
+  const [chatSendError, setChatSendError] = React.useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  const chatOpenRef = React.useRef(false);
+  chatOpenRef.current = chatOpen;
+
   const [cancelSheetOpen, setCancelSheetOpen] = React.useState(false);
   const [cancelReason, setCancelReason] = React.useState(DRIVER_CANCELLATION_REASONS[0].value);
   const [cancelNote, setCancelNote] = React.useState("");
@@ -292,6 +326,87 @@ function NavigationPageContent() {
     !liveSpeed || Date.now() - liveSpeed.at > SPEED_CONFIG.STALE_THRESHOLD_SECONDS * 1000;
   // speedStaleTick is read only to force this to recompute every second — intentionally otherwise unused.
   void speedStaleTick;
+
+  const chatAvailable = isRideChatAvailable(ride?.driver_id ?? null);
+
+  // Unread badge — fetched once chat becomes available, independent of
+  // ever opening the chat sheet.
+  React.useEffect(() => {
+    if (!chatAvailable || !user || !rideId) return;
+    getUnreadRideMessageCount(supabase, rideId, user.id)
+      .then(setUnreadCount)
+      .catch(() => {});
+  }, [supabase, rideId, chatAvailable, user]);
+
+  // Realtime: new chat messages — subscribes once and stays subscribed for
+  // the rest of this screen's lifetime (freshChannel() guarantees a unique
+  // topic per call, so this is safe regardless of remounts/page
+  // transitions — see packages/data/src/realtime.ts).
+  React.useEffect(() => {
+    if (!chatAvailable || !rideId) return;
+    const unsubscribe = subscribeToRideMessages(supabase, rideId, (message) => {
+      setChatMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      if (message.sender_id === user?.id) return;
+      if (chatOpenRef.current) {
+        markRideMessagesRead(supabase, rideId).catch(() => {});
+      } else {
+        setUnreadCount((c) => c + 1);
+      }
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, rideId, chatAvailable]);
+
+  function openChat() {
+    if (!rideId) return;
+    setChatOpen(true);
+    if (!chatLoaded && !chatLoading) {
+      setChatLoading(true);
+      getRideMessages(supabase, rideId)
+        .then((page) => {
+          setChatMessages(page.messages);
+          setChatHasMore(page.hasMore);
+          setChatLoaded(true);
+        })
+        .catch(() => {})
+        .finally(() => setChatLoading(false));
+    }
+    markRideMessagesRead(supabase, rideId)
+      .then(() => setUnreadCount(0))
+      .catch(() => {});
+  }
+
+  async function handleLoadMoreChatMessages() {
+    if (!rideId) return;
+    const oldest = chatMessages[0];
+    if (!oldest || chatLoadingMore) return;
+    setChatLoadingMore(true);
+    try {
+      const page = await getRideMessages(supabase, rideId, {
+        before: { createdAt: oldest.created_at, id: oldest.id },
+      });
+      setChatMessages((prev) => [...page.messages, ...prev]);
+      setChatHasMore(page.hasMore);
+    } catch {
+      // Best-effort — "Load earlier messages" simply remains, retryable.
+    } finally {
+      setChatLoadingMore(false);
+    }
+  }
+
+  async function handleSendChatMessage(text: string) {
+    if (!rideId) return;
+    setChatSending(true);
+    setChatSendError(null);
+    try {
+      const sent = await sendRideMessage(supabase, rideId, text);
+      setChatMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
+    } catch (e) {
+      setChatSendError(e instanceof Error ? e.message : "Couldn't send message. Try again.");
+    } finally {
+      setChatSending(false);
+    }
+  }
 
   async function handleArrived() {
     if (!rideId) return;
@@ -504,6 +619,7 @@ function NavigationPageContent() {
 
   const pickupLabel = ride?.pickup_address ?? "Pickup";
   const dropLabel = ride?.drop_address ?? "Drop";
+  const chatSendable = ride ? canSendRideMessage(ride.status, ride.driver_id) : false;
 
   if (phase === "CANCELLED_BY_PASSENGER") {
     return (
@@ -608,6 +724,18 @@ function NavigationPageContent() {
             </div>
           </a>
         </div>
+      )}
+
+      {chatAvailable && (
+        <Button variant="outline" className="relative mt-2.5 w-full" onClick={openChat}>
+          <MessageSquare size={16} className="mr-2" />
+          {chatSendable ? "Chat with passenger" : "View chat"}
+          {unreadCount > 0 && (
+            <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-alert-red px-1 text-[10px] font-bold text-white">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </Button>
       )}
 
       {phase === "TO_PICKUP" && (
@@ -972,6 +1100,32 @@ function NavigationPageContent() {
           </Button>
         </div>
       </BottomSheet>
+
+      {chatAvailable && (
+        <RideChatPanel
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          otherPartyName={passengerContact?.fullName ?? "your passenger"}
+          messages={chatMessages.map((m) => ({
+            id: m.id,
+            message: m.message,
+            createdAt: m.created_at,
+            fromMe: m.sender_id === user?.id,
+          }))}
+          loading={chatLoading}
+          hasMore={chatHasMore}
+          loadingMore={chatLoadingMore}
+          onLoadMore={handleLoadMoreChatMessages}
+          sending={chatSending}
+          sendError={chatSendError}
+          onSend={handleSendChatMessage}
+          canSend={chatSendable}
+          quickReplies={DRIVER_CHAT_QUICK_REPLIES}
+          disabledReason={
+            phase === "SUMMARY" ? "This ride has ended — chat is read-only." : "This chat is no longer active."
+          }
+        />
+      )}
     </main>
   );
 }

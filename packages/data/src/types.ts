@@ -74,6 +74,15 @@ export interface RideRow {
   created_at: string;
 }
 
+export interface RideMessageRow {
+  id: string;
+  ride_id: string;
+  sender_id: string;
+  message: string;
+  created_at: string;
+  read_at: string | null;
+}
+
 export type RideOfferStatusRow = "pending" | "accepted" | "rejected" | "expired" | "superseded";
 
 export interface RideOfferRow {

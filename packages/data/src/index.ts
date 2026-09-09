@@ -13,6 +13,7 @@ export * from "./wallet";
 export * from "./ride-requests";
 export * from "./admin";
 export * from "./matching";
+export * from "./ride-messages";
 export * from "./pin";
 export * from "./devices";
 export * from "./push-client";

@@ -10,13 +10,14 @@ import {
   MapPinOff,
   Phone,
   MessageCircle,
+  MessageSquare,
   Share2,
   ShieldAlert,
   Users,
   Flag,
   X,
 } from "lucide-react";
-import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, VEHICLE_VISUALS, SafetyIcon, SpeedChip } from "@ride-it/ui";
+import { BottomSheet, Button, Card, DriverCard, MeterValue, Select, Skeleton, StatusPill, VEHICLE_VISUALS, SafetyIcon, SpeedChip, RideChatPanel } from "@ride-it/ui";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import {
   getRide,
@@ -26,8 +27,16 @@ import {
   getMatchedDriverContact,
   PASSENGER_CANCELLATION_REASONS,
   formatCancellationReason,
+  getRideMessages,
+  sendRideMessage,
+  markRideMessagesRead,
+  getUnreadRideMessageCount,
+  subscribeToRideMessages,
+  isRideChatAvailable,
+  canSendRideMessage,
   type RideRow,
   type MatchedDriverContact,
+  type RideMessageRow,
 } from "@ride-it/data";
 import { getDriverProfile, type DriverProfileRow } from "@ride-it/data";
 import { getRideTracking, subscribeToDriverLocationChanges, type RideTrackingInfo } from "@ride-it/data";
@@ -107,6 +116,25 @@ export default function RideStatusPage() {
   const [reportDescription, setReportDescription] = React.useState("");
   const [submittingReport, setSubmittingReport] = React.useState(false);
   const sosPositionRef = React.useRef<{ lat: number; lng: number } | null>(null);
+
+  // Chat state
+  const [chatOpen, setChatOpen] = React.useState(false);
+  const [chatMessages, setChatMessages] = React.useState<RideMessageRow[]>([]);
+  const [chatLoaded, setChatLoaded] = React.useState(false);
+  const [chatLoading, setChatLoading] = React.useState(false);
+  const [chatLoadingMore, setChatLoadingMore] = React.useState(false);
+  const [chatHasMore, setChatHasMore] = React.useState(false);
+  const [chatSending, setChatSending] = React.useState(false);
+  const [chatSendError, setChatSendError] = React.useState<string | null>(null);
+  const [unreadCount, setUnreadCount] = React.useState(0);
+  // Read inside the realtime subscription's stable closure (deps
+  // intentionally exclude chatOpen — see subscribeToRide's own identical
+  // ref pattern above for why re-subscribing on every state change would
+  // be wrong here) to decide "badge the unread count" vs "mark read
+  // immediately" without resubscribing the channel every time the sheet
+  // opens/closes.
+  const chatOpenRef = React.useRef(false);
+  chatOpenRef.current = chatOpen;
 
   const loadDriver = React.useCallback(
     async (driverId: string) => {
@@ -237,6 +265,94 @@ export default function RideStatusPage() {
     };
   }, [supabase, ride?.status, ridePinChecked]);
 
+  const chatAvailable = isRideChatAvailable(ride?.driver_id ?? null);
+
+  // Unread badge — fetched once chat becomes available (driver assigned),
+  // independent of ever opening the chat sheet, so the badge is accurate
+  // from the first render after assignment.
+  React.useEffect(() => {
+    if (!chatAvailable || !user) return;
+    getUnreadRideMessageCount(supabase, params.id, user.id)
+      .then(setUnreadCount)
+      .catch(() => {});
+  }, [supabase, params.id, chatAvailable, user]);
+
+  // Realtime: new chat messages. Subscribes once chat becomes available
+  // and stays subscribed for the rest of this screen's lifetime (not
+  // torn down/recreated every time the sheet opens/closes) — freshChannel()
+  // guarantees a unique topic per call, so this can never collide with
+  // another subscription on this same ride_id, including a stale one from
+  // a prior mount during a page transition (see packages/data/src/
+  // realtime.ts's own documented reasoning).
+  React.useEffect(() => {
+    if (!chatAvailable) return;
+    const unsubscribe = subscribeToRideMessages(supabase, params.id, (message) => {
+      setChatMessages((prev) => (prev.some((m) => m.id === message.id) ? prev : [...prev, message]));
+      if (message.sender_id === user?.id) return;
+      if (chatOpenRef.current) {
+        // Chat is actively open — reflect as read immediately instead of
+        // badging an unread count the passenger is already looking at.
+        markRideMessagesRead(supabase, params.id).catch(() => {});
+      } else {
+        setUnreadCount((c) => c + 1);
+      }
+    });
+    return unsubscribe;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, params.id, chatAvailable]);
+
+  function openChat() {
+    setChatOpen(true);
+    if (!chatLoaded && !chatLoading) {
+      setChatLoading(true);
+      getRideMessages(supabase, params.id)
+        .then((page) => {
+          setChatMessages(page.messages);
+          setChatHasMore(page.hasMore);
+          setChatLoaded(true);
+        })
+        .catch(() => {})
+        .finally(() => setChatLoading(false));
+    }
+    markRideMessagesRead(supabase, params.id)
+      .then(() => setUnreadCount(0))
+      .catch(() => {});
+  }
+
+  async function handleLoadMoreChatMessages() {
+    const oldest = chatMessages[0];
+    if (!oldest || chatLoadingMore) return;
+    setChatLoadingMore(true);
+    try {
+      const page = await getRideMessages(supabase, params.id, {
+        before: { createdAt: oldest.created_at, id: oldest.id },
+      });
+      setChatMessages((prev) => [...page.messages, ...prev]);
+      setChatHasMore(page.hasMore);
+    } catch {
+      // Best-effort — the "Load earlier messages" button simply remains, retryable.
+    } finally {
+      setChatLoadingMore(false);
+    }
+  }
+
+  async function handleSendChatMessage(text: string) {
+    setChatSending(true);
+    setChatSendError(null);
+    try {
+      const sent = await sendRideMessage(supabase, params.id, text);
+      setChatMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
+    } catch (e) {
+      // The message bubble is only ever added to chatMessages after this
+      // RPC actually succeeds (above) — never optimistically beforehand —
+      // so a rejected send simply never appears as sent; sendError below
+      // surfaces why.
+      setChatSendError(e instanceof Error ? e.message : "Couldn't send message. Try again.");
+    } finally {
+      setChatSending(false);
+    }
+  }
+
   function openCancelSheet() {
     setCancelReason(PASSENGER_CANCELLATION_REASONS[0].value);
     setCancelNote("");
@@ -342,6 +458,7 @@ export default function RideStatusPage() {
     ? isStale(tracking.driverSpeedUpdatedAt, SPEED_CONFIG.STALE_THRESHOLD_SECONDS)
     : true;
   const showSpeed = ACTIVE_RIDE_STATUSES.includes(status);
+  const chatSendable = canSendRideMessage(status, ride?.driver_id ?? null);
 
   const driverEtaLabel =
     tracking?.distanceToPickupMeters != null && status === "accepted"
@@ -431,6 +548,18 @@ export default function RideStatusPage() {
                 photoUrl={selfieUrl}
               />
             )
+          )}
+
+          {chatAvailable && (
+            <Button variant="outline" className="relative mt-4 w-full" onClick={openChat}>
+              <MessageSquare size={16} className="mr-2" />
+              {chatSendable ? "Chat with your driver" : "View chat"}
+              {unreadCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-alert-red px-1 text-[10px] font-bold text-white">
+                  {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+            </Button>
           )}
 
           {driver && (status === "accepted" || status === "driver_arriving" || status === "ride_started") && (
@@ -737,6 +866,35 @@ export default function RideStatusPage() {
           </Button>
         </div>
       </BottomSheet>
+
+      {chatAvailable && (
+        <RideChatPanel
+          open={chatOpen}
+          onOpenChange={setChatOpen}
+          otherPartyName={matchedContact?.fullName ?? driver?.full_name ?? "your driver"}
+          messages={chatMessages.map((m) => ({
+            id: m.id,
+            message: m.message,
+            createdAt: m.created_at,
+            fromMe: m.sender_id === user?.id,
+          }))}
+          loading={chatLoading}
+          hasMore={chatHasMore}
+          loadingMore={chatLoadingMore}
+          onLoadMore={handleLoadMoreChatMessages}
+          sending={chatSending}
+          sendError={chatSendError}
+          onSend={handleSendChatMessage}
+          canSend={chatSendable}
+          disabledReason={
+            status === "ride_completed" || status === "payment" || status === "rated"
+              ? "This ride has ended — chat is read-only."
+              : status === "cancelled"
+                ? "This ride was cancelled — chat is read-only."
+                : "This chat is no longer active."
+          }
+        />
+      )}
     </main>
   );
 }
