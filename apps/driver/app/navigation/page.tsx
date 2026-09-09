@@ -143,6 +143,16 @@ function NavigationPageContent() {
   const [unreadCount, setUnreadCount] = React.useState(0);
   const chatOpenRef = React.useRef(false);
   chatOpenRef.current = chatOpen;
+  // This page is reached via /navigation?rideId=X -- a query param, not a
+  // fresh route -- so a driver going dashboard -> ride1 -> complete ->
+  // dashboard -> accept ride2 -> navigation?rideId=ride2 can hit this SAME
+  // component instance again without an intervening unmount. Without this
+  // ref, an in-flight chat fetch/send started for ride1 could resolve
+  // after the switch and apply ride1's data to ride2's now-current chat
+  // state. Updated every render so it always reflects the ride actually
+  // showing when any async callback resolves.
+  const chatRideKeyRef = React.useRef(rideId);
+  chatRideKeyRef.current = rideId;
 
   const [cancelSheetOpen, setCancelSheetOpen] = React.useState(false);
   const [cancelReason, setCancelReason] = React.useState(DRIVER_CANCELLATION_REASONS[0].value);
@@ -329,6 +339,20 @@ function NavigationPageContent() {
 
   const chatAvailable = isRideChatAvailable(ride?.driver_id ?? null);
 
+  // Resets all chat state when this instance starts showing a DIFFERENT
+  // ride (see chatRideKeyRef's comment above) — otherwise chatLoaded
+  // staying true would skip re-fetching, and the previous ride's messages/
+  // unread count would briefly (or indefinitely) show for the new ride.
+  React.useEffect(() => {
+    setChatOpen(false);
+    setChatMessages([]);
+    setChatLoaded(false);
+    setChatLoading(false);
+    setChatHasMore(false);
+    setChatSendError(null);
+    setUnreadCount(0);
+  }, [rideId]);
+
   // Unread badge — fetched once chat becomes available, independent of
   // ever opening the chat sheet.
   React.useEffect(() => {
@@ -359,52 +383,64 @@ function NavigationPageContent() {
 
   function openChat() {
     if (!rideId) return;
+    const forRideId = rideId;
     setChatOpen(true);
     if (!chatLoaded && !chatLoading) {
       setChatLoading(true);
-      getRideMessages(supabase, rideId)
+      getRideMessages(supabase, forRideId)
         .then((page) => {
+          if (chatRideKeyRef.current !== forRideId) return; // stale response for a since-switched-away ride
           setChatMessages(page.messages);
           setChatHasMore(page.hasMore);
           setChatLoaded(true);
         })
         .catch(() => {})
-        .finally(() => setChatLoading(false));
+        .finally(() => {
+          if (chatRideKeyRef.current === forRideId) setChatLoading(false);
+        });
     }
-    markRideMessagesRead(supabase, rideId)
-      .then(() => setUnreadCount(0))
+    markRideMessagesRead(supabase, forRideId)
+      .then(() => {
+        if (chatRideKeyRef.current === forRideId) setUnreadCount(0);
+      })
       .catch(() => {});
   }
 
   async function handleLoadMoreChatMessages() {
     if (!rideId) return;
+    const forRideId = rideId;
     const oldest = chatMessages[0];
     if (!oldest || chatLoadingMore) return;
     setChatLoadingMore(true);
     try {
-      const page = await getRideMessages(supabase, rideId, {
+      const page = await getRideMessages(supabase, forRideId, {
         before: { createdAt: oldest.created_at, id: oldest.id },
       });
+      if (chatRideKeyRef.current !== forRideId) return; // switched rides while this was in flight
       setChatMessages((prev) => [...page.messages, ...prev]);
       setChatHasMore(page.hasMore);
     } catch {
       // Best-effort — "Load earlier messages" simply remains, retryable.
     } finally {
-      setChatLoadingMore(false);
+      if (chatRideKeyRef.current === forRideId) setChatLoadingMore(false);
     }
   }
 
   async function handleSendChatMessage(text: string) {
     if (!rideId) return;
+    const forRideId = rideId;
     setChatSending(true);
     setChatSendError(null);
     try {
-      const sent = await sendRideMessage(supabase, rideId, text);
+      const sent = await sendRideMessage(supabase, forRideId, text);
+      if (chatRideKeyRef.current !== forRideId) return; // switched rides while this was in flight
       setChatMessages((prev) => (prev.some((m) => m.id === sent.id) ? prev : [...prev, sent]));
     } catch (e) {
-      setChatSendError(e instanceof Error ? e.message : "Couldn't send message. Try again.");
+      if (chatRideKeyRef.current === forRideId) {
+        setChatSendError(e instanceof Error ? e.message : "Couldn't send message. Try again.");
+      }
     } finally {
-      setChatSending(false);
+      if (chatRideKeyRef.current === forRideId) setChatSending(false);
     }
   }
 

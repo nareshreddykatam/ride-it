@@ -5,6 +5,21 @@ import { freshChannel } from "./realtime";
 const MESSAGE_COLUMNS = "id, ride_id, sender_id, message, created_at, read_at";
 const MESSAGES_PAGE_SIZE = 30;
 
+// getRideMessages() below builds a PostgREST `.or()` filter by string-
+// interpolating the pagination cursor. In normal operation both values
+// always come straight back from a prior server response (never typed by
+// a user), so this isn't reachable through the UI — but the exported
+// function itself is callable directly with arbitrary arguments, and even
+// though RLS is the actual, unavoidable authorization boundary regardless
+// of how the WHERE clause is shaped (a malformed filter can change WHICH
+// rows of an ALREADY-authorized ride come back, never bypass RLS to reach
+// a different one), a hostile string here could still break the filter
+// syntax outright or return a confusing pagination result. Cheap format
+// validation closes that off entirely rather than relying on RLS alone to
+// make it harmless.
+const ISO_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Ride statuses that still permit SENDING a new message — mirrors
  * send_ride_message()'s own status check exactly (migration
@@ -64,10 +79,12 @@ export async function getRideMessages(
     .limit(pageSize);
 
   if (opts?.before) {
+    if (!ISO_TIMESTAMP_RE.test(opts.before.createdAt) || !UUID_RE.test(opts.before.id)) {
+      throw new Error("Invalid pagination cursor");
+    }
     // "strictly older than the cursor row": created_at < X, or the same
-    // created_at with a strictly smaller id (server-echoed ISO
-    // timestamp/UUID values only — never raw user text — so building
-    // this filter string is safe).
+    // created_at with a strictly smaller id (values format-checked just
+    // above, so interpolating them into this filter string is safe).
     query = query.or(
       `created_at.lt.${opts.before.createdAt},and(created_at.eq.${opts.before.createdAt},id.lt.${opts.before.id})`
     );
