@@ -252,13 +252,23 @@ export async function setDriverOnlineStatus(supabase: SupabaseClient, driverId: 
 /**
  * Reports the driver's current position — a plain client UPDATE, already
  * secured by the existing drivers_update_own RLS policy (self-only, same
- * as is_online). Only current_location is sent; location_updated_at is set
- * server-side by a trigger (migration 20260813090500) whenever
- * current_location actually changes — a driver cannot claim freshness by
- * sending an arbitrary timestamp, since none is accepted from the client
- * at all. The matching engine's freshness check
- * (driver_location_freshness_seconds) is only meaningful if this
- * timestamp is genuinely trustworthy.
+ * as is_online).
+ *
+ * `location_updated_at` is included in the write, but its VALUE is never
+ * used: set_driver_location_timestamp() overwrites it with now() on the
+ * server, so a driver still cannot claim an arbitrary freshness — the
+ * timestamp remains entirely server-authoritative, exactly as migration
+ * 20260813090500 intended. Sending the column is purely how this call
+ * says "the app is reporting a position right now".
+ *
+ * Why that matters (Phase 1 audit, AUDIT-005): the trigger previously
+ * refreshed the timestamp ONLY when the coordinates changed. A driver who
+ * was parked — waiting at a stand, at a signal, or at the pickup point —
+ * kept reporting the same position, so their freshness froze and
+ * _find_eligible_drivers() dropped them from matching after
+ * driver_location_freshness_seconds. That silently excluded the single
+ * most available driver state. Reproduced end to end: a parked online
+ * driver got 0 offers, then 1 offer immediately after moving 33 m.
  */
 export async function updateDriverLocation(
   supabase: SupabaseClient,
@@ -267,7 +277,10 @@ export async function updateDriverLocation(
 ): Promise<void> {
   const { error } = await supabase
     .from("drivers")
-    .update({ current_location: `POINT(${location.lng} ${location.lat})` })
+    .update({
+      current_location: `POINT(${location.lng} ${location.lat})`,
+      location_updated_at: new Date().toISOString(),
+    })
     .eq("id", driverId);
   if (error) throw error;
 }

@@ -57,11 +57,18 @@ function MatchingPageContent() {
   const [minSearchSeconds, setMinSearchSeconds] = React.useState(DEFAULT_MIN_SEARCH_SECONDS);
   const [nowMs, setNowMs] = React.useState(() => Date.now());
   const settledRef = React.useRef(false);
+  // Set by the settle effect below so the initial fetch (which runs in its
+  // own effect) can hand off a ride that had already progressed before this
+  // screen mounted, without waiting for the first heartbeat tick.
+  const settleRef = React.useRef<((status: string) => void) | null>(null);
 
   React.useEffect(() => {
     if (!rideId) return;
     getRide(supabase, rideId).then((ride) => {
-      if (ride) setRequestedAt(ride.requested_at);
+      if (ride) {
+        setRequestedAt(ride.requested_at);
+        settleRef.current?.(ride.status);
+      }
     });
     // Display-only — the actual minimum is enforced server-side inside
     // dispatch_next_batch() regardless of what this read returns.
@@ -90,16 +97,32 @@ function MatchingPageContent() {
   React.useEffect(() => {
     if (!rideId) return;
 
+    /**
+     * Matching is over the moment the ride is no longer requested/matched.
+     *
+     * Phase 1 audit (AUDIT-010): this previously handled only "accepted"
+     * and "cancelled". Every other status fell through, so a passenger who
+     * pressed Back onto this screen after the ride had progressed past
+     * acceptance — driver_arriving, ride_started, or already finished —
+     * sat on the "Searching for a driver" radar forever while the 3-second
+     * heartbeat kept calling advance_ride_matching() indefinitely.
+     */
     function handleSettled(status: string) {
       if (settledRef.current) return;
-      if (status === "accepted") {
-        settledRef.current = true;
-        router.push(`/ride/${rideId}`);
-      } else if (status === "cancelled") {
-        settledRef.current = true;
+      if (status === "requested" || status === "matched") return;
+      settledRef.current = true;
+      if (status === "cancelled") {
         setNoDriversFound(true);
+      } else if (status === "ride_completed" || status === "payment") {
+        router.replace(`/ride/${rideId}/complete`);
+      } else if (status === "rated") {
+        router.replace(`/history/${rideId}`);
+      } else {
+        router.replace(`/ride/${rideId}`);
       }
     }
+
+    settleRef.current = handleSettled;
 
     // Realtime: react immediately the moment the ride's status actually
     // changes (a driver accepted, or matching gave up) — not waiting for
@@ -121,6 +144,7 @@ function MatchingPageContent() {
     }, HEARTBEAT_INTERVAL_MS);
 
     return () => {
+      settleRef.current = null;
       unsubscribe();
       clearInterval(interval);
     };

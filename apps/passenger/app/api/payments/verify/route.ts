@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSupabaseServerClient } from "@ride-it/supabase/server";
+import { getSupabaseServerClient, getSupabaseAdminClient } from "@ride-it/supabase/server";
 import { markRidePaymentCaptured } from "@ride-it/data";
 import { getPaymentProvider } from "@ride-it/payments";
 
@@ -49,8 +49,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: "verification_pending" });
   }
 
+  // Ownership, re-established explicitly. mark_ride_payment_captured() is
+  // no longer executable by `authenticated` (Phase 1 audit, AUDIT-001: a
+  // passenger could otherwise call it directly over /rest/v1/rpc and mark
+  // their own ride paid without Razorpay ever charging them), so the
+  // capture below runs with the service-role client. That client has no
+  // auth.uid(), and therefore no RLS to lean on — so this read, made with
+  // the CALLER's own RLS-scoped session, is what proves the payment is
+  // theirs. It must stay before the capture.
+  const { data: owned } = await supabase
+    .from("payments")
+    .select("id")
+    .eq("id", body.paymentId)
+    .eq("provider_order_id", body.providerOrderId)
+    .maybeSingle();
+
+  if (!owned) {
+    return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+  }
+
   try {
-    const payment = await markRidePaymentCaptured(supabase, body.paymentId, body.providerPaymentId, body.providerOrderId);
+    const admin = getSupabaseAdminClient();
+    const payment = await markRidePaymentCaptured(admin, body.paymentId, body.providerPaymentId, body.providerOrderId);
     return NextResponse.json({ status: payment.status });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Verification failed" }, { status: 400 });

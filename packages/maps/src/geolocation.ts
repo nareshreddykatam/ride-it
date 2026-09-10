@@ -184,8 +184,16 @@ export function watchDriverLocation(options: GeolocationWatchOptions): () => voi
 
       const enoughTimePassed = now - lastAcceptedAt >= minIntervalMs;
       const movedEnough = !lastAcceptedPosition || distanceMeters(lastAcceptedPosition, next) >= minMovementMeters;
+      // Phase 1 audit (AUDIT-005): the movement gate alone made a parked
+      // driver invisible. minMovementMeters exists to stop GPS jitter
+      // generating writes, which is still worth doing — but it must not
+      // suppress the periodic "I'm still here" report the matching
+      // engine's freshness check depends on. A stationary driver now
+      // writes at most once per heartbeat window; a moving one is
+      // unchanged.
+      const heartbeatDue = now - lastAcceptedAt >= LOCATION_CONFIG.HEARTBEAT_INTERVAL_MS;
 
-      if (!lastAcceptedPosition || (enoughTimePassed && movedEnough)) {
+      if (!lastAcceptedPosition || (enoughTimePassed && (movedEnough || heartbeatDue))) {
         lastAcceptedAt = now;
         lastAcceptedPosition = next;
         options.onUpdate(next);

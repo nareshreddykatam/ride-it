@@ -39,6 +39,19 @@ export const LOCATION_CONFIG = {
   MIN_MOVEMENT_METERS: 25,
 
   /**
+   * Maximum time between location writes REGARDLESS of movement, so a
+   * stationary driver still reports in. Set to half
+   * STALE_LOCATION_THRESHOLD_SECONDS so a driver is always comfortably
+   * inside the matching engine's freshness window even if one write fails.
+   *
+   * Phase 1 audit (AUDIT-005): without this, MIN_MOVEMENT_METERS gated the
+   * heartbeat as well as the jitter, so a parked-but-online driver aged out
+   * of driver_location_freshness_seconds and received no offers at all
+   * until they physically moved 25 m. Reproduced against the live project.
+   */
+  HEARTBEAT_INTERVAL_MS: 60_000,
+
+  /**
    * Matches the matching engine's driver_location_freshness_seconds
    * default (Phase 8, app_settings) — used here only for the UI's
    * "location may be stale" indicator, not for matching eligibility

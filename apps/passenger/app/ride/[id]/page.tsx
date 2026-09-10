@@ -71,6 +71,20 @@ function isStale(updatedAt: string | null, thresholdSeconds: number): boolean {
 
 const ACTIVE_RIDE_STATUSES: RideRow["status"][] = ["ride_started", "destination_reached", "payment_collected"];
 
+/**
+ * Statuses this screen has nothing left to show for. Live tracking (the
+ * driver-location subscription and its reconciliation poll) is stopped for
+ * these, and the passenger is routed on — see settleIfTerminal below.
+ */
+const SETTLED_RIDE_STATUSES: RideRow["status"][] = [
+  "ride_completed",
+  "payment",
+  "rated",
+  "cancelled",
+  "requested",
+  "matched",
+];
+
 type SafetyView = "menu" | "sos_confirm" | "sos_done" | "share" | "report";
 
 export default function RideStatusPage() {
@@ -178,6 +192,61 @@ export default function RideStatusPage() {
     [supabase, params.id]
   );
 
+  /**
+   * Routes the passenger onward when this ride is no longer live.
+   *
+   * Phase 1 audit (AUDIT-006): this logic used to exist ONLY inside the
+   * realtime subscription's callback, so it fired only on a status change
+   * that arrived while this screen was mounted and connected. A passenger
+   * whose phone slept, whose tab was backgrounded, who lost network, or
+   * who simply refreshed after the driver finished the ride landed on the
+   * live-ride UI — "On the way", progress bar at 100%, "This screen
+   * updates automatically as your ride progresses" — with no fare, no
+   * payment step, no rating and no way forward. Verified in the browser
+   * against a real completed ride. For an `online` ride that also meant
+   * the passenger could never reach the payment screen at all.
+   *
+   * Calling it from the initial load as well as from realtime is what
+   * makes the screen self-correcting on mount. `replace`, not `push`, so
+   * Back doesn't return to a screen that immediately redirects again.
+   */
+  const settleIfTerminal = React.useCallback(
+    (r: RideRow | null): boolean => {
+      if (!r || navigatedRef.current) return false;
+      switch (r.status) {
+        case "ride_completed":
+        case "payment":
+          navigatedRef.current = true;
+          router.replace(`/ride/${params.id}/complete`);
+          return true;
+        case "rated":
+          navigatedRef.current = true;
+          router.replace(`/history/${params.id}`);
+          return true;
+        case "cancelled":
+          navigatedRef.current = true;
+          router.replace("/home");
+          return true;
+        // The assigned driver cancelled — cancel_ride_by_driver() (migration
+        // 20260831075359) resets this SAME ride back to "requested" rather
+        // than creating a new one, so the existing Matching screen shows the
+        // passenger realtime reassignment progress with no duplicated UI.
+        // "matched" is the same situation one dispatch later, which is what a
+        // passenger returning after a delay actually sees.
+        case "requested":
+        case "matched":
+          navigatedRef.current = true;
+          router.replace(
+            `/booking/matching?rideId=${params.id}&vehicleType=${r.vehicle_type}&reason=driver_cancelled`
+          );
+          return true;
+        default:
+          return false;
+      }
+    },
+    [params.id, router]
+  );
+
   const refreshTracking = React.useCallback(async () => {
     try {
       setTracking(await getRideTracking(supabase, params.id));
@@ -193,6 +262,10 @@ export default function RideStatusPage() {
       .then(async (r) => {
         if (!active) return;
         setRide(r);
+        // Reconcile against the server BEFORE rendering the live-ride UI:
+        // the ride may well have finished while this screen wasn't
+        // listening (see settleIfTerminal).
+        if (settleIfTerminal(r)) return;
         if (r?.driver_id) {
           loadedDriverIdRef.current = r.driver_id;
           await loadDriver(r.driver_id);
@@ -216,20 +289,10 @@ export default function RideStatusPage() {
         loadedDriverIdRef.current = updated.driver_id;
         await loadDriver(updated.driver_id);
       }
-      if (!navigatedRef.current && (updated.status === "ride_completed" || updated.status === "payment")) {
-        navigatedRef.current = true;
-        router.push(`/ride/${params.id}/complete`);
-      }
-      // The assigned driver cancelled — cancel_ride_by_driver() (migration
-      // 20260831150000) reset this SAME ride back to "requested" rather
-      // than creating a new one, so the existing Matching screen (which
-      // re-fetches requested_at fresh and subscribes to this same ride's
-      // status) is fully reusable for showing the passenger realtime
-      // reassignment progress, with zero duplicated matching UI.
-      if (!navigatedRef.current && updated.status === "requested") {
-        navigatedRef.current = true;
-        router.push(`/booking/matching?rideId=${params.id}&vehicleType=${updated.vehicle_type}&reason=driver_cancelled`);
-      }
+      // Same routing decision the initial load makes — one implementation,
+      // so a status change can never be handled on one path and missed on
+      // the other (which is exactly how AUDIT-006 happened).
+      settleIfTerminal(updated);
     });
     return unsubscribe;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -241,13 +304,18 @@ export default function RideStatusPage() {
   // same heartbeat-plus-realtime pattern as Phase 8's matching screen.
   React.useEffect(() => {
     if (!ride?.driver_id) return;
+    // There is nothing left to track once the ride has settled. Measured
+    // during the Phase 1 audit: on a finished ride this poll kept issuing
+    // get_ride_tracking() every 10s indefinitely (3 calls in 32s observed)
+    // while the passenger sat on a screen that could no longer change.
+    if (SETTLED_RIDE_STATUSES.includes(ride.status)) return;
     const unsubscribe = subscribeToDriverLocationChanges(supabase, ride.driver_id, refreshTracking);
     const interval = setInterval(refreshTracking, LOCATION_CONFIG.TRACKING_POLL_INTERVAL_MS);
     return () => {
       unsubscribe();
       clearInterval(interval);
     };
-  }, [supabase, ride?.driver_id, refreshTracking]);
+  }, [supabase, ride?.driver_id, ride?.status, refreshTracking]);
 
   // Fetches the passenger's own permanent Ride PIN once the ride reaches
   // "accepted" — never before (the passenger has no driver to share it
