@@ -9,6 +9,8 @@ import type { VehicleKind } from "@ride-it/ui";
 import { createVehicleMarkerElement } from "../vehicle-marker";
 import { SelectionPinOverlay } from "./SelectionPinOverlay";
 import type { LatLng } from "./RideMap";
+import { computePartialPath } from "../polyline";
+import { ROUTE_DRAW_ANIMATION_MS } from "../config";
 
 // maplibre-gl needs a one-time setWorkerUrl() call under webpack/Next.js —
 // import.meta.url (which the package normally uses to locate its own
@@ -122,6 +124,20 @@ function fitBoundsSignature(
   ].join("|");
 }
 
+/**
+ * Identity of a route polyline, independent of fitBoundsSignature() —
+ * that one only cares about the endpoints (cheap enough to fingerprint the
+ * whole camera-fit input), but the reveal animation must restart whenever
+ * the actual geometry changes, even in the (rare) case two different
+ * routes happen to share endpoints. Full-precision, not rounded — this
+ * only gates "should the draw-in animation restart," never a camera
+ * operation, so there's no GPS-jitter concern to guard against here.
+ */
+function routeSignature(routePolyline: LatLng[] | undefined): string {
+  if (!routePolyline || routePolyline.length < 2) return "";
+  return `${routePolyline.length}:${routePolyline.map((p) => `${p.lat},${p.lng}`).join(";")}`;
+}
+
 export interface OsmMapProps {
   className?: string;
   pickup?: LatLng;
@@ -167,6 +183,18 @@ export function OsmMap({
   // rider is doing. Rounded to 5 decimal places (~1.1m) — comfortably
   // tighter than GPS accuracy, so this never masks a real movement.
   const lastFitSignatureRef = React.useRef<string | null>(null);
+  // Route-draw reveal animation state — a plain rAF loop mutating the
+  // GeoJSON source directly, never a React state update per frame (see
+  // ROUTE_DRAW_ANIMATION_MS's doc comment). lastRouteSignatureRef gates
+  // restarting it only when the actual route geometry changes, not on
+  // every unrelated re-render; routeAnimationFrameRef lets a new route
+  // (or unmount) cancel an in-flight animation instead of letting a
+  // superseded one keep mutating the source after a newer route replaced
+  // it — the exact same "newer response must win" requirement other
+  // stale-overwrite guards in this codebase enforce, just for an animation
+  // frame loop instead of a network request.
+  const lastRouteSignatureRef = React.useRef<string>("");
+  const routeAnimationFrameRef = React.useRef<number | null>(null);
   const [ready, setReady] = React.useState(false);
   const [locating, setLocating] = React.useState(false);
   // Latest onSelectionIdle — read from a ref inside listeners registered
@@ -261,6 +289,13 @@ export function OsmMap({
       cancelled = true;
       // A plain Web API, always safe regardless of the map's own state.
       resizeObserver.disconnect();
+      // Stop any in-flight route reveal animation — its rAF callback
+      // closes over this exact `map`/source and must not fire again once
+      // this instance is on its way to being removed below.
+      if (routeAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(routeAnimationFrameRef.current);
+        routeAnimationFrameRef.current = null;
+      }
 
       // Only clear the ref if it's still pointing at THIS effect's own
       // map instance — under React Strict Mode's dev-only double
@@ -327,16 +362,14 @@ export function OsmMap({
     }
 
     if (routePolyline && routePolyline.length > 1) {
-      const geojson: Feature<LineString> = {
+      const toGeojson = (points: LatLng[]): Feature<LineString> => ({
         type: "Feature",
         properties: {},
-        geometry: { type: "LineString", coordinates: routePolyline.map((p) => [p.lng, p.lat]) },
-      };
-      const source = map.getSource("route-polyline") as GeoJSONSource | undefined;
-      if (source) {
-        source.setData(geojson);
-      } else {
-        map.addSource("route-polyline", { type: "geojson", data: geojson });
+        geometry: { type: "LineString", coordinates: points.map((p) => [p.lng, p.lat]) },
+      });
+
+      if (!map.getSource("route-polyline")) {
+        map.addSource("route-polyline", { type: "geojson", data: toGeojson([]) });
         map.addLayer({
           id: "route-polyline-line",
           type: "line",
@@ -345,11 +378,51 @@ export function OsmMap({
           paint: { "line-color": "#1E6FEF", "line-width": 4.5, "line-opacity": 0.9 },
         });
       }
+
+      const signature = routeSignature(routePolyline);
+      if (signature !== lastRouteSignatureRef.current) {
+        // A genuinely different route (new destination, or the first route
+        // to ever land) — interrupt any still-running reveal for the old
+        // one and draw this one in from scratch. Re-passing the SAME route
+        // (e.g. an unrelated prop change re-running this effect) does NOT
+        // restart the animation or flicker the line — see the `else`
+        // below, which just keeps the already-fully-drawn geometry as-is.
+        lastRouteSignatureRef.current = signature;
+        if (routeAnimationFrameRef.current !== null) {
+          cancelAnimationFrame(routeAnimationFrameRef.current);
+        }
+        const source = map.getSource("route-polyline") as GeoJSONSource;
+        const startTime = performance.now();
+        const animate = (now: number) => {
+          const elapsed = now - startTime;
+          const t = Math.min(1, elapsed / ROUTE_DRAW_ANIMATION_MS);
+          // easeOutCubic — starts fast, settles gently, reads as "drawing
+          // toward the destination" rather than a linear crawl.
+          const eased = 1 - Math.pow(1 - t, 3);
+          source.setData(toGeojson(computePartialPath(routePolyline, eased)));
+          if (t < 1) {
+            routeAnimationFrameRef.current = requestAnimationFrame(animate);
+          } else {
+            routeAnimationFrameRef.current = null;
+          }
+        };
+        routeAnimationFrameRef.current = requestAnimationFrame(animate);
+      } else {
+        (map.getSource("route-polyline") as GeoJSONSource).setData(toGeojson(routePolyline));
+      }
+
       for (const p of routePolyline) bounds.extend([p.lng, p.lat]);
       hasPoint = true;
-    } else if (map.getLayer("route-polyline-line")) {
-      map.removeLayer("route-polyline-line");
-      map.removeSource("route-polyline");
+    } else {
+      if (routeAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(routeAnimationFrameRef.current);
+        routeAnimationFrameRef.current = null;
+      }
+      lastRouteSignatureRef.current = "";
+      if (map.getLayer("route-polyline-line")) {
+        map.removeLayer("route-polyline-line");
+        map.removeSource("route-polyline");
+      }
     }
 
     if (hasPoint) {

@@ -7,7 +7,7 @@ import { OnlineToggle, MeterValue, Skeleton, StatCard, StatusPill, Button, Card,
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
 import { VehicleType } from "@ride-it/types";
-import { watchDriverLocation, LOCATION_CONFIG, RideMap, type LatLng } from "@ride-it/maps";
+import { watchDriverLocation, LOCATION_CONFIG, RideMap, fetchEta, type LatLng } from "@ride-it/maps";
 import {
   getDriverProfile,
   getActiveSubscription,
@@ -16,6 +16,7 @@ import {
   getDriverEarningsSummary,
   getWallet,
   getActiveOffersForDriver,
+  getRideOfferPickupLocation,
   acceptRideRequest,
   rejectRideRequest,
   subscribeToDriverOffers,
@@ -29,14 +30,24 @@ import {
 } from "@ride-it/data";
 import { RideRequestSheet, type RideOfferItem } from "../../../components/ride-request-sheet";
 
-/** Maps a raw ride_offers row to the shape RideRequestSheet renders — pure presentation mapping, no new data. */
-function toOfferItem(offer: RideOfferRow): RideOfferItem {
+/**
+ * Maps a raw ride_offers row to the shape RideRequestSheet renders.
+ * pickupDistanceKm comes straight from the real PostGIS distance already
+ * computed at dispatch time (distance_to_pickup_meters) — previously
+ * fetched and silently discarded here. pickupEtaMinutes is NOT derived
+ * here (this mapper has no async capability) — it's populated separately,
+ * per-offer, by the effect below once a real Routes API ETA lands; until
+ * then it's null and the card honestly shows distance-only.
+ */
+function toOfferItem(offer: RideOfferRow, pickupEtaMinutes: number | null): RideOfferItem {
   return {
     id: offer.id,
     rideId: offer.ride_id,
     pickup: { lat: 0, lng: 0, address: offer.pickup_address ?? "Pickup" },
     drop: { lat: 0, lng: 0, address: offer.drop_address ?? "Drop" },
     expiresAt: offer.expires_at,
+    pickupDistanceKm: offer.distance_to_pickup_meters != null ? offer.distance_to_pickup_meters / 1000 : null,
+    pickupEtaMinutes,
     fare: {
       vehicleType: offer.vehicle_type === "bike" ? VehicleType.BIKE : VehicleType.AUTO,
       baseFare: offer.base_fare,
@@ -44,11 +55,11 @@ function toOfferItem(offer: RideOfferRow): RideOfferItem {
       totalFare: offer.total_fare,
       currency: "INR",
       distanceKm: offer.distance_km ?? 0,
-      etaMinutes: 5,
-      // The offer's base_fare/distance_fare are already surge-inclusive
-      // (set from the ride's own server-computed values at dispatch
-      // time) — this field isn't rendered by RideRequestSheet, kept
-      // only to satisfy FareEstimate's shape.
+      // Not a real trip ETA (Ridora doesn't compute one) and not rendered
+      // anywhere — kept only to satisfy FareEstimate's shape, same as
+      // surgeMultiplier below. Pickup ETA (the number actually shown to
+      // the driver) is the separate, real, top-level pickupEtaMinutes.
+      etaMinutes: 0,
       surgeMultiplier: 1,
     },
   };
@@ -110,6 +121,16 @@ export default function DashboardPage() {
   const nextOffersCursorRef = React.useRef<string | null>(null);
   const [loadError, setLoadError] = React.useState(false);
   const [selfLocation, setSelfLocation] = React.useState<LatLng | null>(null);
+  // Real road ETA (minutes) for the driver's current position -> each
+  // offer's pickup point, keyed by offer id. Populated once per offer (see
+  // the effect below) — never null-guessed, never re-fetched on a timer:
+  // offers expire in OFFER_WINDOW_SECONDS (15s), far shorter than a
+  // driver's own position could meaningfully change, so one fetch at
+  // offer-arrival time is both sufficient and the cheapest correct choice
+  // (avoids the "route API explosion" the product brief explicitly warns
+  // against for multiple simultaneous offers).
+  const [pickupEtaByOffer, setPickupEtaByOffer] = React.useState<Record<string, number | null>>({});
+  const etaRequestedForRef = React.useRef<Set<string>>(new Set());
 
   // Single profile fetch, reused both to populate the dashboard AND to
   // compute the driver's lifecycle state below -- these used to be two
@@ -201,6 +222,33 @@ export default function DashboardPage() {
       unsubscribeUpdates();
     };
   }, [supabase, user]);
+
+  // Fetches a real pickup ETA for each newly-seen offer, once — not on a
+  // GPS-tick cadence (see pickupEtaByOffer's doc comment above for why a
+  // single fetch per offer is the correct choice here, not a throttled
+  // recurring one like ETA_CONFIG governs elsewhere). Requires the
+  // driver's own live position (selfLocation, from the online-ping effect
+  // below); if it isn't resolved yet, this simply retries on the next
+  // effect run once it is — etaRequestedForRef is only marked AFTER a
+  // fetch actually starts, so no offer is skipped forever for arriving
+  // before the driver's first GPS fix. getRideOfferPickupLocation() and
+  // fetchEta() both return null (never throw) on any failure — a failed
+  // fetch leaves pickupEtaByOffer[id] unset, which the card already
+  // renders as an honest distance-only state, never a fabricated number.
+  React.useEffect(() => {
+    if (!selfLocation) return;
+    const pending = offers.filter((o) => !etaRequestedForRef.current.has(o.id));
+    for (const offer of pending) {
+      etaRequestedForRef.current.add(offer.id);
+      (async () => {
+        const pickup = await getRideOfferPickupLocation(supabase, offer.id);
+        if (!pickup) return;
+        const eta = await fetchEta(selfLocation, pickup, offer.vehicle_type);
+        if (!eta) return;
+        setPickupEtaByOffer((prev) => ({ ...prev, [offer.id]: Math.round(eta.durationSeconds / 60) }));
+      })();
+    }
+  }, [offers, selfLocation, supabase]);
 
   // Location reporting while online but not yet on a ride. Real device GPS
   // via navigator.geolocation.watchPosition() (packages/maps/geolocation.ts)
@@ -485,7 +533,7 @@ export default function DashboardPage() {
       </div>
 
       <RideRequestSheet
-        offers={offers.map(toOfferItem)}
+        offers={offers.map((o) => toOfferItem(o, pickupEtaByOffer[o.id] ?? null))}
         onAccept={handleAccept}
         onReject={handleReject}
         onExpire={handleReject}

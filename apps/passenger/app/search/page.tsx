@@ -28,6 +28,9 @@ const PLACE_ICONS: Record<string, typeof MapPin> = {
 };
 
 const SEARCH_DEBOUNCE_MS = 300;
+// Below this length, Places Autocomplete results are too broad to be
+// useful and it's not worth a request for every single early keystroke.
+const MIN_QUERY_LENGTH = 2;
 
 /**
  * DEV-ONLY fallback suggestions for Vijayawada (the operating/demo city —
@@ -78,6 +81,13 @@ function SearchPageContent() {
   const [resolvingId, setResolvingId] = React.useState<string | null>(null);
   const sessionTokenRef = React.useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards against a slower, earlier request's response overwriting a
+  // faster, later one's results (e.g. typing "Benz" then quickly "Benz
+  // Circle" — the "Benz" request can genuinely resolve after "Benz
+  // Circle"'s, since network timing has no relation to keystroke order).
+  // Only the response matching the id issued for THIS effect run is ever
+  // applied — same pattern as booking/confirm's quoteRequestIdRef.
+  const searchRequestIdRef = React.useRef(0);
   const mapsConfigured = React.useMemo(() => isGoogleMapsConfigured(), []);
 
   React.useEffect(() => {
@@ -97,7 +107,12 @@ function SearchPageContent() {
   React.useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (!mapsConfigured || query.trim().length === 0) {
+    if (!mapsConfigured || query.trim().length < MIN_QUERY_LENGTH) {
+      // Bumping the request id here too, not just clearing suggestions —
+      // otherwise an already-in-flight request for a longer query the
+      // passenger just deleted back down from could still land afterward
+      // and repopulate a list the empty/short box no longer represents.
+      searchRequestIdRef.current += 1;
       setSuggestions([]);
       setSearching(false);
       return;
@@ -105,10 +120,12 @@ function SearchPageContent() {
 
     setSearching(true);
     debounceRef.current = setTimeout(async () => {
+      const requestId = ++searchRequestIdRef.current;
       if (!sessionTokenRef.current) {
         sessionTokenRef.current = await createAutocompleteSessionToken();
       }
       const results = await searchPlaces(query, sessionTokenRef.current);
+      if (searchRequestIdRef.current !== requestId) return; // superseded by a newer query
       setSuggestions(results);
       setSearching(false);
     }, SEARCH_DEBOUNCE_MS);

@@ -97,3 +97,29 @@ export async function rejectRideRequest(supabase: SupabaseClient, rideId: string
 export function dismissRideRequest(): void {
   // Intentionally a no-op — see rejectRideRequest() for the real path.
 }
+
+/**
+ * Real pickup coordinates for one of the driver's OWN pending offers, via
+ * get_ride_offer_pickup_location() (20260910120000) — ride_offers itself
+ * only carries pickup_address as text, and a driver has no RLS access to
+ * rides.pickup_location directly for a ride not yet assigned to them. Used
+ * to call the existing Routes-API-backed /api/eta for a real driver-to-
+ * pickup ETA (see @ride-it/maps's fetchEta). Returns null on any failure
+ * (not found, not owned by this driver, network error) — never throws —
+ * so callers show an honest "distance only, no ETA" state rather than
+ * blocking or crashing the offer card.
+ */
+export async function getRideOfferPickupLocation(
+  supabase: SupabaseClient,
+  offerId: string
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const { data, error } = await supabase.rpc("get_ride_offer_pickup_location", { p_offer_id: offerId });
+    if (error) return null;
+    const row = (data as unknown as Array<{ pickup_lat: number; pickup_lng: number }> | null)?.[0];
+    if (!row || row.pickup_lat == null || row.pickup_lng == null) return null;
+    return { lat: row.pickup_lat, lng: row.pickup_lng };
+  } catch {
+    return null;
+  }
+}

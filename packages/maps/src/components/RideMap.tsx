@@ -8,6 +8,8 @@ import { loadGoogleMaps } from "../loader";
 import { createVehicleMarkerElement } from "../vehicle-marker";
 import { MockMap, type MockMapProps } from "../fallback/MockMapFallback";
 import { SelectionPinOverlay } from "./SelectionPinOverlay";
+import { computePartialPath } from "../polyline";
+import { ROUTE_DRAW_ANIMATION_MS } from "../config";
 
 // Lazily loaded — maplibre-gl is a genuinely sizeable bundle (~250KB), and
 // most call sites never need it at all (Google's path, when configured,
@@ -88,6 +90,12 @@ function roundCoord(n: number): number {
  * every route's initial JS (see the import above), and a static import
  * from it here would defeat that.
  */
+/** Same reasoning as OsmMap.tsx's identical helper — gates the route-draw reveal animation on real geometry changes, independent of googleFitBoundsSignature's endpoint-only fingerprint. */
+function googleRouteSignature(routePolyline: LatLng[] | undefined): string {
+  if (!routePolyline || routePolyline.length < 2) return "";
+  return `${routePolyline.length}:${routePolyline.map((p) => `${p.lat},${p.lng}`).join(";")}`;
+}
+
 function googleFitBoundsSignature(
   pickup: LatLng | undefined,
   drop: LatLng | undefined,
@@ -216,6 +224,14 @@ function GoogleRideMap({
   // fitBounds on every poll-driven refetch when coordinates haven't
   // actually changed, just been handed a new object identity.
   const lastFitSignatureRef = React.useRef<string | null>(null);
+  // Route-draw reveal animation state — mirrors OsmMap.tsx's identical
+  // pair of refs (see that file's doc comment for the full reasoning): a
+  // plain rAF loop calling Polyline.setPath() directly, never a React
+  // state update per frame, restarted only when the route's actual
+  // geometry changes and cancelable the instant a newer route (or
+  // unmount) supersedes it.
+  const lastRouteSignatureRef = React.useRef<string>("");
+  const routeAnimationFrameRef = React.useRef<number | null>(null);
   // Latest onSelectionIdle — read from a ref inside the map's own "idle"
   // listener (registered once, at map-creation time) so a caller passing
   // a fresh function identity every render never needs to tear down and
@@ -348,12 +364,48 @@ function GoogleRideMap({
             strokeWeight: 5,
           });
         }
-        polylineRef.current.setPath(routePolyline);
+        const polyline = polylineRef.current;
+
+        const signature = googleRouteSignature(routePolyline);
+        if (signature !== lastRouteSignatureRef.current) {
+          // A genuinely new route — interrupt any still-running reveal for
+          // the old one (see OsmMap.tsx's identical guard) and draw this
+          // one in from scratch rather than snapping the full path in
+          // instantly or letting a superseded animation keep writing to
+          // this polyline after a newer route replaced it.
+          lastRouteSignatureRef.current = signature;
+          if (routeAnimationFrameRef.current !== null) {
+            cancelAnimationFrame(routeAnimationFrameRef.current);
+          }
+          const startTime = performance.now();
+          const animate = (now: number) => {
+            const elapsed = now - startTime;
+            const t = Math.min(1, elapsed / ROUTE_DRAW_ANIMATION_MS);
+            const eased = 1 - Math.pow(1 - t, 3);
+            polyline.setPath(computePartialPath(routePolyline, eased));
+            if (t < 1) {
+              routeAnimationFrameRef.current = requestAnimationFrame(animate);
+            } else {
+              routeAnimationFrameRef.current = null;
+            }
+          };
+          routeAnimationFrameRef.current = requestAnimationFrame(animate);
+        } else {
+          polyline.setPath(routePolyline);
+        }
+
         for (const point of routePolyline) bounds.extend(point);
         hasPoint = true;
-      } else if (polylineRef.current) {
-        polylineRef.current.setMap(null);
-        polylineRef.current = null;
+      } else {
+        if (routeAnimationFrameRef.current !== null) {
+          cancelAnimationFrame(routeAnimationFrameRef.current);
+          routeAnimationFrameRef.current = null;
+        }
+        lastRouteSignatureRef.current = "";
+        if (polylineRef.current) {
+          polylineRef.current.setMap(null);
+          polylineRef.current = null;
+        }
       }
 
       if (hasPoint) {
@@ -373,6 +425,10 @@ function GoogleRideMap({
   // no longer renders this component would otherwise leak.
   React.useEffect(() => {
     return () => {
+      if (routeAnimationFrameRef.current !== null) {
+        cancelAnimationFrame(routeAnimationFrameRef.current);
+        routeAnimationFrameRef.current = null;
+      }
       if (polylineRef.current) {
         polylineRef.current.setMap(null);
         polylineRef.current = null;

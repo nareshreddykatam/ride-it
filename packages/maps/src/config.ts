@@ -91,3 +91,13 @@ export const ETA_CONFIG = {
   /** Minimum driver movement (meters) to justify a new ETA calculation even if the time threshold has elapsed. */
   MIN_MOVEMENT_FOR_RECALC_METERS: 200,
 } as const;
+
+/**
+ * How long the "route draws in" reveal animation takes once a real route
+ * polyline lands (both map backends — see OsmMap.tsx and RideMap.tsx's
+ * GoogleRideMap). Purely a client-side visual affordance driven by
+ * requestAnimationFrame — never a React state update per frame — so this
+ * duration has no bearing on API call cost or throttling, unlike every
+ * other constant in this file.
+ */
+export const ROUTE_DRAW_ANIMATION_MS = 900;

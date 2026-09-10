@@ -14,6 +14,27 @@ export interface RideOfferItem {
   drop: GeoPoint;
   fare: FareEstimate;
   /**
+   * Real driver-to-pickup distance in km, from ride_offers.distance_to_
+   * pickup_meters — computed server-side via PostGIS ST_Distance at the
+   * moment this offer was dispatched (see _find_eligible_drivers() /
+   * dispatch_next_batch()). Distinct from fare.distanceKm, which is the
+   * ride's pickup->drop trip distance — never conflate the two. null only
+   * if the underlying column is genuinely null (should not happen for a
+   * real offer, since matching itself requires the driver to have a valid
+   * location — handled defensively anyway, never fabricated).
+   */
+  pickupDistanceKm: number | null;
+  /**
+   * Real road ETA in minutes for the driver's current position -> pickup,
+   * via the Routes API (fetchEta(), same integration the passenger booking
+   * flow already uses) — fetched once per offer, not continuously (the
+   * 15s offer window makes re-fetching pointless). null whenever a real
+   * value isn't available (Routes API not configured, request failed, or
+   * still loading) — the card must render an honest "distance only" state
+   * in that case, never a guessed number.
+   */
+  pickupEtaMinutes: number | null;
+  /**
    * Real server-authoritative expiry (ride_offers.expires_at) — when
    * provided, the countdown reflects actual remaining time instead of
    * restarting a fixed local 15s clock. The accept_ride_offer() RPC
@@ -82,6 +103,18 @@ function OfferCountdownCard({
   const visuals = VEHICLE_VISUALS[vehicleKind];
   const urgent = secondsLeft <= 5;
 
+  // Honest pickup-approach line — real PostGIS distance always available
+  // for a genuine offer; ETA only when the Routes API call actually
+  // succeeded. Never fabricated: no distance means "unavailable," no ETA
+  // means the distance stands alone rather than showing a guessed minute
+  // figure.
+  const pickupDistanceLabel =
+    offer.pickupDistanceKm == null
+      ? "Pickup distance unavailable"
+      : offer.pickupEtaMinutes != null
+        ? `${offer.pickupDistanceKm.toFixed(1)} km away · ~${offer.pickupEtaMinutes} min`
+        : `${offer.pickupDistanceKm.toFixed(1)} km away`;
+
   return (
     <div>
       <div className="flex items-center justify-end px-1">
@@ -102,11 +135,11 @@ function OfferCountdownCard({
       <RideOfferCard
         className="mt-2"
         vehicleIcon={visuals.icon}
-        vehicleLabel={`${VEHICLE_TYPE_LABELS_DB[vehicleKind]} · ${offer.fare.etaMinutes} min away`}
+        vehicleLabel={VEHICLE_TYPE_LABELS_DB[vehicleKind]}
         vehicleColorVar={visuals.colorVar}
         vehicleTintVar={visuals.tintVar}
         pickupLabel={offer.pickup.address ?? `${offer.pickup.lat}, ${offer.pickup.lng}`}
-        pickupDistance={`${offer.fare.distanceKm} km`}
+        pickupDistance={pickupDistanceLabel}
         dropLabel={offer.drop.address ?? `${offer.drop.lat}, ${offer.drop.lng}`}
         fare={`₹${offer.fare.totalFare.toFixed(2)}`}
         onAccept={() => onAccept(offer)}

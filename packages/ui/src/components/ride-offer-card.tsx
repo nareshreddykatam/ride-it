@@ -9,6 +9,7 @@ import { PinGlyph } from "../icons/map-markers";
 
 export interface RideOfferCardProps {
   pickupLabel: string;
+  /** Fully-formatted pickup-approach line (e.g. "2.4 km away · ~7 min", "2.4 km away", or "Pickup distance unavailable") — the caller decides wording/fallback, this component just renders it verbatim under the pickup address. */
   pickupDistance?: string;
   dropLabel: string;
   fare: string;
@@ -88,7 +89,7 @@ export function RideOfferCard({
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-bold uppercase tracking-wider text-ink-soft">Pickup</p>
             <p className="truncate text-sm font-semibold text-ink">{pickupLabel}</p>
-            {pickupDistance && <p className="text-xs text-signal-blue font-medium">{pickupDistance} away</p>}
+            {pickupDistance && <p className="text-xs text-signal-blue font-medium">{pickupDistance}</p>}
           </div>
         </div>
 
