@@ -3,14 +3,30 @@ import type { RideRow, RideOfferRow, RideStatusRow } from "./types";
 import { freshChannel } from "./realtime";
 
 /**
- * Kicks off matching for a freshly-created ride — calls dispatch_next_batch()
- * once immediately (rather than waiting for the first heartbeat interval to
- * elapse) so the Matching screen doesn't sit idle for a full tick before
- * anything happens. Safe to call even if a batch already exists (the RPC is
- * idempotent — it only proceeds if the ride is still requested/matched).
+ * Kicks off matching for a freshly-created ride, once, immediately, so the
+ * Matching screen doesn't sit idle for a full heartbeat tick before
+ * anything happens. Idempotent — it only proceeds while the ride is still
+ * requested/matched.
+ *
+ * Goes through advance_ride_matching() rather than calling
+ * dispatch_next_batch() directly. AUDIT-007: dispatch_next_batch() had no
+ * caller authorization of its own, so granting it to `authenticated` let
+ * ANY signed-in user drive ANOTHER passenger's matching forward — verified
+ * against production, where both a second passenger and an unrelated driver
+ * got HTTP 200 on a stranger's ride id. Sustained, that can push a ride
+ * past matching_max_batches, which cancels it outright.
+ *
+ * EXECUTE on dispatch_next_batch is now revoked from every client role, so
+ * it is reachable only as advance_ride_matching()'s SECURITY DEFINER owner.
+ * advance_ride_matching() already scopes the ride to
+ * `passenger_id = auth.uid()` (migration 20260907093000) and dispatches a
+ * batch when no offer is live — which, on a freshly created ride, is
+ * exactly the immediate first dispatch this function existed to trigger.
+ * One authorized door instead of two, rather than a second copy of the
+ * same ownership check.
  */
 export async function startMatching(supabase: SupabaseClient, rideId: string): Promise<void> {
-  const { error } = await supabase.rpc("dispatch_next_batch", { p_ride_id: rideId });
+  const { error } = await supabase.rpc("advance_ride_matching", { p_ride_id: rideId });
   if (error) throw error;
 }
 
