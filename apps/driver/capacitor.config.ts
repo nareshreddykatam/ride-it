@@ -9,25 +9,35 @@ import type { CapacitorConfig } from "@capacitor/cli";
 // that decision being finalized and was explicitly flagged in a comment
 // as "don't treat as correct until that decision is made" — this is that
 // decision: the app ships NO local web assets at all. `server.url` below
-// points the WebView directly at the deployed Preview deployment; webDir
-// is required by CapacitorConfig's type but is never read in this mode
-// (no local `npx cap copy` step is meaningful here), so it's pointed at
-// an existing, harmless directory rather than a nonexistent "out".
+// points the WebView directly at the deployed app; webDir is required by
+// CapacitorConfig's type but is never read in this mode (no local
+// `npx cap copy` step is meaningful here), so it's pointed at an existing,
+// harmless directory rather than a nonexistent "out".
 //
-// Phase 1 test target only — NOT the production custom domain. Point
-// this at whichever deployment you're testing against for this phase;
-// swap it for a different Preview URL (or eventually a production one,
-// as its own separate decision) rather than editing app logic.
+// REAL BUG FOUND AND FIXED (Android Phase 1 real-device audit): this
+// previously hardcoded a ONE-OFF Preview deployment's own unique URL
+// (…-mzfnzujcf-…), which Vercel deployments are immutable — that exact
+// URL was permanently frozen to whatever commit was HEAD when it was
+// created (`vercel inspect` confirmed: created 2026-09-08, target
+// "preview") and could never reflect anything pushed after it, including
+// ride-chat, speedometer/multi-offer, the Phase 1 security-audit fixes,
+// and everything merged to `main` since. The installed APK was silently
+// running that stale snapshot while a Chrome comparison against a fresh
+// deploy (or localhost) used current code.
+//
+// Fixed by pointing at Vercel's own auto-updating git-branch alias for
+// `main` (`<project>-git-main-<team>.vercel.app`, confirmed live via
+// `vercel alias ls` / direct fetch) instead of a specific deployment's
+// pinned URL — Vercel repoints this alias itself on every future push to
+// `main`. Still a Preview-class Vercel URL, not a production custom
+// domain (none is configured on this project) — swap this for a real
+// production domain as its own separate decision when one exists.
 const config: CapacitorConfig = {
   appId: "com.rideit.driver",
   appName: "Ridora Driver",
   webDir: "public",
   server: {
-    // Confirmed directly reachable without hitting Vercel's Preview
-    // Deployment Protection wall (unlike the Admin/Marketing Preview
-    // projects, which do have it enabled) during an earlier browser
-    // smoke test — no bypass/secret needed for this URL.
-    url: "https://ride-it-driver-mzfnzujcf-nareshreddykatams-projects.vercel.app",
+    url: "https://ride-it-driver-git-main-nareshreddykatams-projects.vercel.app",
     androidScheme: "https",
   },
   plugins: {

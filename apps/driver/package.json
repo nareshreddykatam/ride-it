@@ -8,7 +8,7 @@
     "start": "next start -p 3002",
     "lint": "next lint",
     "type-check": "tsc --noEmit",
-    "cap:sync": "echo 'Not yet implemented — see next.config.mjs note on static export vs middleware; revisit when the native build is actually set up' && exit 1"
+    "cap:sync": "cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^6.0.0",
