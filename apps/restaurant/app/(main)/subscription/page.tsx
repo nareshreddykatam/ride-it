@@ -20,6 +20,7 @@ export default function SubscriptionPage() {
   const [activeSub, setActiveSub] = React.useState<any>(null);
   const [purchasingId, setPurchasingId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [paymentsConfigured, setPaymentsConfigured] = React.useState<boolean | null>(null);
 
   const refresh = React.useCallback(() => {
     if (!current) return;
@@ -33,6 +34,13 @@ export default function SubscriptionPage() {
   React.useEffect(() => {
     refresh();
   }, [refresh]);
+
+  React.useEffect(() => {
+    fetch("/api/system-health")
+      .then((res) => (res.ok ? res.json() : { payments: false }))
+      .then((data) => setPaymentsConfigured(!!data.payments))
+      .catch(() => setPaymentsConfigured(false));
+  }, []);
 
   async function handlePurchase(plan: RestaurantSubscriptionPlan) {
     if (!current) return;
@@ -95,6 +103,16 @@ export default function SubscriptionPage() {
         </Card>
       )}
 
+      {paymentsConfigured === false && (
+        <Card className="mt-4" accent="marigold">
+          <p className="text-sm font-semibold text-ink">Online subscription payments are not available yet</p>
+          <p className="mt-1 text-xs text-ink-soft">
+            This environment doesn't have online payment credentials configured. Subscribing is temporarily disabled —
+            contact Ridora support if you need a plan activated in the meantime.
+          </p>
+        </Card>
+      )}
+
       {error && <p className="mt-4 text-sm font-medium text-alert-red-text">{error}</p>}
 
       <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -113,8 +131,13 @@ export default function SubscriptionPage() {
                 ))}
               </ul>
             )}
-            <Button className="mt-4 w-full" loading={purchasingId === plan.id} onClick={() => handlePurchase(plan)}>
-              <CreditCard size={15} /> Subscribe
+            <Button
+              className="mt-4 w-full"
+              loading={purchasingId === plan.id}
+              disabled={paymentsConfigured === false}
+              onClick={() => handlePurchase(plan)}
+            >
+              <CreditCard size={15} /> {paymentsConfigured === false ? "Unavailable" : "Subscribe"}
             </Button>
           </Card>
         ))}

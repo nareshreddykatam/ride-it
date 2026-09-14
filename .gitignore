@@ -17,3 +17,6 @@ android/.gradle
 supabase/.branches
 supabase/.temp
 *.tsbuildinfo
+
+.vercel
+.env*
