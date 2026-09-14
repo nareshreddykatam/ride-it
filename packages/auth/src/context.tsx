@@ -45,10 +45,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // on — never from users.role, which stays whatever role this
       // identity originally signed up under and is no longer the gate for
       // passenger/driver app access (see hooks.tsx's hasRoleCapability).
-      const [usersResult, passengerResult, driverResult] = await Promise.all([
+      const [usersResult, passengerResult, driverResult, restaurantOwnerResult] = await Promise.all([
         supabase.from("users").select("id, role, full_name, email, phone").eq("id", userId).maybeSingle(),
         supabase.from("passengers").select("id").eq("id", userId).maybeSingle(),
         supabase.from("drivers").select("id").eq("id", userId).maybeSingle(),
+        supabase.from("restaurant_owners").select("id").eq("id", userId).maybeSingle(),
       ]);
 
       if (generation !== loadProfileGenerationRef.current) return; // superseded by a newer call
@@ -85,6 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               // rather than granting access on a guess.
               isPassenger: !!passengerResult.data,
               isDriver: !!driverResult.data,
+              isRestaurantOwner: !!restaurantOwnerResult.data,
             }
           : null
       );

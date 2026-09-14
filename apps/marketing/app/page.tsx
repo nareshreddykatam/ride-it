@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { UtensilsCrossed } from "lucide-react";
 import {
   AutoIcon,
   BikeIcon,
@@ -171,6 +172,34 @@ export default async function MarketingHomePage() {
                 </li>
               ))}
             </ol>
+          </div>
+        </div>
+      </section>
+
+      {/* Ridora Food teaser — a compact cross-promotion, not a competing
+          hero. The dedicated /food page carries the full pitch and the
+          restaurant-partner CTA; this is just the on-ramp from the ride
+          homepage. */}
+      <section className="bg-surface py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="flex flex-col items-start justify-between gap-6 rounded-2xl border border-border bg-paper p-8 sm:flex-row sm:items-center sm:p-10">
+            <div className="flex items-center gap-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-tint-marigold text-marigold-text">
+                <UtensilsCrossed size={22} aria-hidden="true" />
+              </span>
+              <div>
+                <p className="font-meter text-xs font-medium uppercase tracking-wide text-marigold-text">New</p>
+                <h2 className="mt-1 font-display text-2xl font-medium text-ink sm:text-3xl">Ridora Food is here</h2>
+                <p className="mt-1 max-w-md text-sm text-ink-soft">
+                  Order from restaurants near you, right inside the Ridora Passenger app.
+                </p>
+              </div>
+            </div>
+            <Link href="/food" className="shrink-0">
+              <Button size="lg" variant="marigold">
+                Explore Ridora Food
+              </Button>
+            </Link>
           </div>
         </div>
       </section>

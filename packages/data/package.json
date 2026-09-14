@@ -6,6 +6,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@ride-it/supabase": "workspace:*",
+    "@ride-it/types": "workspace:*",
     "@supabase/supabase-js": "^2.44.0",
     "firebase": "^10.12.0"
   },

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type PhoneAuthRole = "passenger" | "driver";
+export type PhoneAuthRole = "passenger" | "driver" | "restaurant_owner";
 
 /**
  * India-only assumption matches the existing UI ("+91" is already

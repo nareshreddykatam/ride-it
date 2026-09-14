@@ -1,4 +1,4 @@
-export type AppRole = "passenger" | "driver" | "admin";
+export type AppRole = "passenger" | "driver" | "admin" | "restaurant_owner";
 
 /**
  * The app-facing profile shape — deliberately narrower and friendlier than
@@ -17,4 +17,6 @@ export interface AuthProfile {
   isPassenger: boolean;
   /** Whether a public.drivers row exists for this identity — the real driver-app capability signal (one Auth identity can be both). */
   isDriver: boolean;
+  /** Whether a public.restaurant_owners row exists for this identity — the real Restaurant-app capability signal, same row-existence pattern as isPassenger/isDriver. */
+  isRestaurantOwner: boolean;
 }

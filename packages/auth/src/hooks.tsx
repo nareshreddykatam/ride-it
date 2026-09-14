@@ -18,6 +18,7 @@ function hasRoleCapability(profile: AuthProfile | null, role: AppRole): boolean 
   if (!profile) return false;
   if (role === "admin") return profile.role === "admin";
   if (role === "passenger") return profile.isPassenger;
+  if (role === "restaurant_owner") return profile.isRestaurantOwner;
   return profile.isDriver;
 }
 

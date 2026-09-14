@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, UtensilsCrossed } from "lucide-react";
 import {
   AutoIcon,
   BikeIcon,
@@ -18,6 +18,7 @@ import {
 
 const LINKS = [
   { href: "/how-it-works", label: "How it works", icon: RideIcon },
+  { href: "/food", label: "Food", icon: UtensilsCrossed },
   { href: "/for-drivers", label: "For drivers", icon: DriverIcon },
   { href: "/cities", label: "Cities", icon: LocationIcon },
   { href: "/about", label: "About", icon: OfficeIcon },
@@ -175,6 +176,8 @@ export function SiteFooter() {
             <div className="mt-3 flex flex-col gap-2 text-sm">
               <Link href="/safety" className="text-ink-soft transition-colors hover:text-ink">Safety</Link>
               <Link href="/for-drivers" className="text-ink-soft transition-colors hover:text-ink">Driver plans</Link>
+              <Link href="/food" className="text-ink-soft transition-colors hover:text-ink">Ridora Food</Link>
+              <a href="https://restaurant.ridora.in" className="text-ink-soft transition-colors hover:text-ink">Partner with Ridora</a>
             </div>
           </div>
           <div>

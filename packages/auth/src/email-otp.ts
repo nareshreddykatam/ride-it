@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type EmailAuthRole = "passenger" | "driver";
+export type EmailAuthRole = "passenger" | "driver" | "restaurant_owner";
 
 export interface RequestEmailOtpOptions {
   /** Only meaningful for role: "driver" — see handle_new_auth_user() migration comment on why it defaults server-side if omitted. */

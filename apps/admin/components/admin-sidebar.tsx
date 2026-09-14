@@ -23,9 +23,12 @@ import {
   Menu,
   X,
   Gift,
+  Store,
+  UtensilsCrossed,
+  ShoppingBag,
 } from "lucide-react";
 
-const NAV_ITEMS = [
+const OPERATIONS_ITEMS = [
   { href: "/overview", label: "Overview", icon: LayoutDashboard },
   { href: "/command-center", label: "Command Center", icon: Activity },
   { href: "/klu-pilot", label: "KLU Pilot", icon: GraduationCap },
@@ -36,23 +39,28 @@ const NAV_ITEMS = [
   { href: "/support", label: "Support", icon: Headset },
   { href: "/subscriptions", label: "Subscriptions", icon: CreditCard },
   { href: "/referrals", label: "Referrals", icon: Gift },
+];
+
+const FOOD_ITEMS = [
+  { href: "/food/restaurants", label: "Restaurants", icon: Store },
+  { href: "/food/menu-categories", label: "Food Categories", icon: UtensilsCrossed },
+  { href: "/food/orders", label: "Food Orders", icon: ShoppingBag },
+  { href: "/food/subscriptions", label: "Food Subscriptions", icon: CreditCard },
+];
+
+const PLATFORM_ITEMS = [
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/cities", label: "Cities", icon: MapPin },
   { href: "/admin-users", label: "Admin Users", icon: ShieldCheck },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
-// Nav items grouped into two labeled sections so the list scans faster —
-// operational monitoring vs. platform configuration.
-const NAV_SECTIONS: { label: string; items: typeof NAV_ITEMS }[] = [
-  {
-    label: "Operations",
-    items: NAV_ITEMS.slice(0, 10),
-  },
-  {
-    label: "Platform",
-    items: NAV_ITEMS.slice(10),
-  },
+// Nav items grouped into labeled sections so the list scans faster —
+// operational monitoring, Food administration, and platform configuration.
+const NAV_SECTIONS: { label: string; items: typeof OPERATIONS_ITEMS }[] = [
+  { label: "Operations", items: OPERATIONS_ITEMS },
+  { label: "Food", items: FOOD_ITEMS },
+  { label: "Platform", items: PLATFORM_ITEMS },
 ];
 
 export function AdminSidebar() {

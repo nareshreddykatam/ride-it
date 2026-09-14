@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        app: [passenger, driver, admin, marketing]
+        app: [passenger, driver, admin, marketing, restaurant]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

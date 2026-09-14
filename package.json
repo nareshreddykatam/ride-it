@@ -12,6 +12,7 @@
     "dev:driver": "turbo run dev --filter=@ride-it/driver",
     "dev:admin": "turbo run dev --filter=@ride-it/admin",
     "dev:marketing": "turbo run dev --filter=@ride-it/marketing",
+    "dev:restaurant": "turbo run dev --filter=@ride-it/restaurant",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",

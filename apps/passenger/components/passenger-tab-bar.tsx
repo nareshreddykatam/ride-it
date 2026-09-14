@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
-import { Home, Clock, User } from "lucide-react";
+import { Home, UtensilsCrossed, Clock, User } from "lucide-react";
 import { cn } from "@ride-it/ui";
 
 const TABS = [
   { href: "/home", label: "Home", icon: Home },
+  { href: "/food", label: "Food", icon: UtensilsCrossed },
   { href: "/history", label: "History", icon: Clock },
   { href: "/profile", label: "Profile", icon: User },
 ];

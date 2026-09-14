@@ -316,6 +316,76 @@ importers:
         specifier: ^5.5.0
         version: 5.9.3
 
+  apps/restaurant:
+    dependencies:
+      '@ride-it/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@ride-it/data':
+        specifier: workspace:*
+        version: link:../../packages/data
+      '@ride-it/maps':
+        specifier: workspace:*
+        version: link:../../packages/maps
+      '@ride-it/payments':
+        specifier: workspace:*
+        version: link:../../packages/payments
+      '@ride-it/supabase':
+        specifier: workspace:*
+        version: link:../../packages/supabase
+      '@ride-it/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      '@ride-it/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      framer-motion:
+        specifier: ^11.2.0
+        version: 11.18.2(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      lucide-react:
+        specifier: ^0.383.0
+        version: 0.383.0(react@18.3.1)
+      next:
+        specifier: ^14.2.0
+        version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      react:
+        specifier: ^18.3.0
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.0
+        version: 18.3.1(react@18.3.1)
+      recharts:
+        specifier: ^2.12.0
+        version: 2.15.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+    devDependencies:
+      '@ride-it/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@types/google.maps':
+        specifier: ^3.65.5
+        version: 3.65.5
+      '@types/node':
+        specifier: ^20.14.0
+        version: 20.19.43
+      '@types/react':
+        specifier: ^18.3.0
+        version: 18.3.31
+      '@types/react-dom':
+        specifier: ^18.3.0
+        version: 18.3.7(@types/react@18.3.31)
+      autoprefixer:
+        specifier: ^10.4.19
+        version: 10.5.4(postcss@8.5.26)
+      postcss:
+        specifier: ^8.4.38
+        version: 8.5.26
+      tailwindcss:
+        specifier: ^3.4.4
+        version: 3.4.19
+      typescript:
+        specifier: ^5.5.0
+        version: 5.9.3
+
   packages/auth:
     dependencies:
       '@ride-it/supabase':
@@ -352,6 +422,9 @@ importers:
       '@ride-it/supabase':
         specifier: workspace:*
         version: link:../supabase
+      '@ride-it/types':
+        specifier: workspace:*
+        version: link:../types
       '@supabase/supabase-js':
         specifier: ^2.44.0
         version: 2.112.2

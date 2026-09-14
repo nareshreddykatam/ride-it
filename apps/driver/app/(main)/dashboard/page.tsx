@@ -4,9 +4,10 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Star } from "lucide-react";
 import { OnlineToggle, MeterValue, Skeleton, StatCard, StatusPill, Button, Card, WalletIcon, RideIcon } from "@ride-it/ui";
+import { UtensilsCrossed, Bike } from "lucide-react";
 import { useAuth } from "@ride-it/auth";
 import { getSupabaseBrowserClient } from "@ride-it/supabase/client";
-import { VehicleType } from "@ride-it/types";
+import { VehicleType, DriverWorkMode, driverWorkModeFromDb } from "@ride-it/types";
 import { watchDriverLocation, LOCATION_CONFIG, RideMap, fetchEta, type LatLng } from "@ride-it/maps";
 import {
   getDriverProfile,
@@ -23,12 +24,24 @@ import {
   subscribeToDriverOfferUpdates,
   isDriverPersonalInfoComplete,
   getActiveVehicle,
+  setDriverWorkMode,
+  getActiveFoodDeliveryOffers,
+  subscribeToFoodDeliveryOffers,
+  subscribeToFoodDeliveryOfferUpdates,
+  acceptFoodDeliveryOffer,
+  rejectFoodDeliveryOffer,
+  driverMarkPickedUp,
+  driverMarkDelivered,
+  getActiveFoodDelivery,
   type DriverProfileRow,
   type SubscriptionRow,
   type RideOfferRow,
   type VehicleRow,
+  type FoodDeliveryOffer,
 } from "@ride-it/data";
 import { RideRequestSheet, type RideOfferItem } from "../../../components/ride-request-sheet";
+import { FoodDeliverySheet } from "../../../components/food-delivery-sheet";
+import { ActiveFoodDeliveryCard, type ActiveFoodDeliveryInfo } from "../../../components/active-food-delivery-card";
 
 /**
  * Maps a raw ride_offers row to the shape RideRequestSheet renders.
@@ -132,6 +145,23 @@ export default function DashboardPage() {
   const [pickupEtaByOffer, setPickupEtaByOffer] = React.useState<Record<string, number | null>>({});
   const etaRequestedForRef = React.useRef<Set<string>>(new Set());
 
+  // Food Delivery Mode — server-authoritative mutual exclusion with Ride
+  // Mode (see supabase/migrations/20260914090900_driver_food_mode.sql).
+  // Ride-mode state/effects above are completely untouched by any of this;
+  // the food equivalents below only ever run when workMode === FOOD.
+  const workMode = profile ? driverWorkModeFromDb(profile.work_mode) : DriverWorkMode.RIDE;
+  const [switchingMode, setSwitchingMode] = React.useState(false);
+  const [foodOffers, setFoodOffers] = React.useState<FoodDeliveryOffer[]>([]);
+  const [activeDelivery, setActiveDelivery] = React.useState<ActiveFoodDeliveryInfo | null>(null);
+  const [deliveryActionBusy, setDeliveryActionBusy] = React.useState(false);
+  // A driver with an accepted ride is already off this screen (handleAccept
+  // navigates to /navigation), so the only "active work" this screen can
+  // ever observe directly is an in-progress food delivery. Used only to
+  // disable the mode-switch control client-side for a clearer UX — the
+  // server (enforce_driver_work_mode_switch) is the actual enforcement and
+  // re-checks both ride and delivery state regardless of this flag.
+  const hasActiveWork = activeDelivery !== null;
+
   // Single profile fetch, reused both to populate the dashboard AND to
   // compute the driver's lifecycle state below -- these used to be two
   // separate effects that each called getDriverProfile() independently,
@@ -222,6 +252,92 @@ export default function DashboardPage() {
       unsubscribeUpdates();
     };
   }, [supabase, user]);
+
+  // Food Delivery Mode: active delivery + delivery offers. Fetched/
+  // subscribed only while workMode === FOOD — a driver in Ride mode never
+  // touches food_delivery_assignments at all, so this cannot interfere
+  // with the ride-mode behavior above regardless of bugs here.
+  const refreshActiveDelivery = React.useCallback(() => {
+    if (!user) return;
+    getActiveFoodDelivery(supabase, user.id).then(setActiveDelivery);
+  }, [supabase, user]);
+
+  React.useEffect(() => {
+    if (workMode !== DriverWorkMode.FOOD || !user) {
+      setActiveDelivery(null);
+      setFoodOffers([]);
+      return;
+    }
+    refreshActiveDelivery();
+    getActiveFoodDeliveryOffers(supabase).then(setFoodOffers);
+
+    const unsubscribeNew = subscribeToFoodDeliveryOffers(supabase, user.id, (offer) => {
+      if (offer.status !== "offered") return;
+      setFoodOffers((prev) => (prev.some((o) => o.id === offer.id) ? prev : [...prev, offer]));
+    });
+    const unsubscribeUpdates = subscribeToFoodDeliveryOfferUpdates(supabase, user.id, (offer) => {
+      if (offer.status === "offered") return;
+      setFoodOffers((prev) => prev.filter((o) => o.id !== offer.id));
+    });
+    return () => {
+      unsubscribeNew();
+      unsubscribeUpdates();
+    };
+  }, [supabase, user, workMode, refreshActiveDelivery]);
+
+  async function handleSwitchMode(next: DriverWorkMode) {
+    if (!user || next === workMode || switchingMode) return;
+    setSwitchingMode(true);
+    try {
+      await setDriverWorkMode(supabase, next);
+      setProfile((prev) => (prev ? { ...prev, work_mode: next === DriverWorkMode.FOOD ? "food" : "ride" } : prev));
+    } catch {
+      // Server rejected the switch (active ride/delivery in progress) —
+      // enforce_driver_work_mode_switch() is the real enforcement; nothing
+      // further to do here since the UI already reflects the unchanged mode.
+    } finally {
+      setSwitchingMode(false);
+    }
+  }
+
+  async function handleAcceptFoodOffer(offer: FoodDeliveryOffer) {
+    const claimed = await acceptFoodDeliveryOffer(supabase, offer.orderId).catch(() => null);
+    if (claimed) {
+      const others = foodOffers.filter((o) => o.id !== offer.id);
+      setFoodOffers([]);
+      void Promise.allSettled(others.map((o) => rejectFoodDeliveryOffer(supabase, o.orderId)));
+      refreshActiveDelivery();
+      return;
+    }
+    setFoodOffers((prev) => prev.filter((o) => o.id !== offer.id));
+  }
+
+  async function handleRejectFoodOffer(offer: FoodDeliveryOffer) {
+    setFoodOffers((prev) => prev.filter((o) => o.id !== offer.id));
+    rejectFoodDeliveryOffer(supabase, offer.orderId).catch(() => {});
+  }
+
+  async function handleMarkPickedUp() {
+    if (!activeDelivery) return;
+    setDeliveryActionBusy(true);
+    try {
+      await driverMarkPickedUp(supabase, activeDelivery.orderId);
+      refreshActiveDelivery();
+    } finally {
+      setDeliveryActionBusy(false);
+    }
+  }
+
+  async function handleMarkDelivered() {
+    if (!activeDelivery) return;
+    setDeliveryActionBusy(true);
+    try {
+      await driverMarkDelivered(supabase, activeDelivery.orderId);
+      setActiveDelivery(null);
+    } finally {
+      setDeliveryActionBusy(false);
+    }
+  }
 
   // Fetches a real pickup ETA for each newly-seen offer, once — not on a
   // GPS-tick cadence (see pickupEtaByOffer's doc comment above for why a
@@ -377,10 +493,46 @@ export default function DashboardPage() {
               className={`h-1.5 w-1.5 rounded-full ${profile?.is_online ? "bg-meter-green" : "bg-ink-soft"}`}
               aria-hidden="true"
             />
-            {profile?.is_online ? "Looking for rides nearby" : "You're offline"}
+            {profile?.is_online
+              ? workMode === DriverWorkMode.FOOD
+                ? "Looking for deliveries nearby"
+                : "Looking for rides nearby"
+              : "You're offline"}
           </span>
         </div>
       </div>
+
+      {/* Ride/Food mode switch — mutually exclusive, server-enforced
+          (enforce_driver_work_mode_switch). Disabled while an active food
+          delivery is in progress (hasActiveWork) — a driver with an
+          accepted ride is already off this screen. */}
+      {verificationApproved && (
+        <div className="mt-5 flex rounded-xl border border-border bg-surface p-1">
+          <button
+            type="button"
+            disabled={switchingMode || hasActiveWork}
+            onClick={() => handleSwitchMode(DriverWorkMode.RIDE)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              workMode === DriverWorkMode.RIDE ? "bg-signal-blue text-white" : "text-ink-soft"
+            }`}
+          >
+            <Bike size={15} /> Ride Mode
+          </button>
+          <button
+            type="button"
+            disabled={switchingMode || hasActiveWork}
+            onClick={() => handleSwitchMode(DriverWorkMode.FOOD)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors disabled:opacity-50 ${
+              workMode === DriverWorkMode.FOOD ? "bg-marigold text-white" : "text-ink-soft"
+            }`}
+          >
+            <UtensilsCrossed size={15} /> Food Delivery Mode
+          </button>
+        </div>
+      )}
+      {hasActiveWork && (
+        <p className="mt-1.5 text-center text-xs text-ink-soft">Finish your current delivery to switch modes.</p>
+      )}
 
       {loadError && (
         <div className="mb-4 mt-5 flex items-center justify-between rounded-lg border border-alert-red/30 bg-alert-red/5 px-4 py-3 text-sm text-alert-red">
@@ -532,15 +684,28 @@ export default function DashboardPage() {
         />
       </div>
 
-      <RideRequestSheet
-        offers={offers.map((o) => toOfferItem(o, pickupEtaByOffer[o.id] ?? null))}
-        onAccept={handleAccept}
-        onReject={handleReject}
-        onExpire={handleReject}
-        hasMore={offersHasMore}
-        onLoadMore={handleLoadMoreOffers}
-        loadingMore={loadingMoreOffers}
-      />
+      {workMode === DriverWorkMode.FOOD && activeDelivery && (
+        <ActiveFoodDeliveryCard delivery={activeDelivery} onMarkPickedUp={handleMarkPickedUp} onMarkDelivered={handleMarkDelivered} busy={deliveryActionBusy} />
+      )}
+
+      {/* Exactly one of these ever renders offers, gated on workMode — a
+          driver in FOOD mode never sees ride_offers (the server never
+          creates any for them either, via _find_eligible_drivers'
+          work_mode='ride' filter), and vice versa. */}
+      {workMode === DriverWorkMode.RIDE && (
+        <RideRequestSheet
+          offers={offers.map((o) => toOfferItem(o, pickupEtaByOffer[o.id] ?? null))}
+          onAccept={handleAccept}
+          onReject={handleReject}
+          onExpire={handleReject}
+          hasMore={offersHasMore}
+          onLoadMore={handleLoadMoreOffers}
+          loadingMore={loadingMoreOffers}
+        />
+      )}
+      {workMode === DriverWorkMode.FOOD && !activeDelivery && (
+        <FoodDeliverySheet offers={foodOffers} onAccept={handleAcceptFoodOffer} onReject={handleRejectFoodOffer} onExpire={handleRejectFoodOffer} />
+      )}
     </main>
   );
 }

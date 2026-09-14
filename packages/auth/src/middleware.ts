@@ -19,7 +19,7 @@ export interface AuthMiddlewareOptions {
    * check takes over. Omit for admin, which stays a strict, non-
    * combinable role match — unchanged behavior.
    */
-  capabilityTable?: "passengers" | "drivers";
+  capabilityTable?: "passengers" | "drivers" | "restaurant_owners";
   /** Required together with capabilityTable: the one path a capability-less-but-authenticated user is allowed to reach, to create that row. */
   onboardingPath?: string;
 }

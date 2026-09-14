@@ -18,6 +18,7 @@ export interface DriverProfileRow {
   total_rides: number;
   strike_count: number;
   is_online: boolean;
+  work_mode: "ride" | "food";
   upi_id: string | null;
   upi_verified: boolean;
   accepts_cash: boolean;
@@ -30,7 +31,7 @@ export interface DriverProfileRow {
 }
 
 const DRIVER_PROFILE_COLUMNS =
-  "id, vehicle_type, verification_status, verification_notes, rating, total_rides, strike_count, is_online, upi_id, upi_verified, accepts_cash, accepts_driver_upi, accepts_online, upi_qr_path, upi_qr_status, upi_qr_uploaded_at, upi_qr_rejection_reason, created_at, users!drivers_id_fkey(full_name, phone, email, date_of_birth, gender)";
+  "id, vehicle_type, verification_status, verification_notes, rating, total_rides, strike_count, is_online, work_mode, upi_id, upi_verified, accepts_cash, accepts_driver_upi, accepts_online, upi_qr_path, upi_qr_status, upi_qr_uploaded_at, upi_qr_rejection_reason, created_at, users!drivers_id_fkey(full_name, phone, email, date_of_birth, gender)";
 
 export async function getDriverProfile(supabase: SupabaseClient, driverId: string): Promise<DriverProfileRow | null> {
   const { data, error } = await supabase
@@ -51,6 +52,7 @@ export async function getDriverProfile(supabase: SupabaseClient, driverId: strin
     total_rides: number;
     strike_count: number;
     is_online: boolean;
+    work_mode: "ride" | "food";
     upi_id: string | null;
     upi_verified: boolean;
     accepts_cash: boolean;
@@ -75,6 +77,7 @@ export async function getDriverProfile(supabase: SupabaseClient, driverId: strin
     total_rides: joined.total_rides,
     strike_count: joined.strike_count,
     is_online: joined.is_online,
+    work_mode: joined.work_mode,
     upi_id: joined.upi_id,
     upi_verified: joined.upi_verified,
     accepts_cash: joined.accepts_cash,

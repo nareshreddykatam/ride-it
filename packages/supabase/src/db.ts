@@ -42,7 +42,7 @@ export async function listWhere<T = Record<string, unknown>>(
   let query = supabase.from(table as string).select("*");
 
   for (const [column, value] of Object.entries(filters)) {
-    query = query.eq(column, value);
+    query = query.eq(column, value as never);
   }
   if (options.orderBy) {
     query = query.order(options.orderBy.column, { ascending: options.orderBy.ascending ?? true });
@@ -62,7 +62,7 @@ export async function insertRow<T = Record<string, unknown>>(
   table: TableName,
   values: Record<string, unknown>
 ): Promise<T> {
-  const { data, error } = await supabase.from(table as string).insert(values).select().single();
+  const { data, error } = await supabase.from(table as string).insert(values as never).select().single();
   if (error) throw error;
   return data as T;
 }
@@ -73,7 +73,7 @@ export async function updateRow<T = Record<string, unknown>>(
   id: string,
   values: Record<string, unknown>
 ): Promise<T> {
-  const { data, error } = await supabase.from(table as string).update(values).eq("id", id).select().single();
+  const { data, error } = await supabase.from(table as string).update(values as never).eq("id", id).select().single();
   if (error) throw error;
   return data as T;
 }
